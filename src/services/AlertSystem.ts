@@ -128,7 +128,7 @@ export class BrowserNotificationChannel implements AlertChannel {
       return;
     }
 
-    const title = `Pinnacle AI Pro - ${alert.type.toUpperCase()}`;
+    const title = `AI PINNACLE - ${alert.type.toUpperCase()}`;
     const body = alertSystem.formatAlertMessage(alert);
     const icon = '/favicon.ico';
 
@@ -141,57 +141,8 @@ export class BrowserNotificationChannel implements AlertChannel {
   }
 }
 
-export class AudioChannel implements AlertChannel {
-  name = 'Audio';
-  enabled = true;
-  private audioContext: AudioContext | null = null;
-
-  async send(alert: Alert): Promise<void> {
-    if (!this.enabled) return;
-
-    try {
-      if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-
-      await this.playAlertSound(alert.alert_level);
-    } catch (error) {
-      console.error('Failed to play alert sound:', error);
-    }
-  }
-
-  private async playAlertSound(level: number): Promise<void> {
-    if (!this.audioContext) return;
-
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
-    
-    // Frequência baseada no nível do alerta
-    const frequency = 400 + (level * 100);
-    oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
-    
-    // Volume baseado no nível
-    const volume = 0.1 + (level * 0.02);
-    gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
-    
-    // Duração baseada no nível
-    const duration = 0.1 + (level * 0.02);
-    
-    oscillator.start();
-    oscillator.stop(this.audioContext.currentTime + duration);
-  }
-
-  setEnabled(enabled: boolean) {
-    this.enabled = enabled;
-  }
-}
-
 export const alertSystem = new AlertSystem();
 
-// Registrar canais padrão
+// Registrar apenas canais sem áudio
 alertSystem.registerChannel(new WebSocketChannel());
 alertSystem.registerChannel(new BrowserNotificationChannel());
-alertSystem.registerChannel(new AudioChannel());

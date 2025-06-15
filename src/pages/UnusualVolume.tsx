@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, TrendingUp, Database, RefreshCw } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Database, RefreshCw, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -78,17 +78,17 @@ const UnusualVolume: React.FC = () => {
   };
 
   const VolumeTable = ({ data, title }: { data: VolumeData[], title: string }) => (
-    <Card className="h-full">
+    <Card className="h-full bg-[#1C1C1E] border-[#2E2E2E] hover:border-[#00E0FF]/50 transition-all duration-300 backdrop-blur-sm">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center space-x-2">
-          <TrendingUp className="w-5 h-5 text-orange-600" />
+        <CardTitle className="flex items-center space-x-2 text-[#F5F5F5] font-mono">
+          <TrendingUp className="w-5 h-5 text-[#00E0FF]" />
           <span>{title}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+            <thead className="text-xs text-[#AAAAAA] uppercase bg-[#0A0A0A] border-b border-[#2E2E2E]">
               <tr>
                 <th className="py-3 px-4 text-left font-semibold">Symbol</th>
                 <th className="py-3 px-4 text-right font-semibold">Volume Spike</th>
@@ -98,30 +98,30 @@ const UnusualVolume: React.FC = () => {
                 <th className="py-3 px-4 text-center font-semibold">Exchange</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[#2E2E2E]">
               {data.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={item.id} className="hover:bg-[#2E2E2E]/50 transition-colors">
                   <td className="py-3 px-4">
-                    <span className="font-bold text-gray-900">{item.symbol}</span>
+                    <span className="font-bold text-[#F5F5F5] font-mono">{item.symbol}</span>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <Badge variant="destructive" className="font-mono">
+                    <Badge className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80 text-black font-mono">
                       {item.volumeSpike.toFixed(1)}x
                     </Badge>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <span className="font-mono text-gray-900">{formatVolume(item.volume)}</span>
+                    <span className="font-mono text-[#F5F5F5]">{formatVolume(item.volume)}</span>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <span className="font-mono text-gray-700">{formatPrice(item.price)}</span>
+                    <span className="font-mono text-[#AAAAAA]">{formatPrice(item.price)}</span>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <span className={`font-mono ${item.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`font-mono ${item.change24h >= 0 ? 'text-[#A6FF00]' : 'text-[#FF4D4D]'}`}>
                       {item.change24h >= 0 ? '+' : ''}{item.change24h.toFixed(2)}%
                     </span>
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">{item.exchange}</span>
+                    <span className="text-xs bg-[#2E2E2E] text-[#AAAAAA] px-2 py-1 rounded">{item.exchange}</span>
                   </td>
                 </tr>
               ))}
@@ -133,29 +133,30 @@ const UnusualVolume: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#0A0A0A] via-[#1C1C1E] to-[#0A0A0A]">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-white rounded-t-2xl mb-6">
+        <div className="p-4 border-b border-[#2E2E2E] bg-[#1C1C1E]/90 backdrop-blur-md rounded-t-2xl mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
                 onClick={() => navigate('/')}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5]"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back</span>
+                <span>VOLTAR</span>
               </Button>
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-orange-600 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 bg-gradient-to-r from-[#00E0FF] to-[#A6FF00] rounded-lg flex items-center justify-center relative">
+                  <Eye className="w-5 h-5 text-black" />
+                  <div className="absolute inset-0 bg-[#00E0FF]/20 rounded-lg animate-pulse"></div>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Unusual Volume Monitor</h2>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <span>Tracking 3x+ volume spikes • Auto-refresh every 3 minutes</span>
-                    <span>Last update: {lastUpdate.toLocaleTimeString()}</span>
+                  <h2 className="text-xl font-bold text-[#F5F5F5] font-mono">UNUSUAL VOLUME MONITOR 💥</h2>
+                  <div className="flex items-center space-x-4 text-sm text-[#AAAAAA]">
+                    <span>Rastreando spikes de volume 3x+ • Auto-refresh a cada 3 minutos</span>
+                    <span>Última atualização: {lastUpdate.toLocaleTimeString()}</span>
                   </div>
                 </div>
               </div>
@@ -165,18 +166,18 @@ const UnusualVolume: React.FC = () => {
                 onClick={fetchData}
                 disabled={loading}
                 variant="outline"
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5]"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
+                <span>REFRESH</span>
               </Button>
               <Button
                 onClick={() => navigate('/database')}
                 variant="outline"
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5]"
               >
                 <Database className="w-4 h-4" />
-                <span>Database</span>
+                <span>DATABASE</span>
               </Button>
             </div>
           </div>
@@ -184,12 +185,12 @@ const UnusualVolume: React.FC = () => {
 
         {/* Volume Tables */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-          <VolumeTable data={spotVolume} title="Spot Unusual Volume" />
-          <VolumeTable data={futuresVolume} title="Futures Unusual Volume" />
+          <VolumeTable data={spotVolume} title="SPOT UNUSUAL VOLUME" />
+          <VolumeTable data={futuresVolume} title="FUTURES UNUSUAL VOLUME" />
         </div>
 
         {/* Microcaps */}
-        <VolumeTable data={microcaps} title="Microcap Notable Volume" />
+        <VolumeTable data={microcaps} title="MICROCAP NOTABLE VOLUME" />
       </div>
     </div>
   );
