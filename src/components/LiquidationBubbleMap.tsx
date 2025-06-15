@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { useTrading } from '../contexts/TradingContext';
 import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
+import { usePersistedData } from '../hooks/usePersistedData';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
 import { LiquidationTable } from './liquidation/LiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
@@ -35,9 +37,37 @@ export const LiquidationBubbleMap: React.FC = () => {
   const { flowData } = useRealFlowData();
   const { setSelectedAsset } = useTrading();
   const { saveLiquidation } = useSupabaseStorage();
+  
+  // Usar dados persistidos
+  const { 
+    data: persistedLongLiquidations, 
+    addData: addLongLiquidations 
+  } = usePersistedData<LiquidationBubble>({
+    key: 'liquidations_long',
+    maxAgeMinutes: 5
+  });
+  
+  const { 
+    data: persistedShortLiquidations, 
+    addData: addShortLiquidations 
+  } = usePersistedData<LiquidationBubble>({
+    key: 'liquidations_short',
+    maxAgeMinutes: 5
+  });
+
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
+
+  // Inicializar com dados persistidos
+  useEffect(() => {
+    console.log(`📊 Inicializando liquidações com dados persistidos:`);
+    console.log(`- Long liquidations: ${persistedLongLiquidations.length}`);
+    console.log(`- Short liquidations: ${persistedShortLiquidations.length}`);
+    
+    setLongLiquidations(persistedLongLiquidations);
+    setShortLiquidations(persistedShortLiquidations);
+  }, [persistedLongLiquidations, persistedShortLiquidations]);
 
   // Limpeza automática a cada minuto
   useEffect(() => {
@@ -161,7 +191,7 @@ export const LiquidationBubbleMap: React.FC = () => {
       }
     });
 
-    // Atualizar liquidações acumulando valores
+    // Atualizar liquidações acumulando valores e persistir
     if (newLongLiquidations.length > 0) {
       setLongLiquidations(prev => {
         const updated = [...prev];
@@ -181,9 +211,14 @@ export const LiquidationBubbleMap: React.FC = () => {
         });
         
         // Ordenar por maior valor liquidado total
-        return updated
+        const sorted = updated
           .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
           .slice(0, 50); // Limitar a 50 para performance
+        
+        // Persistir novos dados
+        addLongLiquidations(newLongLiquidations);
+        
+        return sorted;
       });
     }
     
@@ -206,12 +241,17 @@ export const LiquidationBubbleMap: React.FC = () => {
         });
         
         // Ordenar por maior valor liquidado total
-        return updated
+        const sorted = updated
           .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
           .slice(0, 50); // Limitar a 50 para performance
+        
+        // Persistir novos dados
+        addShortLiquidations(newShortLiquidations);
+        
+        return sorted;
       });
     }
-  }, [flowData, processedTickers, saveLiquidation]);
+  }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations]);
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;

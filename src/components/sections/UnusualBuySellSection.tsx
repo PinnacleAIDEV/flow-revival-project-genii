@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Clock, BarChart3, ArrowUp, ArrowDown } from 'lucide-react';
 import { useRealFlowData } from '../../hooks/useRealFlowData';
+import { usePersistedData } from '../../hooks/usePersistedData';
 
 interface UnusualAlert {
   id: string;
@@ -18,6 +18,16 @@ interface UnusualAlert {
 
 export const UnusualBuySellSection: React.FC = () => {
   const { flowData } = useRealFlowData();
+  
+  // Usar dados persistidos
+  const { 
+    data: persistedAlerts, 
+    addData: addAlerts 
+  } = usePersistedData<UnusualAlert>({
+    key: 'unusual_volume_alerts',
+    maxAgeMinutes: 5
+  });
+
   const [alerts, setAlerts] = useState<UnusualAlert[]>([]);
   const [klineHistory, setKlineHistory] = useState<Map<string, Array<{
     volume: number;
@@ -29,7 +39,15 @@ export const UnusualBuySellSection: React.FC = () => {
     open: number;
   }>>>(new Map());
 
+  // Inicializar com dados persistidos
   useEffect(() => {
+    console.log(`📊 Inicializando unusual volume com ${persistedAlerts.length} alertas persistidos`);
+    setAlerts(persistedAlerts);
+  }, [persistedAlerts]);
+
+  useEffect(() => {
+    const newAlerts: UnusualAlert[] = [];
+
     flowData.forEach(data => {
       const symbol = data.ticker;
       const currentVolume = data.kline_volume || data.volume;
@@ -115,18 +133,31 @@ export const UnusualBuySellSection: React.FC = () => {
               priceMovement
             };
             
-            setAlerts(prev => {
-              const exists = prev.some(alert => alert.id === newAlert.id);
-              if (!exists) {
-                return [newAlert, ...prev.slice(0, 49)];
-              }
-              return prev;
-            });
+            // Verificar se já existe
+            const exists = alerts.some(alert => alert.id === newAlert.id) || 
+                          persistedAlerts.some(alert => alert.id === newAlert.id);
+            
+            if (!exists) {
+              newAlerts.push(newAlert);
+            }
           }
         }
       }
     });
-  }, [flowData, klineHistory]);
+
+    // Adicionar novos alertas se houver
+    if (newAlerts.length > 0) {
+      console.log(`🚨 ${newAlerts.length} novos alertas de volume detectados`);
+      
+      setAlerts(prev => {
+        const combined = [newAlert, ...prev];
+        return combined.slice(0, 50); // Limitar a 50
+      });
+      
+      // Persistir novos alertas
+      addAlerts(newAlerts);
+    }
+  }, [flowData, klineHistory, alerts, persistedAlerts, addAlerts]);
 
   const formatPrice = (price: number) => {
     if (price >= 1000) {
