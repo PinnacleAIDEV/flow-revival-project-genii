@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Volume2, DollarSign, Clock, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Volume2, DollarSign, Clock, Zap, Activity } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 
 interface LiveSignal {
@@ -22,16 +22,16 @@ export const LiveSignalsFeed: React.FC = () => {
     // Processar alertas em sinais ao vivo
     alerts.forEach(alert => {
       const newSignal: LiveSignal = {
-        id: `${alert.asset}-${alert.timestamp}-${Math.random()}`,
+        id: `${alert.ticker}-${alert.timestamp}-${Math.random()}`,
         type: alert.type === 'unusual_volume' ? 'buy' : 
               alert.type === 'liquidation' ? 'liquidation' : 
               alert.type === 'large_order' ? 'large_order' : 'volume',
-        asset: alert.asset,
+        asset: alert.ticker,
         price: alert.price,
-        value: alert.value || 0,
+        value: alert.details?.volume ? parseFloat(alert.details.volume) * alert.price : 0,
         timestamp: new Date(alert.timestamp),
-        strength: Math.floor(Math.random() * 5) + 1,
-        description: alert.message
+        strength: alert.alert_level,
+        description: alert.details?.direction || alert.type
       };
 
       setLiveSignals(prev => {
