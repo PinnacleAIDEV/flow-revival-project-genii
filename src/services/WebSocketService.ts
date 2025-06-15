@@ -1,3 +1,4 @@
+
 export interface FlowData {
   ticker: string;
   price: number;
@@ -10,16 +11,23 @@ export interface FlowData {
   volume_24h: number;
   vwap: number;
   trades_count: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  kline_volume?: number;
 }
 
 export interface Alert {
   id: string;
-  type: 'unusual_volume' | 'vwap_cross' | 'climactic_move';
+  type: 'unusual_volume' | 'vwap_cross' | 'climactic_move' | 'liquidation' | 'large_order';
   ticker: string;
   timestamp: Date;
   details: any;
   alert_level: number;
   direction?: 'bullish' | 'bearish' | 'up' | 'down';
+  price: number;
+  amount?: number;
 }
 
 class WebSocketService {
@@ -91,7 +99,11 @@ class WebSocketService {
                 change_24h: parseFloat(data.change_24h || data.P || '0'),
                 volume_24h: parseFloat(data.volume_24h || data.q || data.volume),
                 vwap: parseFloat(data.vwap || data.w || data.price),
-                trades_count: parseInt(data.trades_count || data.n || '0')
+                trades_count: parseInt(data.trades_count || data.n || '0'),
+                open: parseFloat(data.open || data.o || data.price),
+                high: parseFloat(data.high || data.h || data.price),
+                low: parseFloat(data.low || data.l || data.price),
+                close: parseFloat(data.close || data.c || data.price)
               };
 
               // Validar dados antes de enviar

@@ -13,16 +13,23 @@ export interface FlowData {
   volume_24h: number;
   vwap: number;
   trades_count: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  kline_volume?: number;
 }
 
 export interface Alert {
   id: string;
-  type: 'unusual_volume' | 'vwap_cross' | 'climactic_move';
+  type: 'unusual_volume' | 'vwap_cross' | 'climactic_move' | 'liquidation' | 'large_order';
   ticker: string;
   timestamp: Date;
   details: any;
   alert_level: number;
   direction?: 'bullish' | 'bearish' | 'up' | 'down';
+  price: number;
+  amount?: number;
 }
 
 class EnhancedWebSocketService {
@@ -74,7 +81,11 @@ class EnhancedWebSocketService {
         change_24h: marketData.change24h,
         volume_24h: marketData.volume,
         vwap: marketData.vwap,
-        trades_count: marketData.trades
+        trades_count: marketData.trades,
+        open: marketData.price * 0.98,
+        high: marketData.price * 1.02,
+        low: marketData.price * 0.96,
+        close: marketData.price
       };
 
       this.messageHandlers.forEach(handler => handler(flowData));
