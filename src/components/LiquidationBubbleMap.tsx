@@ -15,6 +15,7 @@ interface LiquidationBubble {
   change24h: number;
   volume: number;
   lastUpdateTime: Date;
+  totalLiquidated: number; // Valor total liquidado acumulado
 }
 
 export const LiquidationBubbleMap: React.FC = () => {
@@ -83,16 +84,26 @@ export const LiquidationBubbleMap: React.FC = () => {
       const now = new Date();
       const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
 
+      console.log('🧹 Limpando liquidações antigas...');
+      
       setLongLiquidations(prev => {
         const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
+        const removed = prev.length - filtered.length;
+        if (removed > 0) {
+          console.log(`🗑️ Removidas ${removed} liquidações LONG antigas`);
+        }
         return filtered;
       });
       
       setShortLiquidations(prev => {
         const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
+        const removed = prev.length - filtered.length;
+        if (removed > 0) {
+          console.log(`🗑️ Removidas ${removed} liquidações SHORT antigas`);
+        }
         return filtered;
       });
-    }, 60000);
+    }, 60000); // A cada 1 minuto
 
     return () => clearInterval(cleanupInterval);
   }, []);
@@ -105,7 +116,6 @@ export const LiquidationBubbleMap: React.FC = () => {
     flowData.forEach(data => {
       // Validar dados obrigatórios
       if (!data.ticker || !data.price || !data.volume || data.change_24h === undefined) {
-        console.log('⚠️ Dados inválidos para liquidação:', data);
         return;
       }
 
@@ -113,13 +123,13 @@ export const LiquidationBubbleMap: React.FC = () => {
       const volumeValue = data.volume * data.price;
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
       
-      // Critérios AINDA MAIS SENSÍVEIS para detectar liquidação em TODO o mercado
+      // Critérios para detectar liquidação
       const threshold = isHighMarketCap ? 
         { volume: 30000, priceChange: 1.0 } :   // Top 50: $30k + 1%
         { volume: 5000, priceChange: 1.5 };     // Resto: $5k + 1.5%
       
       if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
-        // Cálculo de intensidade ainda mais generoso
+        // Cálculo de intensidade
         const volumeRatio = volumeValue / threshold.volume;
         const priceRatio = priceChange / threshold.priceChange;
         const combinedRatio = (volumeRatio + priceRatio) / 2;
@@ -142,7 +152,8 @@ export const LiquidationBubbleMap: React.FC = () => {
           intensity,
           change24h: data.change_24h || 0,
           volume: data.volume,
-          lastUpdateTime: now
+          lastUpdateTime: now,
+          totalLiquidated: volumeValue // Inicializar com o valor atual
         };
         
         if (liquidation.type === 'long') {
@@ -153,15 +164,17 @@ export const LiquidationBubbleMap: React.FC = () => {
       }
     });
 
-    // Atualizar liquidações existentes e adicionar novas
+    // Atualizar liquidações existentes e adicionar novas, acumulando valores
     setLongLiquidations(prev => {
       const updated = [...prev];
       
       newLongLiquidations.forEach(newLiq => {
         const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
         if (existingIndex >= 0) {
+          // Atualizar liquidação existente, acumulando o valor total
           updated[existingIndex] = { 
             ...newLiq, 
+            totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
             lastUpdateTime: now
           };
         } else {
@@ -169,9 +182,10 @@ export const LiquidationBubbleMap: React.FC = () => {
         }
       });
       
+      // ORDENAR POR MAIOR VALOR TOTAL LIQUIDADO
       return updated
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 100); // Aumentei para 100 por categoria
+        .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
+        .slice(0, 100);
     });
     
     setShortLiquidations(prev => {
@@ -180,8 +194,10 @@ export const LiquidationBubbleMap: React.FC = () => {
       newShortLiquidations.forEach(newLiq => {
         const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
         if (existingIndex >= 0) {
+          // Atualizar liquidação existente, acumulando o valor total
           updated[existingIndex] = { 
             ...newLiq, 
+            totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
             lastUpdateTime: now
           };
         } else {
@@ -189,9 +205,10 @@ export const LiquidationBubbleMap: React.FC = () => {
         }
       });
       
+      // ORDENAR POR MAIOR VALOR TOTAL LIQUIDADO
       return updated
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 100); // Aumentei para 100 por categoria
+        .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
+        .slice(0, 100);
     });
   }, [flowData]);
 
@@ -258,7 +275,7 @@ export const LiquidationBubbleMap: React.FC = () => {
                 <TableHead className="w-20">Asset</TableHead>
                 <TableHead className="w-24">Price</TableHead>
                 <TableHead className="w-20">24h %</TableHead>
-                <TableHead className="w-28">Volume</TableHead>
+                <TableHead className="w-28">Total Liq</TableHead>
                 <TableHead className="w-20">Cap</TableHead>
                 <TableHead className="w-16">Risk</TableHead>
               </TableRow>
@@ -280,8 +297,8 @@ export const LiquidationBubbleMap: React.FC = () => {
                       {formatChange(liquidation.change24h)}
                     </span>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {formatAmount(liquidation.amount)}
+                  <TableCell className="font-mono text-sm font-bold">
+                    {formatAmount(liquidation.totalLiquidated)}
                   </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -324,9 +341,9 @@ export const LiquidationBubbleMap: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor - COMPLETE MARKET</h2>
+              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor - BY TOTAL LIQUIDATED</h2>
               <p className="text-sm text-gray-500">
-                Real-time liquidation tracking • {longLiquidations.length + shortLiquidations.length} active positions • ALL {allBinanceAssets.length}+ crypto assets monitored
+                Ordenado por maior valor total liquidado • Auto-remove após 15min sem atividade • {allBinanceAssets.length}+ assets
               </p>
             </div>
           </div>
@@ -377,10 +394,10 @@ export const LiquidationBubbleMap: React.FC = () => {
             <div className="font-bold text-gray-800">
               {formatAmount(
                 [...longLiquidations, ...shortLiquidations]
-                  .reduce((total, liq) => total + liq.amount, 0)
+                  .reduce((total, liq) => total + liq.totalLiquidated, 0)
               )}
             </div>
-            <div className="text-gray-600">Total Volume</div>
+            <div className="text-gray-600">Total Liquidated</div>
           </div>
           <div className="text-center">
             <div className="font-bold text-blue-600">{allBinanceAssets.length}+</div>
