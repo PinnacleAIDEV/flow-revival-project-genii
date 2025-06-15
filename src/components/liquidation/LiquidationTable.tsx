@@ -81,7 +81,7 @@ export const LiquidationTable: React.FC<LiquidationTableProps> = ({
             <div className="space-y-2">
               <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto" />
               <h4 className="text-lg font-medium text-gray-600">No {title}</h4>
-              <p className="text-gray-500 text-sm">Aguardando liquidações...</p>
+              <p className="text-gray-500 text-sm">Waiting for liquidations...</p>
             </div>
           </div>
         )}

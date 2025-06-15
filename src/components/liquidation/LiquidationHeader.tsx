@@ -17,7 +17,7 @@ export const LiquidationHeader: React.FC = () => {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor</h2>
             <div className="flex items-center space-x-4 text-sm text-gray-500">
-              <span>Ordenado por maior valor total liquidado • Auto-remove após 15min sem atividade</span>
+              <span>Sorted by highest total liquidated • Auto-remove after 15min of inactivity</span>
             </div>
           </div>
         </div>
@@ -28,7 +28,7 @@ export const LiquidationHeader: React.FC = () => {
             className="flex items-center space-x-2"
           >
             <Database className="w-4 h-4" />
-            <span>Base de Dados</span>
+            <span>Database</span>
           </Button>
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-1">
