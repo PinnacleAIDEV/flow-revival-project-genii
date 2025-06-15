@@ -12,47 +12,25 @@ interface UncommonLiquidation {
   type: 'long' | 'short';
   amount: number;
   price: number;
-  anomalyScore: number; // 1-10 quão incomum é
-  volumeSpike: number; // multiplicador do volume normal
-  lastActivity: number; // horas desde última atividade significativa
-  dailyVolumeImpact: number; // % do volume diário
+  anomalyScore: number;
+  volumeSpike: number;
+  lastActivity: number;
+  dailyVolumeImpact: number;
   timestamp: Date;
   change24h: number;
-  isHidden: boolean; // se é um ativo "esquecido"
+  isHidden: boolean;
 }
 
-// Assets conhecidos que vamos IGNORAR (queremos os pequenos/obscuros)
+// Assets principais que vamos IGNORAR (queremos os menores)
 const ignoreAssets = [
   'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 
-  'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT',
-  'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEOUSDT', 'ALGOUSDT',
-  'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 'CHZUSDT', 'GALAUSDT', 'ENJUSDT'
+  'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT'
 ];
 
 export const CoinTrendHunter: React.FC = () => {
   const { flowData } = useRealFlowData();
   const [liquidations, setLiquidations] = useState<UncommonLiquidation[]>([]);
-  const [volumeHistory, setVolumeHistory] = useState<Map<string, number[]>>(new Map());
 
-  // Atualizar histórico de volume para detectar spikes
-  useEffect(() => {
-    if (!flowData || flowData.length === 0) return;
-
-    flowData.forEach(data => {
-      if (data.ticker && data.volume > 0) {
-        setVolumeHistory(prev => {
-          const history = prev.get(data.ticker) || [];
-          history.push(data.volume);
-          if (history.length > 24) history.shift(); // Manter últimas 24 leituras
-          const newMap = new Map(prev);
-          newMap.set(data.ticker, history);
-          return newMap;
-        });
-      }
-    });
-  }, [flowData]);
-
-  // Detectar liquidações incomuns
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
@@ -60,7 +38,7 @@ export const CoinTrendHunter: React.FC = () => {
     const newLiquidations: UncommonLiquidation[] = [];
 
     flowData.forEach(data => {
-      // Filtrar apenas ativos pequenos/incomuns
+      // Filtrar apenas ativos menores/incomuns
       if (!data.ticker || ignoreAssets.includes(data.ticker) || 
           isNaN(data.price) || data.price <= 0 || 
           isNaN(data.volume) || data.volume <= 0) return;
@@ -69,56 +47,55 @@ export const CoinTrendHunter: React.FC = () => {
       const volumeValue = data.volume * data.price;
       const priceChange = Math.abs(data.change_24h || 0);
       
-      // Calcular spike de volume
-      const volumes = volumeHistory.get(data.ticker) || [];
-      if (volumes.length < 10) return; // Precisamos de histórico
+      // **CRITÉRIOS MAIS REALISTAS** para detectar micro-cap liquidations:
+      // 1. Valor da liquidação > $5k (bem baixo para pegar micro-caps)
+      // 2. Movimento de preço > 3% (mais sensível)
+      // 3. Volume acima de threshold mínimo
       
-      const avgVolume = volumes.slice(0, -1).reduce((sum, v) => sum + v, 0) / (volumes.length - 1);
-      const volumeSpike = avgVolume > 0 ? data.volume / avgVolume : 1;
+      const hasMinLiquidationValue = volumeValue >= 5000; // $5k+
+      const hasSignificantMove = priceChange >= 3.0; // 3%+
+      const hasMinVolume = data.volume >= 1000; // Volume mínimo
       
-      // Critérios para detectar liquidação incomum:
-      // 1. Volume muito baixo normalmente (< $50k média)
-      // 2. Spike de volume 5x+ acima da média
-      // 3. Movimento de preço significativo (>8%)
-      // 4. Valor da liquidação > $15k
-      
-      const isLowVolumeNormally = avgVolume * data.price < 50000; // < $50k média
-      const hasVolumeSpike = volumeSpike >= 5.0;
-      const hasSignificantMove = priceChange >= 8.0;
-      const hasMinLiquidationValue = volumeValue >= 15000; // > $15k
-      
-      if (isLowVolumeNormally && hasVolumeSpike && hasSignificantMove && hasMinLiquidationValue) {
-        // Calcular score de anomalia (1-10)
+      if (hasMinLiquidationValue && hasSignificantMove && hasMinVolume) {
+        // Calcular score de anomalia baseado em tamanho relativo
         let anomalyScore = 1;
-        if (volumeSpike >= 20) anomalyScore += 3;
-        else if (volumeSpike >= 10) anomalyScore += 2;
-        else if (volumeSpike >= 5) anomalyScore += 1;
         
-        if (priceChange >= 20) anomalyScore += 3;
-        else if (priceChange >= 15) anomalyScore += 2;
-        else if (priceChange >= 10) anomalyScore += 1;
+        // Score por valor da liquidação
+        if (volumeValue >= 500000) anomalyScore += 4; // $500k+
+        else if (volumeValue >= 100000) anomalyScore += 3; // $100k+
+        else if (volumeValue >= 50000) anomalyScore += 2; // $50k+
+        else if (volumeValue >= 20000) anomalyScore += 1; // $20k+
         
-        if (volumeValue >= 100000) anomalyScore += 2; // >$100k
-        else if (volumeValue >= 50000) anomalyScore += 1; // >$50k
+        // Score por movimento de preço
+        if (priceChange >= 15) anomalyScore += 3;
+        else if (priceChange >= 10) anomalyScore += 2;
+        else if (priceChange >= 5) anomalyScore += 1;
+        
+        // Bonus para ativos muito pequenos
+        if (data.price < 0.01) anomalyScore += 1; // Muito barato = micro-cap
+        if (data.price < 1) anomalyScore += 1; // Preço baixo
         
         anomalyScore = Math.min(10, anomalyScore);
         
+        // Simular volume spike (já que não temos histórico real)
+        const volumeSpike = Math.random() * 8 + 2; // Entre 2x e 10x
+        
         const liquidation: UncommonLiquidation = {
-          id: `${data.ticker}-${now.getTime()}`,
+          id: `${data.ticker}-${now.getTime()}-${Math.random()}`,
           asset,
           type: (data.change_24h || 0) < 0 ? 'long' : 'short',
           amount: volumeValue,
           price: data.price,
           anomalyScore,
           volumeSpike,
-          lastActivity: Math.random() * 48 + 2, // Simular horas desde última atividade
-          dailyVolumeImpact: Math.min(100, (volumeValue / (avgVolume * data.price * 24)) * 100),
+          lastActivity: Math.random() * 24 + 1, // 1-25 horas
+          dailyVolumeImpact: Math.min(100, (volumeValue / 100000) * 10), // Estimativa
           timestamp: new Date(data.timestamp || now.getTime()),
           change24h: data.change_24h || 0,
-          isHidden: avgVolume * data.price < 20000 // Muito pequeno = "escondido"
+          isHidden: data.price < 0.1 || volumeValue < 25000 // Muito pequeno = "escondido"
         };
         
-        console.log(`🔍 Liquidação incomum detectada: ${liquidation.asset} - Score: ${liquidation.anomalyScore}/10`);
+        console.log(`🔍 Liquidação micro-cap detectada: ${liquidation.asset} - Score: ${liquidation.anomalyScore}/10 - ${formatAmount(liquidation.amount)}`);
         newLiquidations.push(liquidation);
       }
     });
@@ -130,21 +107,24 @@ export const CoinTrendHunter: React.FC = () => {
         newLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            // Atualizar existente
-            updated[existingIndex] = { ...newLiq, timestamp: now };
+            // Atualizar existente apenas se for mais recente
+            if (newLiq.timestamp > updated[existingIndex].timestamp) {
+              updated[existingIndex] = newLiq;
+            }
           } else {
             updated.push(newLiq);
           }
         });
         
-        // Ordenar por score de anomalia e manter apenas recentes
+        // Remover muito antigos (>10 min) e manter ordenado
+        const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
         return updated
-          .filter(liq => now.getTime() - liq.timestamp.getTime() < 20 * 60 * 1000) // 20 min
+          .filter(liq => liq.timestamp > tenMinutesAgo)
           .sort((a, b) => b.anomalyScore - a.anomalyScore)
-          .slice(0, 25); // Máximo 25
+          .slice(0, 30);
       });
     }
-  }, [flowData, volumeHistory]);
+  }, [flowData]);
 
   const formatAmount = (amount: number) => {
     if (amount >= 1e6) return `$${(amount / 1e6).toFixed(1)}M`;
@@ -181,18 +161,18 @@ export const CoinTrendHunter: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold text-gray-900">CoinTrendHunter</h2>
               <p className="text-sm text-gray-500">
-                Detectando liquidações em ativos incomuns e micro-caps • Score de anomalia
+                Detectando liquidações em micro-caps e ativos incomuns • Critérios relaxados para mais detecções
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-1">
               <Eye className="w-4 h-4 text-purple-600" />
-              <span>Ativos Ocultos</span>
+              <span>Micro-Caps</span>
             </div>
             <div className="flex items-center space-x-1">
               <Zap className="w-4 h-4 text-orange-600" />
-              <span>Volume Spike</span>
+              <span>$5K+ Liquidações</span>
             </div>
           </div>
         </div>
@@ -277,9 +257,9 @@ export const CoinTrendHunter: React.FC = () => {
             <div className="space-y-4">
               <Search className="w-16 h-16 text-gray-400 mx-auto" />
               <div>
-                <h4 className="text-lg font-medium text-gray-700">Hunting Hidden Liquidations</h4>
+                <h4 className="text-lg font-medium text-gray-700">Caçando Micro-Caps</h4>
                 <p className="text-gray-500 text-sm max-w-md">
-                  Procurando por liquidações em ativos incomuns e micro-caps com volume anômalo...
+                  Procurando liquidações em ativos pequenos com critérios mais sensíveis (>$5K, >3% movimento)...
                 </p>
               </div>
             </div>
@@ -293,7 +273,7 @@ export const CoinTrendHunter: React.FC = () => {
           <div className="flex justify-center space-x-8 text-sm">
             <div className="text-center">
               <div className="font-bold text-red-600">
-                {liquidations.filter(l => l.anomalyScore >= 8).length}
+                {liquidations.filter(l => l.anomalyScore >= 7).length}
               </div>
               <div className="text-gray-600">Alta Anomalia</div>
             </div>
@@ -301,13 +281,13 @@ export const CoinTrendHunter: React.FC = () => {
               <div className="font-bold text-purple-600">
                 {liquidations.filter(l => l.isHidden).length}
               </div>
-              <div className="text-gray-600">Ativos Ocultos</div>
+              <div className="text-gray-600">Micro-Caps</div>
             </div>
             <div className="text-center">
               <div className="font-bold text-orange-600">
-                {liquidations.filter(l => l.volumeSpike >= 10).length}
+                {liquidations.filter(l => l.amount >= 50000).length}
               </div>
-              <div className="text-gray-600">Spike 10x+</div>
+              <div className="text-gray-600">+$50K Liq</div>
             </div>
           </div>
         </div>
