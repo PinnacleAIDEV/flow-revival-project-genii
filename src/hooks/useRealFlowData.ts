@@ -19,11 +19,11 @@ export const useRealFlowData = () => {
   });
 
   const handleFlowData = useCallback((data: FlowData) => {
-    console.log('📈 Processing real Binance data:', data.ticker, data.price.toFixed(4));
+    console.log(`📈 Processing ${data.kline_volume ? 'Kline' : 'Ticker'} data: ${data.ticker} - $${data.price.toFixed(4)}`);
     
     // Atualizar dados de flow
     setFlowData(prev => {
-      const updated = [data, ...prev.filter(item => item.ticker !== data.ticker)].slice(0, 50);
+      const updated = [data, ...prev.filter(item => item.ticker !== data.ticker)].slice(0, 200);
       
       // Calcular sentimento do mercado
       const sentiment = flowAnalytics.calculateMarketSentiment(updated);
@@ -46,17 +46,16 @@ export const useRealFlowData = () => {
     try {
       setConnectionError(null);
       setConnectionStatus('connecting');
-      console.log('🚀 Connecting to real Binance data...');
+      console.log('🚀 Connecting to expanded Binance data (200 assets)...');
       
       await binanceWebSocketService.connect();
       
-      const status = binanceWebSocketService.getConnectionStatus();
       setIsConnected(true);
       setConnectionStatus('connected');
       
       binanceWebSocketService.onMessage(handleFlowData);
       
-      console.log('✅ Successfully connected to Binance real-time data');
+      console.log('✅ Successfully connected to expanded Binance real-time data');
       
     } catch (error) {
       console.error('❌ Failed to connect to Binance:', error);
@@ -106,7 +105,7 @@ export const useRealFlowData = () => {
     alerts,
     flowData,
     marketSentiment,
-    isSimulatorMode: false, // Sempre false para dados reais
+    isSimulatorMode: false,
     getAlertsByType,
     clearAlerts,
     reconnect,
