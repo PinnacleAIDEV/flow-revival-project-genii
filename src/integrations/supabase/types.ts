@@ -9,13 +9,253 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      asset_statistics: {
+        Row: {
+          anomaly_events_count: number
+          asset: string
+          avg_anomaly_score: number
+          avg_price: number
+          created_at: string
+          current_price: number
+          id: string
+          is_trending: boolean
+          last_activity: string | null
+          liquidation_count: number
+          market_cap_category: string | null
+          max_liquidation_amount: number
+          price_change_24h: number
+          ticker: string
+          total_long_liquidations: number
+          total_short_liquidations: number
+          total_volume_24h: number
+          updated_at: string
+        }
+        Insert: {
+          anomaly_events_count?: number
+          asset: string
+          avg_anomaly_score?: number
+          avg_price?: number
+          created_at?: string
+          current_price?: number
+          id?: string
+          is_trending?: boolean
+          last_activity?: string | null
+          liquidation_count?: number
+          market_cap_category?: string | null
+          max_liquidation_amount?: number
+          price_change_24h?: number
+          ticker: string
+          total_long_liquidations?: number
+          total_short_liquidations?: number
+          total_volume_24h?: number
+          updated_at?: string
+        }
+        Update: {
+          anomaly_events_count?: number
+          asset?: string
+          avg_anomaly_score?: number
+          avg_price?: number
+          created_at?: string
+          current_price?: number
+          id?: string
+          is_trending?: boolean
+          last_activity?: string | null
+          liquidation_count?: number
+          market_cap_category?: string | null
+          max_liquidation_amount?: number
+          price_change_24h?: number
+          ticker?: string
+          total_long_liquidations?: number
+          total_short_liquidations?: number
+          total_volume_24h?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coin_trends: {
+        Row: {
+          amount: number
+          anomaly_score: number
+          ask: number | null
+          asset: string
+          bid: number | null
+          change_24h: number
+          close_price: number | null
+          created_at: string
+          daily_volume_impact: number
+          exchange: string | null
+          expires_at: string
+          high_price: number | null
+          id: string
+          is_hidden: boolean
+          is_micro_cap: boolean
+          last_activity_hours: number
+          low_price: number | null
+          open_price: number | null
+          price: number
+          ticker: string
+          trades_count: number | null
+          type: string
+          updated_at: string
+          volume: number
+          volume_24h: number | null
+          volume_spike: number
+          vwap: number | null
+        }
+        Insert: {
+          amount: number
+          anomaly_score?: number
+          ask?: number | null
+          asset: string
+          bid?: number | null
+          change_24h?: number
+          close_price?: number | null
+          created_at?: string
+          daily_volume_impact?: number
+          exchange?: string | null
+          expires_at?: string
+          high_price?: number | null
+          id?: string
+          is_hidden?: boolean
+          is_micro_cap?: boolean
+          last_activity_hours?: number
+          low_price?: number | null
+          open_price?: number | null
+          price: number
+          ticker: string
+          trades_count?: number | null
+          type: string
+          updated_at?: string
+          volume?: number
+          volume_24h?: number | null
+          volume_spike?: number
+          vwap?: number | null
+        }
+        Update: {
+          amount?: number
+          anomaly_score?: number
+          ask?: number | null
+          asset?: string
+          bid?: number | null
+          change_24h?: number
+          close_price?: number | null
+          created_at?: string
+          daily_volume_impact?: number
+          exchange?: string | null
+          expires_at?: string
+          high_price?: number | null
+          id?: string
+          is_hidden?: boolean
+          is_micro_cap?: boolean
+          last_activity_hours?: number
+          low_price?: number | null
+          open_price?: number | null
+          price?: number
+          ticker?: string
+          trades_count?: number | null
+          type?: string
+          updated_at?: string
+          volume?: number
+          volume_24h?: number | null
+          volume_spike?: number
+          vwap?: number | null
+        }
+        Relationships: []
+      }
+      liquidations: {
+        Row: {
+          amount: number
+          ask: number | null
+          asset: string
+          bid: number | null
+          change_24h: number
+          close_price: number | null
+          created_at: string
+          exchange: string | null
+          expires_at: string
+          high_price: number | null
+          id: string
+          intensity: number
+          low_price: number | null
+          market_cap: string
+          open_price: number | null
+          price: number
+          ticker: string
+          total_liquidated: number
+          trades_count: number | null
+          type: string
+          updated_at: string
+          volume: number
+          volume_spike: number | null
+          vwap: number | null
+        }
+        Insert: {
+          amount: number
+          ask?: number | null
+          asset: string
+          bid?: number | null
+          change_24h?: number
+          close_price?: number | null
+          created_at?: string
+          exchange?: string | null
+          expires_at?: string
+          high_price?: number | null
+          id?: string
+          intensity?: number
+          low_price?: number | null
+          market_cap: string
+          open_price?: number | null
+          price: number
+          ticker: string
+          total_liquidated?: number
+          trades_count?: number | null
+          type: string
+          updated_at?: string
+          volume?: number
+          volume_spike?: number | null
+          vwap?: number | null
+        }
+        Update: {
+          amount?: number
+          ask?: number | null
+          asset?: string
+          bid?: number | null
+          change_24h?: number
+          close_price?: number | null
+          created_at?: string
+          exchange?: string | null
+          expires_at?: string
+          high_price?: number | null
+          id?: string
+          intensity?: number
+          low_price?: number | null
+          market_cap?: string
+          open_price?: number | null
+          price?: number
+          ticker?: string
+          total_liquidated?: number
+          trades_count?: number | null
+          type?: string
+          updated_at?: string
+          volume?: number
+          volume_spike?: number | null
+          vwap?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      update_asset_statistics: {
+        Args: { asset_name: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

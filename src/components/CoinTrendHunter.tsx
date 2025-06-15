@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, TrendingDown, TrendingUp, Eye, Clock, Zap } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { useTrading } from '../contexts/TradingContext';
+import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
@@ -30,6 +31,7 @@ const ignoreAssets = [
 export const CoinTrendHunter: React.FC = () => {
   const { flowData } = useRealFlowData();
   const { setSelectedAsset } = useTrading();
+  const { saveCoinTrend, isStorageConnected } = useSupabaseStorage();
   const [liquidations, setLiquidations] = useState<UncommonLiquidation[]>([]);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export const CoinTrendHunter: React.FC = () => {
     const now = new Date();
     const newLiquidations: UncommonLiquidation[] = [];
 
-    flowData.forEach(data => {
+    flowData.forEach(async (data) => {
       // Filtrar apenas ativos menores/incomuns
       if (!data.ticker || ignoreAssets.includes(data.ticker) || 
           isNaN(data.price) || data.price <= 0 || 
@@ -97,6 +99,29 @@ export const CoinTrendHunter: React.FC = () => {
         };
         
         console.log(`🔍 Liquidação micro-cap detectada: ${liquidation.asset} - Score: ${liquidation.anomalyScore}/10 - ${formatAmount(liquidation.amount)}`);
+        
+        // Salvar no Supabase
+        if (isStorageConnected) {
+          await saveCoinTrend({
+            asset: liquidation.asset,
+            ticker: data.ticker,
+            type: liquidation.type,
+            amount: liquidation.amount,
+            price: liquidation.price,
+            anomaly_score: liquidation.anomalyScore,
+            volume_spike: liquidation.volumeSpike,
+            last_activity_hours: liquidation.lastActivity,
+            daily_volume_impact: liquidation.dailyVolumeImpact,
+            change_24h: liquidation.change24h,
+            volume: data.volume,
+            is_hidden: liquidation.isHidden,
+            is_micro_cap: data.price < 1 || volumeValue < 50000,
+            volume_24h: data.volume * data.price,
+            trades_count: 0,
+            exchange: 'Binance'
+          });
+        }
+        
         newLiquidations.push(liquidation);
       }
     });
@@ -125,7 +150,7 @@ export const CoinTrendHunter: React.FC = () => {
           .slice(0, 30);
       });
     }
-  }, [flowData]);
+  }, [flowData, saveCoinTrend, isStorageConnected]);
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
@@ -180,6 +205,10 @@ export const CoinTrendHunter: React.FC = () => {
             <div className="flex items-center space-x-1">
               <Zap className="w-4 h-4 text-orange-600" />
               <span>$5K+ Liquidações</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className={`w-2 h-2 rounded-full ${isStorageConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-xs">{isStorageConnected ? 'DB' : 'Local'}</span>
             </div>
           </div>
         </div>

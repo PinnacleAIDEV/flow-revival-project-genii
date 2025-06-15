@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { useTrading } from '../contexts/TradingContext';
+import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
 import { LiquidationTable } from './liquidation/LiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
@@ -33,6 +34,7 @@ const highMarketCapAssets = [
 export const LiquidationBubbleMap: React.FC = () => {
   const { flowData } = useRealFlowData();
   const { setSelectedAsset } = useTrading();
+  const { saveLiquidation, isStorageConnected } = useSupabaseStorage();
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
@@ -92,7 +94,7 @@ export const LiquidationBubbleMap: React.FC = () => {
       );
     });
 
-    uniqueData.forEach(data => {
+    uniqueData.forEach(async (data) => {
       const priceChange = Math.abs(data.change_24h || 0);
       const volumeValue = data.volume * data.price;
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
@@ -132,6 +134,25 @@ export const LiquidationBubbleMap: React.FC = () => {
         };
         
         console.log(`💥 Nova liquidação detectada: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - ${formatAmount(liquidation.totalLiquidated)}`);
+        
+        // Salvar no Supabase
+        if (isStorageConnected) {
+          await saveLiquidation({
+            asset: liquidation.asset,
+            ticker: data.ticker,
+            type: liquidation.type,
+            amount: liquidation.amount,
+            price: liquidation.price,
+            market_cap: liquidation.marketCap,
+            intensity: liquidation.intensity,
+            change_24h: liquidation.change24h,
+            volume: liquidation.volume,
+            total_liquidated: liquidation.totalLiquidated,
+            volume_spike: 1,
+            trades_count: 0,
+            exchange: 'Binance'
+          });
+        }
         
         if (liquidation.type === 'long') {
           newLongLiquidations.push(liquidation);
@@ -194,7 +215,7 @@ export const LiquidationBubbleMap: React.FC = () => {
           .slice(0, 50); // Limitar a 50 para performance
       });
     }
-  }, [flowData, processedTickers]);
+  }, [flowData, processedTickers, saveLiquidation, isStorageConnected]);
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
@@ -238,6 +259,16 @@ export const LiquidationBubbleMap: React.FC = () => {
         longLiquidations={longLiquidations}
         shortLiquidations={shortLiquidations}
       />
+      
+      {/* Indicador de conexão com banco */}
+      <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-center space-x-2 text-xs">
+          <div className={`w-2 h-2 rounded-full ${isStorageConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-gray-600">
+            {isStorageConnected ? 'Banco conectado - Dados sendo salvos' : 'Banco desconectado'}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
