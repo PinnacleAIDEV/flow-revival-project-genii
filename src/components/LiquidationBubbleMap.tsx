@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { ScrollArea } from './ui/scroll-area';
 
 interface LiquidationBubble {
   id: string;
@@ -248,59 +248,61 @@ export const LiquidationBubbleMap: React.FC = () => {
         </div>
       </div>
       
-      <div className="bg-white" style={{ height: '400px', overflowY: 'auto' }}>
+      <div className="bg-white rounded-b-lg">
         {liquidations.length > 0 ? (
-          <Table>
-            <TableHeader className="sticky top-0 bg-white z-10">
-              <TableRow>
-                <TableHead className="w-20">Asset</TableHead>
-                <TableHead className="w-24">Price</TableHead>
-                <TableHead className="w-20">24h %</TableHead>
-                <TableHead className="w-28">Total Liq</TableHead>
-                <TableHead className="w-20">Cap</TableHead>
-                <TableHead className="w-16">Risk</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {liquidations.map((liquidation) => (
-                <TableRow key={liquidation.id} className="hover:bg-gray-50">
-                  <TableCell className="font-bold">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                      <span className={textColor}>{liquidation.asset}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {formatPrice(liquidation.price)}
-                  </TableCell>
-                  <TableCell>
-                    <span className={`font-semibold ${liquidation.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatChange(liquidation.change24h)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm font-bold">
-                    {formatAmount(liquidation.totalLiquidated)}
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      liquidation.marketCap === 'high' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {liquidation.marketCap === 'high' ? 'HIGH' : 'LOW'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${getIntensityColor(liquidation.intensity)}`}>
-                      {liquidation.intensity}
-                    </span>
-                  </TableCell>
+          <ScrollArea className="h-[400px]">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white z-10">
+                <TableRow>
+                  <TableHead className="w-20">Asset</TableHead>
+                  <TableHead className="w-24">Price</TableHead>
+                  <TableHead className="w-20">24h %</TableHead>
+                  <TableHead className="w-28">Total Liq</TableHead>
+                  <TableHead className="w-20">Cap</TableHead>
+                  <TableHead className="w-16">Risk</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {liquidations.map((liquidation) => (
+                  <TableRow key={liquidation.id} className="hover:bg-gray-50">
+                    <TableCell className="font-bold">
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                        <span className={textColor}>{liquidation.asset}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {formatPrice(liquidation.price)}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`font-semibold ${liquidation.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatChange(liquidation.change24h)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm font-bold">
+                      {formatAmount(liquidation.totalLiquidated)}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        liquidation.marketCap === 'high' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {liquidation.marketCap === 'high' ? 'HIGH' : 'LOW'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${getIntensityColor(liquidation.intensity)}`}>
+                        {liquidation.intensity}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
         ) : (
-          <div className="h-full flex items-center justify-center text-center">
+          <div className="h-[400px] flex items-center justify-center text-center">
             <div className="space-y-2">
               <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto" />
               <h4 className="text-lg font-medium text-gray-600">No {title}</h4>
