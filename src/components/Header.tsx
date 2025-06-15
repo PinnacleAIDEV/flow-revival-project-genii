@@ -1,58 +1,55 @@
 
 import React from 'react';
-import { Play, Settings, Share2, Save } from 'lucide-react';
+import { Activity, BarChart3, Settings, Zap } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'flow' | 'dashboard';
-  onTabChange: (tab: 'flow' | 'dashboard') => void;
+  activeTab: 'flow' | 'dashboard' | 'sentiment' | 'settings';
+  onTabChange: (tab: 'flow' | 'dashboard' | 'sentiment' | 'settings') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
+  const tabs = [
+    { id: 'flow' as const, label: 'Live Flow', icon: Activity },
+    { id: 'dashboard' as const, label: 'Analytics', icon: BarChart3 },
+    { id: 'sentiment' as const, label: 'Market Sentiment', icon: Zap },
+    { id: 'settings' as const, label: 'Settings', icon: Settings },
+  ];
+
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-              <Play className="w-4 h-4 text-white" />
+    <header className="bg-white shadow-sm border-b border-gray-200">
+      <div className="px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <Activity className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Pinnacle AI Pro</h1>
+                <p className="text-xs text-gray-500">Crypto Flow Intelligence System</p>
+              </div>
             </div>
-            <h1 className="text-xl font-bold text-gray-900">Genii Data Flow</h1>
           </div>
           
           <nav className="flex space-x-1">
-            <button
-              onClick={() => onTabChange('flow')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'flow'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Flow Builder
-            </button>
-            <button
-              onClick={() => onTabChange('dashboard')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'dashboard'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Dashboard
-            </button>
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => onTabChange(tab.id)}
+                  className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="font-medium">{tab.label}</span>
+                </button>
+              );
+            })}
           </nav>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-            <Save className="w-5 h-5" />
-          </button>
-          <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-            <Share2 className="w-5 h-5" />
-          </button>
-          <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-            <Settings className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </header>
