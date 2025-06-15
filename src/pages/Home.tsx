@@ -1,41 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Activity, BarChart3, Database, TrendingUp, Users, Zap, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { AuthModal } from '../components/auth/AuthModal';
-import { supabase } from '@/integrations/supabase/client';
-import { User } from '@supabase/supabase-js';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    // Check current auth state
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const handleAuthSuccess = () => {
-    setShowAuthModal(false);
-  };
 
   const features = [
     {
@@ -87,21 +58,9 @@ const Home: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              {user ? (
-                <div className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-300">Welcome, {user.email}</span>
-                  <Button variant="outline" onClick={handleSignOut} className="border-gray-700 text-gray-300 hover:bg-gray-800">
-                    Sign Out
-                  </Button>
-                </div>
-              ) : (
-                <Button 
-                  onClick={() => setShowAuthModal(true)}
-                  className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-black font-bold"
-                >
-                  ACESSO NEURAL
-                </Button>
-              )}
+              <div className="text-sm text-green-400 font-mono">
+                🧠 ACESSO UNIVERSAL ATIVO
+              </div>
             </div>
           </div>
         </div>
@@ -126,15 +85,13 @@ const Home: React.FC = () => {
             </span>
           </p>
           
-          {!user && (
-            <Button 
-              size="lg"
-              onClick={() => setShowAuthModal(true)}
-              className="bg-gradient-to-r from-lime-400 to-green-500 hover:from-lime-500 hover:to-green-600 text-black text-lg px-8 py-3 font-bold"
-            >
-              INICIAR MISSÃO 🧠
-            </Button>
-          )}
+          <Button 
+            size="lg"
+            onClick={() => navigate('/liquidations')}
+            className="bg-gradient-to-r from-lime-400 to-green-500 hover:from-lime-500 hover:to-green-600 text-black text-lg px-8 py-3 font-bold"
+          >
+            INICIAR MISSÃO 🧠
+          </Button>
         </div>
 
         {/* Stats */}
@@ -165,15 +122,9 @@ const Home: React.FC = () => {
                 <p className="text-gray-300 mb-6">{feature.description}</p>
                 <Button 
                   onClick={feature.action}
-                  disabled={!user}
-                  className={`w-full transition-all font-bold ${
-                    user 
-                      ? 'bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-black' 
-                      : 'bg-gray-800 text-gray-400 border border-gray-700'
-                  }`}
-                  variant={user ? "default" : "outline"}
+                  className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-black font-bold transition-all"
                 >
-                  {user ? 'ACESSAR AGORA 👁' : 'ACESSO NEGADO 🔒'}
+                  ACESSAR AGORA 👁
                 </Button>
               </CardContent>
             </Card>
@@ -181,35 +132,35 @@ const Home: React.FC = () => {
         </div>
 
         {/* CTA Section */}
-        {!user && (
-          <Card className="bg-gradient-to-r from-gray-900 via-black to-gray-900 border-gray-700 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 to-lime-400/10"></div>
-            <CardContent className="py-12 relative">
-              <h2 className="text-3xl font-bold mb-4 text-white font-mono">PRONTO PARA A BATALHA?</h2>
-              <p className="text-xl mb-8 text-gray-300">
-                Junte-se a milhares de traders usando AI Pinnacle para inteligência de mercado
-              </p>
-              <p className="text-cyan-400 mb-6 font-mono text-sm">
-                💥 Powered by Pinnacle TensorFlow AI™
-              </p>
+        <Card className="bg-gradient-to-r from-gray-900 via-black to-gray-900 border-gray-700 text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 to-lime-400/10"></div>
+          <CardContent className="py-12 relative">
+            <h2 className="text-3xl font-bold mb-4 text-white font-mono">SISTEMA OPERACIONAL</h2>
+            <p className="text-xl mb-8 text-gray-300">
+              Inteligência de mercado avançada com acesso total às funcionalidades
+            </p>
+            <p className="text-cyan-400 mb-6 font-mono text-sm">
+              💥 Powered by Pinnacle TensorFlow AI™
+            </p>
+            <div className="flex justify-center space-x-4">
               <Button 
                 size="lg"
-                onClick={() => setShowAuthModal(true)}
-                className="bg-gradient-to-r from-lime-400 to-green-500 hover:from-lime-500 hover:to-green-600 text-black text-lg px-8 py-3 font-bold"
+                onClick={() => navigate('/liquidations')}
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white text-lg px-8 py-3 font-bold"
               >
-                CRIAR CONTA NEURAL 🧠
+                LIQUIDATIONS 💥
               </Button>
-            </CardContent>
-          </Card>
-        )}
+              <Button 
+                size="lg"
+                onClick={() => navigate('/database')}
+                className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-black text-lg px-8 py-3 font-bold"
+              >
+                DATABASE 📊
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
-
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
-      />
     </div>
   );
 };
