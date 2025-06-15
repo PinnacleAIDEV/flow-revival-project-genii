@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
@@ -19,10 +18,12 @@ export const LiquidationBubbleMap: React.FC = () => {
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
 
-  // Lista de ativos com market cap alto
+  // Lista expandida de ativos com market cap alto
   const highMarketCapAssets = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 
-    'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'LTCUSDT', 'BCHUSDT'
+    'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'LTCUSDT', 'BCHUSDT', 'UNIUSDT',
+    'ATOMUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICPUSDT',
+    'NEARUSDT', 'ALGOUSDT', 'QNTUSDT', 'FLOWUSDT', 'SANDUSDT', 'MANAUSDT', 'AXSUSDT'
   ];
 
   useEffect(() => {
@@ -34,13 +35,23 @@ export const LiquidationBubbleMap: React.FC = () => {
       const volumeValue = data.volume * data.price;
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
       
-      // Critérios para detectar liquidação
+      // Critérios MAIS SENSÍVEIS para detectar liquidação
       const threshold = isHighMarketCap ? 
-        { volume: 200000, priceChange: 3 } : 
-        { volume: 30000, priceChange: 5 };
+        { volume: 50000, priceChange: 1.5 } :    // Reduzido de 200k/3% para 50k/1.5%
+        { volume: 10000, priceChange: 2.5 };     // Reduzido de 30k/5% para 10k/2.5%
       
       if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
-        const intensity = Math.min(5, Math.floor((volumeValue / threshold.volume) / 2) + 1);
+        // Cálculo de intensidade mais generoso
+        const volumeRatio = volumeValue / threshold.volume;
+        const priceRatio = priceChange / threshold.priceChange;
+        const combinedRatio = (volumeRatio + priceRatio) / 2;
+        
+        let intensity = 1;
+        if (combinedRatio >= 10) intensity = 5;
+        else if (combinedRatio >= 6) intensity = 4;
+        else if (combinedRatio >= 3) intensity = 3;
+        else if (combinedRatio >= 1.5) intensity = 2;
+        else intensity = 1;
         
         const liquidation: LiquidationBubble = {
           id: `${data.ticker}-${data.timestamp}`,
@@ -61,17 +72,17 @@ export const LiquidationBubbleMap: React.FC = () => {
       }
     });
 
-    // Limitar a 20 liquidações por tipo e ordenar por valor
+    // Aumentar limite para 30 liquidações por tipo e ordenar por valor
     setLongLiquidations(
       newLongLiquidations
         .sort((a, b) => b.amount - a.amount)
-        .slice(0, 20)
+        .slice(0, 30)
     );
     
     setShortLiquidations(
       newShortLiquidations
         .sort((a, b) => b.amount - a.amount)
-        .slice(0, 20)
+        .slice(0, 30)
     );
   }, [flowData]);
 
@@ -84,11 +95,11 @@ export const LiquidationBubbleMap: React.FC = () => {
 
   const getBubbleSize = (intensity: number) => {
     const sizes = {
-      1: 'w-12 h-12 text-xs',
-      2: 'w-16 h-16 text-sm',
-      3: 'w-20 h-20 text-sm',
-      4: 'w-24 h-24 text-base',
-      5: 'w-28 h-28 text-lg'
+      1: 'w-10 h-10 text-xs',    // Reduzido de w-12 h-12
+      2: 'w-14 h-14 text-sm',    // Reduzido de w-16 h-16
+      3: 'w-18 h-18 text-sm',    // Reduzido de w-20 h-20
+      4: 'w-22 h-22 text-base',  // Reduzido de w-24 h-24
+      5: 'w-26 h-26 text-lg'     // Reduzido de w-28 h-28
     };
     return sizes[intensity as keyof typeof sizes] || sizes[1];
   };
@@ -136,7 +147,7 @@ export const LiquidationBubbleMap: React.FC = () => {
       
       <div className="h-80 overflow-y-auto p-4 bg-gray-50">
         {liquidations.length > 0 ? (
-          <div className="flex flex-wrap gap-3 justify-center">
+          <div className="flex flex-wrap gap-2 justify-center">
             {liquidations.map((liquidation) => (
               <div
                 key={liquidation.id}
@@ -194,7 +205,7 @@ export const LiquidationBubbleMap: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold text-gray-900">Liquidation Bubble Map</h2>
               <p className="text-sm text-gray-500">
-                Real-time liquidation visualization • {longLiquidations.length + shortLiquidations.length} active
+                Real-time liquidation visualization • {longLiquidations.length + shortLiquidations.length} active • Enhanced sensitivity
               </p>
             </div>
           </div>
