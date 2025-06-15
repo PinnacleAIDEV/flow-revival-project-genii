@@ -1,8 +1,8 @@
 
-import { RealTimeDashboard } from "@/components/RealTimeDashboard";
+import { TradingDashboard } from "@/components/TradingDashboard";
 
 const Index = () => {
-  return <RealTimeDashboard />;
+  return <TradingDashboard />;
 };
 
 export default Index;
