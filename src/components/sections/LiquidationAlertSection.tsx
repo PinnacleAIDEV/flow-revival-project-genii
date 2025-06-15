@@ -11,12 +11,12 @@ export const LiquidationAlertSection: React.FC = () => {
       
       <div className="space-y-4">
         <div className="p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-medium text-gray-700 mb-2">Market Cap > 500M</h4>
+          <h4 className="font-medium text-gray-700 mb-2">Market Cap {'>'} 500M</h4>
           <p className="text-sm text-gray-500">Liquidações acima de $200k USDT</p>
         </div>
         
         <div className="p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-medium text-gray-700 mb-2">Market Cap < 500M</h4>
+          <h4 className="font-medium text-gray-700 mb-2">Market Cap {'<'} 500M</h4>
           <p className="text-sm text-gray-500">Liquidações acima de $30k USDT</p>
         </div>
         

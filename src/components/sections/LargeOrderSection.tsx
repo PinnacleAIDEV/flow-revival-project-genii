@@ -7,7 +7,7 @@ export const LargeOrderSection: React.FC = () => {
     <div className="h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Large Orders</h3>
-        <div className="text-sm text-gray-500">>$1M</div>
+        <div className="text-sm text-gray-500">{'>'} $1M</div>
       </div>
       
       <div className="text-center py-8 text-gray-500">
