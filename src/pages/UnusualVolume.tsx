@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 
 interface VolumeData {
   id: string;
@@ -39,7 +40,7 @@ const UnusualVolume: React.FC = () => {
       price: type === 'microcap' ? Math.random() * 1 : Math.random() * 100000,
       change24h: (Math.random() - 0.5) * 30,
       exchange: Math.random() > 0.5 ? 'Binance' : 'OKX',
-      timestamp: new Date().toISOString()
+      timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString() // Último 1 hora
     })).sort((a, b) => b.volumeSpike - a.volumeSpike);
   };
 
@@ -77,6 +78,32 @@ const UnusualVolume: React.FC = () => {
     return `$${price.toFixed(6)}`;
   };
 
+  const formatDateTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return {
+      time: date.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      }),
+      date: date.toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit' 
+      })
+    };
+  };
+
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const eventTime = new Date(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - eventTime.getTime()) / 60000);
+    
+    if (diffInMinutes < 1) return 'Agora mesmo';
+    if (diffInMinutes < 60) return `${diffInMinutes}min atrás`;
+    const hours = Math.floor(diffInMinutes / 60);
+    return `${hours}h atrás`;
+  };
+
   const VolumeTable = ({ data, title }: { data: VolumeData[], title: string }) => (
     <Card className="h-full bg-[#1C1C1E] border-[#2E2E2E] hover:border-[#00E0FF]/50 transition-all duration-300 backdrop-blur-sm">
       <CardHeader className="pb-4">
@@ -99,32 +126,59 @@ const UnusualVolume: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2E2E2E]">
-              {data.map((item) => (
-                <tr key={item.id} className="hover:bg-[#2E2E2E]/50 transition-colors">
-                  <td className="py-3 px-4">
-                    <span className="font-bold text-[#F5F5F5] font-mono">{item.symbol}</span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <Badge className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80 text-black font-mono">
-                      {item.volumeSpike.toFixed(1)}x
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <span className="font-mono text-[#F5F5F5]">{formatVolume(item.volume)}</span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <span className="font-mono text-[#AAAAAA]">{formatPrice(item.price)}</span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <span className={`font-mono ${item.change24h >= 0 ? 'text-[#A6FF00]' : 'text-[#FF4D4D]'}`}>
-                      {item.change24h >= 0 ? '+' : ''}{item.change24h.toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="text-xs bg-[#2E2E2E] text-[#AAAAAA] px-2 py-1 rounded">{item.exchange}</span>
-                  </td>
-                </tr>
-              ))}
+              {data.map((item) => {
+                const { time, date } = formatDateTime(item.timestamp);
+                const timeAgo = getTimeAgo(item.timestamp);
+                
+                return (
+                  <TooltipProvider key={item.id}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <tr className="hover:bg-[#2E2E2E]/50 transition-colors cursor-pointer">
+                          <td className="py-3 px-4">
+                            <span className="font-bold text-[#F5F5F5] font-mono">{item.symbol}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Badge className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80 text-black font-mono">
+                              {item.volumeSpike.toFixed(1)}x
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-mono text-[#F5F5F5]">{formatVolume(item.volume)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-mono text-[#AAAAAA]">{formatPrice(item.price)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className={`font-mono ${item.change24h >= 0 ? 'text-[#A6FF00]' : 'text-[#FF4D4D]'}`}>
+                              {item.change24h >= 0 ? '+' : ''}{item.change24h.toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="text-xs bg-[#2E2E2E] text-[#AAAAAA] px-2 py-1 rounded">{item.exchange}</span>
+                          </td>
+                        </tr>
+                      </TooltipTrigger>
+                      <TooltipContent 
+                        side="top" 
+                        className="bg-[#1C1C1E] border-[#2E2E2E] text-[#F5F5F5] p-3 rounded-lg shadow-xl"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-[#00E0FF] font-mono text-sm">📊 UNUSUAL VOLUME DETECTED</span>
+                          </div>
+                          <div className="text-xs text-[#AAAAAA] space-y-1">
+                            <div>🕒 <span className="text-[#F5F5F5] font-mono">{time}</span> • {date}</div>
+                            <div>⏱️ <span className="text-[#A6FF00]">{timeAgo}</span></div>
+                            <div>📈 Volume: <span className="text-[#F5F5F5] font-mono">{formatVolume(item.volume)}</span></div>
+                            <div>🚀 Spike: <span className="text-[#FF4D4D] font-mono">{item.volumeSpike.toFixed(1)}x normal</span></div>
+                          </div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })}
             </tbody>
           </table>
         </div>
