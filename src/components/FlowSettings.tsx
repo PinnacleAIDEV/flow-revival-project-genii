@@ -2,26 +2,32 @@
 import React, { useState } from 'react';
 import { Settings, Volume2, Bell, Activity, Save, RotateCcw } from 'lucide-react';
 
+interface AlertLevels {
+  low: number;
+  medium: number;
+  high: number;
+  critical: number;
+}
+
+interface AudioSettings {
+  enabled: boolean;
+  volume: number;
+}
+
+interface RetentionDays {
+  minuteData: number;
+  hourlyData: number;
+  dailyData: number;
+}
+
 interface FlowSettingsConfig {
   volumeThreshold: number;
   vwapSensitivity: number;
-  alertLevels: {
-    low: number;
-    medium: number;
-    high: number;
-    critical: number;
-  };
-  audioSettings: {
-    enabled: boolean;
-    volume: number;
-  };
+  alertLevels: AlertLevels;
+  audioSettings: AudioSettings;
   timeframes: string[];
   maxAlertsPerMinute: number;
-  retentionDays: {
-    minuteData: number;
-    hourlyData: number;
-    dailyData: number;
-  };
+  retentionDays: RetentionDays;
 }
 
 export const FlowSettings: React.FC = () => {
@@ -49,18 +55,22 @@ export const FlowSettings: React.FC = () => {
 
   const [hasChanges, setHasChanges] = useState(false);
 
-  const updateConfig = (section: string, key: string, value: any) => {
+  const updateConfig = <T extends keyof FlowSettingsConfig>(
+    section: T,
+    key: keyof FlowSettingsConfig[T],
+    value: any
+  ) => {
     setConfig(prev => ({
       ...prev,
       [section]: {
-        ...prev[section as keyof FlowSettingsConfig],
+        ...(prev[section] as object),
         [key]: value
       }
     }));
     setHasChanges(true);
   };
 
-  const updateDirectConfig = (key: string, value: any) => {
+  const updateDirectConfig = (key: keyof FlowSettingsConfig, value: any) => {
     setConfig(prev => ({
       ...prev,
       [key]: value
@@ -210,7 +220,7 @@ export const FlowSettings: React.FC = () => {
                   min="1"
                   max="20"
                   value={value}
-                  onChange={(e) => updateConfig('alertLevels', level, parseInt(e.target.value))}
+                  onChange={(e) => updateConfig('alertLevels', level as keyof AlertLevels, parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>

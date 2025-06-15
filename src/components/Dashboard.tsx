@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, DollarSign, Activity, Eye } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
@@ -196,7 +195,7 @@ export const Dashboard: React.FC = () => {
               <XAxis dataKey="time" />
               <YAxis />
               <Tooltip 
-                formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name.toUpperCase()]}
+                formatter={(value: number, name: string) => [`$${Number(value).toLocaleString()}`, name.toUpperCase()]}
               />
               <Line 
                 type="monotone" 

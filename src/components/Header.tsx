@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { Activity, BarChart3, Settings, Zap } from 'lucide-react';
+import { Activity, BarChart3, Settings, Zap, TrendingUp } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'flow' | 'dashboard' | 'sentiment' | 'settings';
-  onTabChange: (tab: 'flow' | 'dashboard' | 'sentiment' | 'settings') => void;
+  activeTab: 'flow' | 'dashboard' | 'sentiment' | 'settings' | 'backtesting';
+  onTabChange: (tab: 'flow' | 'dashboard' | 'sentiment' | 'settings' | 'backtesting') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
@@ -12,6 +12,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
     { id: 'flow' as const, label: 'Live Flow', icon: Activity },
     { id: 'dashboard' as const, label: 'Analytics', icon: BarChart3 },
     { id: 'sentiment' as const, label: 'Market Sentiment', icon: Zap },
+    { id: 'backtesting' as const, label: 'Backtesting', icon: TrendingUp },
     { id: 'settings' as const, label: 'Settings', icon: Settings },
   ];
 
