@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
@@ -15,6 +14,7 @@ interface LiquidationBubble {
   intensity: number;
   change24h: number;
   volume: number;
+  lastUpdateTime: Date; // Novo campo para controlar quando foi a última atualização
 }
 
 export const LiquidationBubbleMap: React.FC = () => {
@@ -30,13 +30,32 @@ export const LiquidationBubbleMap: React.FC = () => {
     'NEARUSDT', 'ALGOUSDT', 'QNTUSDT', 'FLOWUSDT', 'SANDUSDT', 'MANAUSDT', 'AXSUSDT'
   ];
 
+  // Sistema de limpeza automática - remove liquidações antigas a cada minuto
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const now = new Date();
+      const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+
+      setLongLiquidations(prev => 
+        prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo)
+      );
+      
+      setShortLiquidations(prev => 
+        prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo)
+      );
+    }, 60000); // Executa a cada minuto
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
   useEffect(() => {
     const newLongLiquidations: LiquidationBubble[] = [];
     const newShortLiquidations: LiquidationBubble[] = [];
+    const now = new Date();
 
     flowData.forEach(data => {
       // Validar dados obrigatórios
-      if (!data.ticker || !data.price || !data.volume || !data.change_24h === undefined) {
+      if (!data.ticker || !data.price || !data.volume || data.change_24h === undefined) {
         console.log('⚠️ Dados inválidos para liquidação:', data);
         return;
       }
@@ -73,7 +92,8 @@ export const LiquidationBubbleMap: React.FC = () => {
           timestamp: new Date(data.timestamp),
           intensity,
           change24h: data.change_24h || 0,
-          volume: data.volume
+          volume: data.volume,
+          lastUpdateTime: now // Adiciona timestamp de última atualização
         };
         
         if (liquidation.type === 'long') {
@@ -84,18 +104,44 @@ export const LiquidationBubbleMap: React.FC = () => {
       }
     });
 
-    // Aumentar limite para 50 liquidações por tipo e ordenar por valor
-    setLongLiquidations(
-      newLongLiquidations
+    // Atualizar liquidações existentes e adicionar novas
+    setLongLiquidations(prev => {
+      const updated = [...prev];
+      
+      newLongLiquidations.forEach(newLiq => {
+        const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
+        if (existingIndex >= 0) {
+          // Atualiza liquidação existente com novos dados e timestamp
+          updated[existingIndex] = { ...newLiq, lastUpdateTime: now };
+        } else {
+          // Adiciona nova liquidação
+          updated.push(newLiq);
+        }
+      });
+      
+      return updated
         .sort((a, b) => b.amount - a.amount)
-        .slice(0, 50)
-    );
+        .slice(0, 50);
+    });
     
-    setShortLiquidations(
-      newShortLiquidations
+    setShortLiquidations(prev => {
+      const updated = [...prev];
+      
+      newShortLiquidations.forEach(newLiq => {
+        const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
+        if (existingIndex >= 0) {
+          // Atualiza liquidação existente com novos dados e timestamp
+          updated[existingIndex] = { ...newLiq, lastUpdateTime: now };
+        } else {
+          // Adiciona nova liquidação
+          updated.push(newLiq);
+        }
+      });
+      
+      return updated
         .sort((a, b) => b.amount - a.amount)
-        .slice(0, 50)
-    );
+        .slice(0, 50);
+    });
   }, [flowData]);
 
   const formatAmount = (amount: number) => {
