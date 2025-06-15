@@ -6,6 +6,7 @@ import { alertSystem } from '../services/AlertSystem';
 
 export const useFlowData = () => {
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [flowData, setFlowData] = useState<FlowData[]>([]);
   const [marketSentiment, setMarketSentiment] = useState({
@@ -17,9 +18,11 @@ export const useFlowData = () => {
   });
 
   const handleFlowData = useCallback((data: FlowData) => {
+    console.log('📈 Processing flow data:', data.ticker, data.price);
+    
     // Atualizar dados de flow
     setFlowData(prev => {
-      const updated = [data, ...prev.filter(item => item.ticker !== data.ticker)].slice(0, 50);
+      const updated = [data, ...prev.filter(item => item.ticker !== data.ticker)].slice(0, 100);
       
       // Calcular sentimento do mercado
       const sentiment = flowAnalytics.calculateMarketSentiment(updated);
@@ -40,54 +43,37 @@ export const useFlowData = () => {
 
   const connectToFlow = useCallback(async () => {
     try {
+      setConnectionError(null);
+      console.log('🚀 Initiating connection to Digital Ocean droplet...');
+      
+      // Testar conexão primeiro
+      const isHealthy = await webSocketService.testConnection();
+      if (!isHealthy) {
+        console.warn('⚠️ Health check failed, but proceeding with WebSocket connection...');
+      }
+      
       await webSocketService.connect();
       setIsConnected(true);
       
       webSocketService.onMessage(handleFlowData);
       
-      console.log('✅ Connected to Pinnacle AI Pro Flow System');
-    } catch (error) {
-      console.error('❌ Failed to connect to flow system:', error);
-      setIsConnected(false);
+      console.log('✅ Successfully connected to Pinnacle AI Pro Flow System');
+      console.log('🔗 Droplet IP: 157.245.240.29');
       
-      // Simular dados para desenvolvimento
-      simulateFlowData();
+    } catch (error) {
+      console.error('❌ Failed to connect to Digital Ocean droplet:', error);
+      setIsConnected(false);
+      setConnectionError(error instanceof Error ? error.message : 'Connection failed');
+      
+      // Mostrar erro específico para o usuário
+      alert(`❌ Falha na conexão com o droplet da Digital Ocean (157.245.240.29):\n${error instanceof Error ? error.message : 'Erro desconhecido'}\n\nVerifique se:\n1. O droplet está rodando\n2. O WebSocket está ativo na porta 8080\n3. O firewall permite conexões`);
     }
-  }, [handleFlowData]);
-
-  const simulateFlowData = useCallback(() => {
-    const tickers = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'ADA/USDT', 'SOL/USDT', 'AVAX/USDT'];
-    
-    const interval = setInterval(() => {
-      const ticker = tickers[Math.floor(Math.random() * tickers.length)];
-      const basePrice = ticker === 'BTC/USDT' ? 45000 : 
-                       ticker === 'ETH/USDT' ? 2800 : 
-                       ticker === 'BNB/USDT' ? 335 : 
-                       ticker === 'SOL/USDT' ? 125 : 50;
-
-      const mockData: FlowData = {
-        ticker,
-        price: basePrice + (Math.random() - 0.5) * basePrice * 0.1,
-        volume: Math.random() * 1000000 + 100000,
-        timestamp: Date.now(),
-        exchange: 'Binance',
-        bid: basePrice * 0.999,
-        ask: basePrice * 1.001,
-        change_24h: (Math.random() - 0.5) * 10,
-        volume_24h: Math.random() * 50000000 + 10000000,
-        vwap: basePrice * (0.99 + Math.random() * 0.02),
-        trades_count: Math.floor(Math.random() * 10000) + 1000
-      };
-
-      handleFlowData(mockData);
-    }, 2000);
-
-    return () => clearInterval(interval);
   }, [handleFlowData]);
 
   const disconnect = useCallback(() => {
     webSocketService.disconnect();
     setIsConnected(false);
+    setConnectionError(null);
   }, []);
 
   const getAlertsByType = useCallback((type: string) => {
@@ -99,6 +85,13 @@ export const useFlowData = () => {
     alertSystem.clearHistory();
   }, []);
 
+  const reconnect = useCallback(() => {
+    disconnect();
+    setTimeout(() => {
+      connectToFlow();
+    }, 1000);
+  }, [connectToFlow, disconnect]);
+
   useEffect(() => {
     connectToFlow();
     
@@ -109,12 +102,13 @@ export const useFlowData = () => {
 
   return {
     isConnected,
+    connectionError,
     alerts,
     flowData,
     marketSentiment,
     getAlertsByType,
     clearAlerts,
-    reconnect: connectToFlow,
+    reconnect,
     disconnect
   };
 };
