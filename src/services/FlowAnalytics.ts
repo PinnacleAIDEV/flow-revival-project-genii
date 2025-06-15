@@ -4,29 +4,36 @@ export class FlowAnalytics {
   private volumeHistory: Map<string, number[]> = new Map();
   private priceHistory: Map<string, number[]> = new Map();
   private vwapTracker: Map<string, { position: string; vwap: number }> = new Map();
-  private timeframes = {
-    '1m': 60000,
-    '3m': 180000,
-    '5m': 300000,
-    '30m': 1800000,
-    '1h': 3600000,
-    '1d': 86400000
-  };
+  private klineHistory: Map<string, Array<{
+    volume: number;
+    timestamp: number;
+    price: number;
+    high: number;
+    low: number;
+    close: number;
+    open: number;
+  }>> = new Map();
 
   analyzeFlowData(data: FlowData): Alert[] {
     const alerts: Alert[] = [];
 
-    // Detectar volume anormal
+    // Detectar liquidações (baseado em quedas/subidas bruscas com volume alto)
+    const liquidationAlert = this.detectLiquidations(data);
+    if (liquidationAlert) alerts.push(liquidationAlert);
+
+    // Detectar volume anormal melhorado
     const volumeAlert = this.detectUnusualVolume(data);
     if (volumeAlert) alerts.push(volumeAlert);
 
-    // Detectar cruzamentos VWAP
-    const vwapAlert = this.detectVWAPCross(data);
-    if (vwapAlert) alerts.push(vwapAlert);
+    // Detectar ordens grandes
+    const largeOrderAlert = this.detectLargeOrders(data);
+    if (largeOrderAlert) alerts.push(largeOrderAlert);
 
-    // Detectar movimentos climáticos
-    const climaticAlert = this.detectClimaticMove(data);
-    if (climaticAlert) alerts.push(climaticAlert);
+    // Detectar padrões de kline anormais
+    if (data.kline_volume) {
+      const klineAlert = this.detectAbnormalKline(data);
+      if (klineAlert) alerts.push(klineAlert);
+    }
 
     // Atualizar histórico
     this.updateHistory(data);
@@ -34,16 +41,170 @@ export class FlowAnalytics {
     return alerts;
   }
 
-  private detectUnusualVolume(data: FlowData): Alert | null {
-    const { ticker, volume, price } = data;
+  private detectLiquidations(data: FlowData): Alert | null {
+    const { ticker, price, volume, change_24h } = data;
     const history = this.volumeHistory.get(ticker) || [];
     
-    if (history.length < 20) return null; // Precisa de histórico mínimo
+    if (history.length < 10) return null;
 
     const avgVolume = history.reduce((sum, v) => sum + v, 0) / history.length;
     const volumeSpike = volume / avgVolume;
 
-    if (volumeSpike > 3.0) { // Volume 3x maior que média
+    // Liquidação: Volume muito alto (5x+) + movimento brusco de preço (3%+)
+    if (volumeSpike > 5.0 && Math.abs(change_24h) > 3.0) {
+      return {
+        id: `liquidation-${Date.now()}`,
+        type: 'liquidation',
+        ticker,
+        timestamp: new Date(),
+        details: {
+          direction: change_24h > 0 ? 'long_squeeze' : 'short_squeeze',
+          priceMove: `${change_24h.toFixed(2)}%`,
+          volumeSpike: `${volumeSpike.toFixed(1)}X`,
+          estimated_amount: (volume * price).toFixed(0)
+        },
+        alert_level: 5, // Sempre crítico
+        direction: change_24h > 0 ? 'bullish' : 'bearish',
+        price: price
+      };
+    }
+
+    return null;
+  }
+
+  private detectAbnormalKline(data: FlowData): Alert | null {
+    const { ticker, kline_volume, price, high, low, open, close } = data;
+    
+    if (!kline_volume) return null;
+
+    const history = this.klineHistory.get(ticker) || [];
+    
+    const newKline = {
+      volume: kline_volume,
+      timestamp: data.timestamp,
+      price,
+      high,
+      low,
+      close,
+      open
+    };
+
+    history.push(newKline);
+    if (history.length > 60) history.shift(); // Manter 1 hora
+    this.klineHistory.set(ticker, history);
+
+    if (history.length < 20) return null;
+
+    // Calcular média de volume das últimas 20 klines
+    const recentKlines = history.slice(-20, -1); // Excluir a atual
+    const avgVolume = recentKlines.reduce((sum, k) => sum + k.volume, 0) / recentKlines.length;
+    const volumeIncrease = (kline_volume / avgVolume) * 100;
+
+    // Detectar volume anormal em kline (350%+ da média)
+    if (volumeIncrease >= 350 && avgVolume > 0) {
+      const priceMovement = ((close - open) / open) * 100;
+      
+      // Determinar direção do sinal
+      const alertType = this.determineKlineDirection(newKline, priceMovement, data.change_24h);
+      
+      return {
+        id: `kline-${ticker}-${data.timestamp}`,
+        type: 'unusual_volume',
+        ticker,
+        timestamp: new Date(data.timestamp),
+        details: {
+          direction: alertType,
+          volume: kline_volume.toFixed(0),
+          volumeIncrease: `${(volumeIncrease - 100).toFixed(0)}%`,
+          priceMove: `${priceMovement.toFixed(2)}%`,
+          timeframe: '1min'
+        },
+        alert_level: this.calculateKlineAlertLevel(volumeIncrease, Math.abs(priceMovement)),
+        direction: alertType,
+        price: price
+      };
+    }
+
+    return null;
+  }
+
+  private determineKlineDirection(kline: any, priceMovement: number, change24h: number): 'buy' | 'sell' {
+    const { open, close, high, low } = kline;
+    
+    // Análise de wick para determinar pressão
+    const upperWick = high - Math.max(open, close);
+    const lowerWick = Math.min(open, close) - low;
+    const bodySize = Math.abs(close - open);
+    
+    let buySignals = 0;
+    let sellSignals = 0;
+    
+    // Sinais de compra
+    if (priceMovement > 0.5) buySignals++;
+    if (close > open) buySignals++;
+    if (lowerWick > upperWick) buySignals++;
+    if (change24h > 1) buySignals++;
+    if (bodySize > (upperWick + lowerWick)) buySignals++; // Corpo forte
+    
+    // Sinais de venda
+    if (priceMovement < -0.5) sellSignals++;
+    if (close < open) sellSignals++;
+    if (upperWick > lowerWick) sellSignals++;
+    if (change24h < -1) sellSignals++;
+    
+    return buySignals > sellSignals ? 'buy' : 'sell';
+  }
+
+  private calculateKlineAlertLevel(volumeIncrease: number, priceMove: number): number {
+    let level = 1;
+    
+    if (volumeIncrease >= 800) level = 5; // Extremo
+    else if (volumeIncrease >= 600) level = 4; // Alto
+    else if (volumeIncrease >= 450) level = 3; // Médio
+    else if (volumeIncrease >= 350) level = 2; // Baixo
+    
+    // Bonus por movimento de preço
+    if (priceMove >= 2) level = Math.min(5, level + 1);
+    
+    return level;
+  }
+
+  private detectLargeOrders(data: FlowData): Alert | null {
+    const { ticker, volume, price } = data;
+    const orderValue = volume * price;
+    
+    // Ordem grande: valor > $500K USD
+    if (orderValue > 500000) {
+      return {
+        id: `large-order-${Date.now()}`,
+        type: 'large_order',
+        ticker,
+        timestamp: new Date(),
+        details: {
+          orderValue: `$${(orderValue / 1e6).toFixed(2)}M`,
+          volume: volume.toFixed(0),
+          price: price.toFixed(6)
+        },
+        alert_level: orderValue > 5000000 ? 5 : orderValue > 2000000 ? 4 : orderValue > 1000000 ? 3 : 2,
+        direction: data.change_24h > 0 ? 'bullish' : 'bearish',
+        price: price,
+        amount: orderValue
+      };
+    }
+
+    return null;
+  }
+
+  private detectUnusualVolume(data: FlowData): Alert | null {
+    const { ticker, volume, price } = data;
+    const history = this.volumeHistory.get(ticker) || [];
+    
+    if (history.length < 20) return null;
+
+    const avgVolume = history.reduce((sum, v) => sum + v, 0) / history.length;
+    const volumeSpike = volume / avgVolume;
+
+    if (volumeSpike > 3.0) {
       return {
         id: Date.now().toString(),
         type: 'unusual_volume',
@@ -53,71 +214,11 @@ export class FlowAnalytics {
           change: `${volumeSpike.toFixed(1)}X`,
           price: price.toFixed(2),
           volume: volume.toFixed(0),
-          avgVolume: avgVolume.toFixed(0)
+          avgVolume: avgVolume.toFixed(0),
+          direction: data.change_24h > 0 ? 'buy' : 'sell'
         },
         alert_level: this.calculateAlertLevel(volumeSpike),
         direction: data.change_24h > 0 ? 'bullish' : 'bearish',
-        price: price
-      };
-    }
-
-    return null;
-  }
-
-  private detectVWAPCross(data: FlowData): Alert | null {
-    const { ticker, price, vwap } = data;
-    const tracker = this.vwapTracker.get(ticker);
-    
-    const currentPosition = price > vwap ? 'above' : 'below';
-    
-    if (tracker && tracker.position !== currentPosition) {
-      this.vwapTracker.set(ticker, { position: currentPosition, vwap });
-      
-      return {
-        id: Date.now().toString(),
-        type: 'vwap_cross',
-        ticker,
-        timestamp: new Date(),
-        details: {
-          direction: currentPosition === 'above' ? 'bullish' : 'bearish',
-          price: price.toFixed(2),
-          vwap: vwap.toFixed(2),
-          crossType: `Price crossed ${currentPosition} VWAP`
-        },
-        alert_level: 2,
-        direction: currentPosition === 'above' ? 'bullish' : 'bearish',
-        price: price
-      };
-    }
-
-    this.vwapTracker.set(ticker, { position: currentPosition, vwap });
-    return null;
-  }
-
-  private detectClimaticMove(data: FlowData): Alert | null {
-    const { ticker, change_24h, volume, price } = data;
-    const volumeHistory = this.volumeHistory.get(ticker) || [];
-    
-    if (volumeHistory.length < 10) return null;
-
-    const avgVolume = volumeHistory.reduce((sum, v) => sum + v, 0) / volumeHistory.length;
-    const volumeSpike = volume / avgVolume;
-    
-    // Movimento climático: mudança de preço > 5% E volume > 2x média
-    if (Math.abs(change_24h) > 5.0 && volumeSpike > 2.0) {
-      return {
-        id: Date.now().toString(),
-        type: 'climactic_move',
-        ticker,
-        timestamp: new Date(),
-        details: {
-          direction: change_24h > 0 ? 'up' : 'down',
-          priceChange: `${change_24h.toFixed(2)}%`,
-          volumeSpike: `${volumeSpike.toFixed(1)}X`,
-          significance: 'High'
-        },
-        alert_level: this.calculateAlertLevel(Math.abs(change_24h) / 5 + volumeSpike / 2),
-        direction: change_24h > 0 ? 'up' : 'down',
         price: price
       };
     }

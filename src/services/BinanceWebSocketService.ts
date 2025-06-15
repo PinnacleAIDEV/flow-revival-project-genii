@@ -1,4 +1,3 @@
-
 export interface FlowData {
   ticker: string;
   price: number;
@@ -25,7 +24,7 @@ export interface Alert {
   timestamp: Date;
   details: any;
   alert_level: number;
-  direction?: 'bullish' | 'bearish' | 'up' | 'down';
+  direction?: 'bullish' | 'bearish' | 'up' | 'down' | 'buy' | 'sell';
   price: number;
   amount?: number;
 }
@@ -38,7 +37,7 @@ class BinanceWebSocketService {
   private connectionError: string | null = null;
   private reconnectInterval: NodeJS.Timeout | null = null;
   
-  // Top 200 crypto symbols by market cap and volume
+  // Top 100 mais líquidos - otimizado para melhor detecção
   private symbols = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'DOTUSDT',
     'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT',
@@ -52,24 +51,11 @@ class BinanceWebSocketService {
     'DATAUSDT', 'DCRUSTDT', 'DENTUSDT', 'DGBUSDT', 'DNTUSDT', 'DUSKUSDT', 'DYDXUSDT', 'EGLDUSDT',
     'ENSUSDT', 'EOSUSDT', 'FETUSDT', 'FIDAUSDT', 'FLMUSDT', 'FORTHUSDT', 'FTTUSDT', 'GALUSDT',
     'GMTUSDT', 'GRTUSDT', 'GTCUSDT', 'HBARUSDT', 'HNTUSDT', 'HOTUSDT', 'INOSUSDT', 'IOSTUSDT',
-    'IOTAUSDT', 'JASMYUSDT', 'JOEUSDT', 'KAVAUSDT', 'KDAUSDT', 'KEYUSDT', 'KLAYUSDT', 'LAZIOUSDT',
-    'LDOUSDT', 'LINAUSDT', 'LITUSDT', 'LPTUSDT', 'LUNAUSDT', 'MAGICUSDT', 'MASKUSDT', 'MINAUSDT',
-    'MOVRUSDT', 'MTLUSDT', 'NKNUSDT', 'NMRUSDT', 'OCEANUSDT', 'OGNUSDT', 'OMGUSDT', 'OPUSDT',
-    'ORCAUSDT', 'ORNUSDT', 'PENDLEUSDT', 'PEOPLEUSDT', 'PERPUSDT', 'POLYXUSDT', 'POWRUSDT', 'PUNDIXUSDT',
-    'RAREUSDT', 'RAYUSDT', 'RDNTUSDT', 'REEFUSDT', 'REQUSDT', 'RIFUSDT', 'ROSEUSDT', 'RSRUSDT',
-    'RUNEUSDT', 'SCUSDT', 'SFPUSDT', 'SKLUSDT', 'SLPUSDT', 'SPELLUSDT', 'SRMUSDT', 'STGUSDT',
-    'STMXUSDT', 'STORJUSDT', 'STXUSDT', 'SUNUSDT', 'SXPUSDT', 'TLMUSDT', 'TOMOUSDT', 'TRBUSDT',
-    'TRUUSDT', 'TVKUSDT', 'TWOUSDT', 'UNFIUSDT', 'VICUSDT', 'VOXELUSDT', 'WAXPUSDT', 'WINUSDT',
-    'WOOUSDT', 'XEMUSDT', 'XVSUSDT', 'YGGUSDT', 'ZECUSDT', 'ZENUSDT', 'ZRXUSDT', 'ACHUSDT',
-    'AIDOGEUSDT', 'ARBUSDT', 'ASTRUSDT', 'BICOUSDT', 'BLURUSDT', 'BONKUSDT', 'COMBOUSDT', 'COREUSDT',
-    'EDUUSDT', 'FLOKIUSDT', 'GASUSDT', 'HIGHUSDT', 'HOOKUSDT', 'IDUSDT', 'IMXUSDT', 'INJUSDT',
-    'JSTUSDT', 'LEVERUSDT', 'LQTYUSDT', 'MAVUSDT', 'MDTUSDT', 'PEPEUSDT', 'PHBUSDT', 'RADUSDT',
-    'RDNTUSDT', 'RNDRUSDT', 'SEIUSDT', 'STXUSDT', 'SUIUSDT', 'SXPUSDT', 'TIAUSDT', 'TRUUSDT',
-    'USDCUSDT', 'WLDUSDT', 'XAIUSDT', 'XVGUSDT', 'XVSUSDT', 'ZKUSDT', 'ARKMUSDT', 'BEAMXUSDT'
+    'IOTAUSDT', 'JASMYUSDT', 'JOEUSDT', 'KAVAUSDT'
   ];
 
   async connect(): Promise<void> {
-    console.log('🚀 Connecting to Binance WebSocket Stream (200 assets)...');
+    console.log('🚀 Connecting to Optimized Binance Stream (100 liquid pairs)...');
     this.connectionStatus = 'connecting';
     this.connectionError = null;
 
@@ -79,7 +65,7 @@ class BinanceWebSocketService {
         this.connectKlineStream()
       ]);
 
-      console.log('✅ Connected to both Ticker and Kline streams');
+      console.log('✅ Connected to optimized streams - Enhanced alert detection active');
       this.connectionStatus = 'connected';
       this.connectionError = null;
 
@@ -95,12 +81,12 @@ class BinanceWebSocketService {
     const streamNames = this.symbols.map(symbol => `${symbol.toLowerCase()}@ticker`).join('/');
     const wsUrl = `wss://stream.binance.com:9443/ws/${streamNames}`;
     
-    console.log('🔗 Connecting to Ticker Stream...');
+    console.log('🔗 Connecting to Enhanced Ticker Stream...');
     
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('✅ Ticker stream connected');
+      console.log('✅ Enhanced ticker stream connected - Liquidation detection active');
     };
 
     this.ws.onmessage = (event) => {
@@ -144,25 +130,17 @@ class BinanceWebSocketService {
   }
 
   private async connectKlineStream(): Promise<void> {
-    // Dividir em múltiplas conexões para evitar limite de URL
-    const chunkSize = 50;
-    const chunks = [];
-    
-    for (let i = 0; i < this.symbols.length; i += chunkSize) {
-      chunks.push(this.symbols.slice(i, i + chunkSize));
-    }
-
-    // Conectar apenas o primeiro chunk por agora (50 símbolos)
-    const firstChunk = chunks[0];
-    const streamNames = firstChunk.map(symbol => `${symbol.toLowerCase()}@kline_1m`).join('/');
+    // Conectar apenas 50 pares mais líquidos para klines de 1min
+    const topSymbols = this.symbols.slice(0, 50);
+    const streamNames = topSymbols.map(symbol => `${symbol.toLowerCase()}@kline_1m`).join('/');
     const wsUrl = `wss://stream.binance.com:9443/ws/${streamNames}`;
     
-    console.log('🔗 Connecting to Kline Stream (1min)...');
+    console.log('🔗 Connecting to Enhanced Kline Stream (1min - Top 50 pairs)...');
     
     this.klineWs = new WebSocket(wsUrl);
 
     this.klineWs.onopen = () => {
-      console.log('✅ Kline stream connected (1min timeframe)');
+      console.log('✅ Enhanced kline stream connected - Abnormal volume detection active');
     };
 
     this.klineWs.onmessage = (event) => {
@@ -179,7 +157,7 @@ class BinanceWebSocketService {
             exchange: 'Binance',
             bid: parseFloat(kline.c),
             ask: parseFloat(kline.c),
-            change_24h: 0,
+            change_24h: ((parseFloat(kline.c) - parseFloat(kline.o)) / parseFloat(kline.o)) * 100,
             volume_24h: parseFloat(kline.q),
             vwap: parseFloat(kline.c),
             trades_count: parseInt(kline.n),
@@ -190,7 +168,7 @@ class BinanceWebSocketService {
             kline_volume: parseFloat(kline.v)
           };
 
-          console.log(`📊 Kline 1min: ${flowData.ticker} - $${flowData.price.toFixed(4)} Vol: ${flowData.kline_volume?.toFixed(0)}`);
+          console.log(`📊 Kline Alert Check: ${flowData.ticker} - Vol: ${flowData.kline_volume?.toFixed(0)} - Price: $${flowData.price.toFixed(4)}`);
           this.messageHandlers.forEach(handler => handler(flowData));
         }
       } catch (error) {
@@ -216,7 +194,7 @@ class BinanceWebSocketService {
     }
     
     this.reconnectInterval = setTimeout(() => {
-      console.log('🔄 Attempting to reconnect to Binance...');
+      console.log('🔄 Attempting to reconnect to enhanced Binance streams...');
       this.connect();
     }, 5000);
   }
@@ -255,7 +233,8 @@ class BinanceWebSocketService {
       status: this.connectionStatus,
       error: this.connectionError,
       isSimulator: false,
-      totalSymbols: this.symbols.length
+      totalSymbols: this.symbols.length,
+      klineSymbols: 50 // Top 50 para klines
     };
   }
 
