@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
@@ -23,12 +22,41 @@ export const LiquidationBubbleMap: React.FC = () => {
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
 
-  // Lista expandida de ativos com market cap alto
+  // Lista expandida para cobrir TODO o mercado cripto - Top 150+ ativos
   const highMarketCapAssets = [
-    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 
-    'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'LTCUSDT', 'BCHUSDT', 'UNIUSDT',
-    'ATOMUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICPUSDT',
-    'NEARUSDT', 'ALGOUSDT', 'QNTUSDT', 'FLOWUSDT', 'SANDUSDT', 'MANAUSDT', 'AXSUSDT'
+    // Top 10 - Giants
+    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'DOTUSDT', 'LINKUSDT', 'MATICUSDT',
+    
+    // Top 11-30 - Large caps
+    'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEOUSDT',
+    'ALGOUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 'CHZUSDT', 'GALAUSDT', 'ENJUSDT', 'NEARUSDT', 'QNTUSDT',
+    
+    // Top 31-60 - Mid-large caps
+    'FLOWUSDT', 'ICPUSDT', 'THETAUSDT', 'XTZUSDT', 'MKRUSDT', 'FTMUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT', 'COMPUSDT',
+    'UNIUSDT', 'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT', 'ALPHAUSDT', 'ZENUSDT',
+    'ONEUSDT', 'ONTUSDT', 'ZILUSDT', 'RVNUSDT', 'CELRUSDT', 'CTKUSDT', 'AKROUSDT', 'ANKRUSDT', 'AUDIOUSDT', 'AVAUSDT',
+    
+    // Top 61-100 - Mid caps
+    'BELUSDT', 'BLZUSDT', 'BNXUSDT', 'BTCSTUSDT', 'CELOUSDT', 'CFXUSDT', 'CKBUSDT', 'COTIUSDT', 'CTSIUSDT', 'CVXUSDT',
+    'DARUSDT', 'DASHUSDT', 'DATAUSDT', 'DCRUSTDT', 'DENTUSDT', 'DGBUSDT', 'DNTUSDT', 'DUSKUSDT', 'DYDXUSDT', 'EGLDUSDT',
+    'ENSUSDT', 'EOSUSDT', 'FETUSDT', 'FIDAUSDT', 'FLMUSDT', 'FORTHUSDT', 'FTTUSDT', 'GALUSDT', 'GMTUSDT', 'GRTUSDT',
+    'GTCUSDT', 'HBARUSDT', 'HNTUSDT', 'HOTUSDT', 'INOSUSDT', 'IOSTUSDT', 'IOTAUSDT', 'JASMYUSDT', 'JOEUSDT', 'KAVAUSDT',
+    
+    // Top 101-150+ - Smaller but liquid caps
+    'KEYUSDT', 'KLAYUSDT', 'KSMUSDT', 'LAZIOUSDT', 'LDOUSDT', 'LEVERUSDT', 'LINAUSDT', 'LITUSDT', 'LOOKSUSDT', 'LPTUSDT',
+    'LUNAUSDT', 'MAGICUSDT', 'MASKUSDT', 'MDTUSDT', 'MINAUSDT', 'MOVRUSDT', 'MTLUSDT', 'NKNUSDT', 'NMRUSDT', 'NULSUSDT',
+    'OCEANUSDT', 'OGNUSDT', 'OMGUSDT', 'ONGUSDT', 'OPUSDT', 'ORBSUSDT', 'OXTUSDT', 'PENDLEUSDT', 'PEOPLEUSDT', 'PERPUSDT',
+    'PHBUSDT', 'POLYXUSDT', 'PORAUSDT', 'PUNDIXUSDT', 'QTUMUSDT', 'RAREUSDT', 'RAYUSDT', 'REEFUSDT', 'REQUSDT', 'RLCUSDT',
+    'ROSEUSDT', 'RNDRUSDT', 'RUNEUSDT', 'SCRTUSDT', 'SFPUSDT', 'SKLUSDT', 'SLPUSDT', 'SPELLUSDT', 'SRMUSDT', 'STGUSDT',
+    
+    // DeFi tokens
+    'CAKEUSDT', 'INJUSDT', 'LDOUSDT', 'GMXUSDT', 'ARBUSDT', 'OPUSDT', 'BLURUSDT', 'SUIUSDT', 'APTUSDT', 'SEIUSDT',
+    
+    // Meme coins (high volume)
+    'SHIBUSDT', 'PEPEUSDT', 'FLOKIUSDT', 'BONKUSDT', 'WIFUSDT', 'BOMEUSDT',
+    
+    // Layer 1s e 2s
+    'STXUSDT', 'KASUSDT', 'INJUSDT', 'TIAUSTD', 'MANTAUSDT', 'STRKUSDT', 'PYTHUSDT', 'JUPUSDT'
   ];
 
   // Sistema de limpeza automática - remove liquidações antigas a cada minuto
@@ -278,9 +306,9 @@ export const LiquidationBubbleMap: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor</h2>
+              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor - Full Market</h2>
               <p className="text-sm text-gray-500">
-                Real-time liquidation tracking • {longLiquidations.length + shortLiquidations.length} active positions • Ordered by volume
+                Real-time liquidation tracking • {longLiquidations.length + shortLiquidations.length} active positions • 150+ crypto assets monitored
               </p>
             </div>
           </div>
@@ -335,6 +363,10 @@ export const LiquidationBubbleMap: React.FC = () => {
               )}
             </div>
             <div className="text-gray-600">Total Volume</div>
+          </div>
+          <div className="text-center">
+            <div className="font-bold text-blue-600">{highMarketCapAssets.length}</div>
+            <div className="text-gray-600">Assets Tracked</div>
           </div>
         </div>
       </div>
