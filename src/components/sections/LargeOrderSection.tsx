@@ -19,12 +19,15 @@ export const LargeOrderSection: React.FC = () => {
   const [filter200M, setFilter200M] = useState(false);
 
   useEffect(() => {
-    // Detectar ordens grandes baseado em volume * preço > $1M
+    // Detectar ordens grandes baseado em volume * preço
     flowData.forEach(data => {
       const orderValue = data.volume * data.price;
       
-      // Considerar ordem grande se valor > $1M USD
-      if (orderValue > 1000000) {
+      // Definir valor mínimo baseado no filtro
+      const minValue = filter200M ? 200000000 : 1000000; // $200M ou $1M
+      
+      // Considerar ordem grande baseado no filtro ativo
+      if (orderValue > minValue) {
         const newOrder: LargeOrder = {
           id: `${data.ticker}-${data.timestamp}`,
           asset: data.ticker.replace('USDT', ''),
@@ -45,9 +48,9 @@ export const LargeOrderSection: React.FC = () => {
         });
       }
     });
-  }, [flowData]);
+  }, [flowData, filter200M]); // Adicionar filter200M como dependência
 
-  // Filter orders based on 200M filter
+  // Filtrar ordens baseado no filtro de $200M
   const filteredOrders = filter200M 
     ? largeOrders.filter(order => order.value > 200000000) // > $200M
     : largeOrders;
@@ -90,7 +93,9 @@ export const LargeOrderSection: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900">Large Orders</h3>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="text-sm text-gray-500 bg-purple-50 px-2 py-1 rounded">{'>'} $1M</div>
+          <div className="text-sm text-gray-500 bg-purple-50 px-2 py-1 rounded">
+            {'>'} {filter200M ? '$200M' : '$1M'}
+          </div>
           <div className="flex items-center space-x-1">
             <Filter className="w-4 h-4 text-gray-500" />
             <label className="flex items-center space-x-1 text-sm">
