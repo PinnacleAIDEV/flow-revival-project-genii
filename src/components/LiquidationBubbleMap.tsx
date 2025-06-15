@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { useTrading } from '../contexts/TradingContext';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { ScrollArea } from './ui/scroll-area';
+import { LiquidationHeader } from './liquidation/LiquidationHeader';
+import { LiquidationTable } from './liquidation/LiquidationTable';
+import { LiquidationStats } from './liquidation/LiquidationStats';
 
 interface LiquidationBubble {
   id: string;
@@ -209,154 +210,10 @@ export const LiquidationBubbleMap: React.FC = () => {
     return `$${amount.toFixed(2)}`;
   };
 
-  const formatPrice = (price: number) => {
-    if (!price || isNaN(price)) return '$0.00';
-    if (price >= 1) return `$${price.toFixed(4)}`;
-    return `$${price.toFixed(6)}`;
-  };
-
-  const formatChange = (change: number) => {
-    if (change === undefined || change === null || isNaN(change)) return '0.00%';
-    const sign = change >= 0 ? '+' : '';
-    return `${sign}${change.toFixed(2)}%`;
-  };
-
-  const getIntensityColor = (intensity: number) => {
-    const colors = {
-      1: 'bg-gray-100 text-gray-700',
-      2: 'bg-yellow-100 text-yellow-800',
-      3: 'bg-orange-100 text-orange-800',
-      4: 'bg-red-100 text-red-800',
-      5: 'bg-red-200 text-red-900'
-    };
-    return colors[intensity as keyof typeof colors] || colors[1];
-  };
-
-  const LiquidationTable = ({ 
-    title, 
-    liquidations, 
-    icon: Icon, 
-    bgColor,
-    textColor
-  }: { 
-    title: string; 
-    liquidations: LiquidationBubble[]; 
-    icon: any; 
-    bgColor: string;
-    textColor: string;
-  }) => (
-    <div className="flex-1 min-h-0">
-      <div className={`p-3 ${bgColor} rounded-t-lg border-b border-gray-200`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Icon className="w-5 h-5 text-white" />
-            <h3 className="text-lg font-bold text-white">{title}</h3>
-            <span className="text-sm text-white/80">({liquidations.length})</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-white rounded-b-lg">
-        {liquidations.length > 0 ? (
-          <ScrollArea className="h-[600px]">
-            <Table>
-              <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                <TableRow>
-                  <TableHead className="w-20 font-bold">Asset</TableHead>
-                  <TableHead className="w-24 font-bold">Price</TableHead>
-                  <TableHead className="w-20 font-bold">24h %</TableHead>
-                  <TableHead className="w-28 font-bold">Total Liq</TableHead>
-                  <TableHead className="w-20 font-bold">Cap</TableHead>
-                  <TableHead className="w-16 font-bold">Risk</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {liquidations.map((liquidation, index) => (
-                  <TableRow key={liquidation.id} className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
-                    <TableCell className="font-bold">
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                        <button
-                          onClick={() => handleAssetClick(liquidation.asset)}
-                          className={`${textColor} hover:underline cursor-pointer font-bold text-sm`}
-                        >
-                          {liquidation.asset}
-                        </button>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {formatPrice(liquidation.price)}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`font-semibold text-xs ${liquidation.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatChange(liquidation.change24h)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs font-bold">
-                      {formatAmount(liquidation.totalLiquidated)}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        liquidation.marketCap === 'high' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {liquidation.marketCap === 'high' ? 'HIGH' : 'LOW'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${getIntensityColor(liquidation.intensity)}`}>
-                        {liquidation.intensity}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        ) : (
-          <div className="h-[600px] flex items-center justify-center text-center">
-            <div className="space-y-2">
-              <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto" />
-              <h4 className="text-lg font-medium text-gray-600">No {title}</h4>
-              <p className="text-gray-500 text-sm">Aguardando liquidações...</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-red-600 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor</h2>
-              <p className="text-sm text-gray-500">
-                Ordenado por maior valor total liquidado • Auto-remove após 15min sem atividade
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 text-sm">
-            <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span>Long Liquidations</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span>Short Liquidations</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <LiquidationHeader />
 
-      {/* Liquidation Tables */}
       <div className="flex-1 flex gap-4 p-4 min-h-0">
         <LiquidationTable
           title="Long Liquidations"
@@ -364,6 +221,7 @@ export const LiquidationBubbleMap: React.FC = () => {
           icon={TrendingDown}
           bgColor="bg-red-600"
           textColor="text-red-700"
+          onAssetClick={handleAssetClick}
         />
         
         <LiquidationTable
@@ -372,31 +230,14 @@ export const LiquidationBubbleMap: React.FC = () => {
           icon={TrendingUp}
           bgColor="bg-green-600"
           textColor="text-green-700"
+          onAssetClick={handleAssetClick}
         />
       </div>
 
-      {/* Footer Stats */}
-      <div className="p-3 border-t border-gray-200 bg-gray-50">
-        <div className="flex justify-center space-x-8 text-sm">
-          <div className="text-center">
-            <div className="font-bold text-red-600">{longLiquidations.length}</div>
-            <div className="text-gray-600">Long Liq</div>
-          </div>
-          <div className="text-center">
-            <div className="font-bold text-green-600">{shortLiquidations.length}</div>
-            <div className="text-gray-600">Short Liq</div>
-          </div>
-          <div className="text-center">
-            <div className="font-bold text-gray-800">
-              {formatAmount(
-                [...longLiquidations, ...shortLiquidations]
-                  .reduce((total, liq) => total + liq.totalLiquidated, 0)
-              )}
-            </div>
-            <div className="text-gray-600">Total Liquidated</div>
-          </div>
-        </div>
-      </div>
+      <LiquidationStats
+        longLiquidations={longLiquidations}
+        shortLiquidations={shortLiquidations}
+      />
     </div>
   );
 };
