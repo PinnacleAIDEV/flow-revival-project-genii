@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, Database as DatabaseIcon, TrendingUp, TrendingDown, BarChart3, Clock, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -101,10 +100,15 @@ export const AssetDatabase: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Base de Dados de Ativos</h1>
-                <p className="text-gray-600">Histórico de liquidações e tendências dos últimos 4 horas</p>
+                <p className="text-gray-600">Histórico de liquidações e tendências • Reset diário 00:00 UTC</p>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Daily Reset Info */}
+        <div className="mb-6">
+          <DailyResetCounter />
         </div>
 
         {/* Search */}
