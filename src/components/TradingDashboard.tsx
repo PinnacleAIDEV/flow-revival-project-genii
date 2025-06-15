@@ -2,6 +2,7 @@
 import React from 'react';
 import { BarChart3 } from 'lucide-react';
 import { LiquidationBubbleMap } from './LiquidationBubbleMap';
+import { CoinTrendHunter } from './CoinTrendHunter';
 import { TradingViewChart } from './TradingViewChart';
 
 export const TradingDashboard: React.FC = () => {
@@ -32,9 +33,14 @@ export const TradingDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Liquidation Bubble Map - Bottom Section */}
+        {/* Liquidation Bubble Map - Middle Section */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow h-[500px]">
           <LiquidationBubbleMap />
+        </div>
+
+        {/* CoinTrendHunter - Bottom Section */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow h-[500px]">
+          <CoinTrendHunter />
         </div>
 
       </div>
