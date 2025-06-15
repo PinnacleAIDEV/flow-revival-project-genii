@@ -259,7 +259,7 @@ export const CoinTrendHunter: React.FC = () => {
               <div>
                 <h4 className="text-lg font-medium text-gray-700">Caçando Micro-Caps</h4>
                 <p className="text-gray-500 text-sm max-w-md">
-                  Procurando liquidações em ativos pequenos com critérios mais sensíveis (>$5K, >3% movimento)...
+                  Procurando liquidações em ativos pequenos com critérios mais sensíveis ({'>'}$5K, {'>'}3% movimento)...
                 </p>
               </div>
             </div>
