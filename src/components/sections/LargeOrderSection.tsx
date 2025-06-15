@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Clock, Filter } from 'lucide-react';
 import { useRealFlowData } from '../../hooks/useRealFlowData';
 
 interface LargeOrder {
@@ -16,6 +16,7 @@ interface LargeOrder {
 export const LargeOrderSection: React.FC = () => {
   const { flowData } = useRealFlowData();
   const [largeOrders, setLargeOrders] = useState<LargeOrder[]>([]);
+  const [filter200M, setFilter200M] = useState(false);
 
   useEffect(() => {
     // Detectar ordens grandes baseado em volume * preço > $1M
@@ -45,6 +46,11 @@ export const LargeOrderSection: React.FC = () => {
       }
     });
   }, [flowData]);
+
+  // Filter orders based on 200M filter
+  const filteredOrders = filter200M 
+    ? largeOrders.filter(order => order.value > 200000000) // > $200M
+    : largeOrders;
 
   const formatPrice = (price: number) => {
     if (price >= 1000) {
@@ -83,12 +89,26 @@ export const LargeOrderSection: React.FC = () => {
           <DollarSign className="w-5 h-5 text-purple-600" />
           <h3 className="text-lg font-semibold text-gray-900">Large Orders</h3>
         </div>
-        <div className="text-sm text-gray-500 bg-purple-50 px-2 py-1 rounded">{'>'} $1M</div>
+        <div className="flex items-center space-x-2">
+          <div className="text-sm text-gray-500 bg-purple-50 px-2 py-1 rounded">{'>'} $1M</div>
+          <div className="flex items-center space-x-1">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <label className="flex items-center space-x-1 text-sm">
+              <input
+                type="checkbox"
+                checked={filter200M}
+                onChange={(e) => setFilter200M(e.target.checked)}
+                className="w-3 h-3 text-purple-600 rounded focus:ring-purple-500"
+              />
+              <span className="text-gray-600">{'>'} $200M</span>
+            </label>
+          </div>
+        </div>
       </div>
       
       <div className="flex-1 overflow-y-auto space-y-3 max-h-[500px] pr-2">
-        {largeOrders.length > 0 ? (
-          largeOrders.map((order) => (
+        {filteredOrders.length > 0 ? (
+          filteredOrders.map((order) => (
             <div
               key={order.id}
               className={`p-4 rounded-lg border-l-4 shadow-sm transition-all hover:shadow-md ${
@@ -159,10 +179,13 @@ export const LargeOrderSection: React.FC = () => {
               <div>
                 <h4 className="text-lg font-medium text-gray-700 mb-2">Monitoring Orders</h4>
                 <p className="text-gray-500 text-sm max-w-xs">
-                  Aguardando ordens únicas maiores que $1M USD...
+                  {filter200M 
+                    ? 'Aguardando ordens únicas maiores que $200M USD...' 
+                    : 'Aguardando ordens únicas maiores que $1M USD...'
+                  }
                 </p>
                 <div className="mt-3 text-xs text-purple-600">
-                  Volume × Preço {'>'} $1M
+                  Volume × Preço {'>'} {filter200M ? '$200M' : '$1M'}
                 </div>
               </div>
             </div>
@@ -173,7 +196,7 @@ export const LargeOrderSection: React.FC = () => {
       {largeOrders.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 text-center">
-            {largeOrders.length} ordens • Valor {'>'} $1M USD
+            {filteredOrders.length}/{largeOrders.length} ordens • Valor {'>'} {filter200M ? '$200M' : '$1M'} USD
           </div>
         </div>
       )}
