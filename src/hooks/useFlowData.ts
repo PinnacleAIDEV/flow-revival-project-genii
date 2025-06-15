@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { webSocketService, FlowData, Alert } from '../services/WebSocketService';
 import { flowAnalytics } from '../services/FlowAnalytics';
@@ -9,6 +8,7 @@ export const useFlowData = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [flowData, setFlowData] = useState<FlowData[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const [marketSentiment, setMarketSentiment] = useState({
     score: 0,
     interpretation: 'Neutral' as string,
@@ -44,35 +44,55 @@ export const useFlowData = () => {
   const connectToFlow = useCallback(async () => {
     try {
       setConnectionError(null);
-      console.log('🚀 Initiating connection to Digital Ocean droplet...');
+      setConnectionStatus('connecting');
+      console.log('🚀 Initiating connection to Digital Ocean droplet (157.245.240.29)...');
       
       // Testar conexão primeiro
       const isHealthy = await webSocketService.testConnection();
       if (!isHealthy) {
-        console.warn('⚠️ Health check failed, but proceeding with WebSocket connection...');
+        console.warn('⚠️ HTTP health check failed, trying WebSocket connection directly...');
       }
       
       await webSocketService.connect();
       setIsConnected(true);
+      setConnectionStatus('connected');
       
       webSocketService.onMessage(handleFlowData);
       
       console.log('✅ Successfully connected to Pinnacle AI Pro Flow System');
-      console.log('🔗 Droplet IP: 157.245.240.29');
+      
+      // Configurar keepalive
+      const keepAliveInterval = setInterval(() => {
+        if (webSocketService.isConnected()) {
+          webSocketService.sendPing();
+        } else {
+          clearInterval(keepAliveInterval);
+        }
+      }, 30000); // Ping a cada 30 segundos
       
     } catch (error) {
       console.error('❌ Failed to connect to Digital Ocean droplet:', error);
       setIsConnected(false);
-      setConnectionError(error instanceof Error ? error.message : 'Connection failed');
+      setConnectionStatus('error');
       
-      // Mostrar erro específico para o usuário
-      alert(`❌ Falha na conexão com o droplet da Digital Ocean (157.245.240.29):\n${error instanceof Error ? error.message : 'Erro desconhecido'}\n\nVerifique se:\n1. O droplet está rodando\n2. O WebSocket está ativo na porta 8080\n3. O firewall permite conexões`);
+      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+      setConnectionError(errorMessage);
+      
+      // Mostrar erro detalhado
+      if (errorMessage.includes('insecure WebSocket')) {
+        setConnectionError('Erro de segurança: Tentando conexão WSS (porta 8443) ou configure HTTPS no droplet');
+      } else if (errorMessage.includes('timeout')) {
+        setConnectionError('Timeout: Verifique se o droplet está rodando e acessível');
+      } else {
+        setConnectionError(`Falha na conexão: ${errorMessage}`);
+      }
     }
   }, [handleFlowData]);
 
   const disconnect = useCallback(() => {
     webSocketService.disconnect();
     setIsConnected(false);
+    setConnectionStatus('disconnected');
     setConnectionError(null);
   }, []);
 
@@ -103,6 +123,7 @@ export const useFlowData = () => {
   return {
     isConnected,
     connectionError,
+    connectionStatus,
     alerts,
     flowData,
     marketSentiment,
