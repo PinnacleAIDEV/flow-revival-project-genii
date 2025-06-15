@@ -1,9 +1,8 @@
 
 import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Volume2, DollarSign, Activity, BarChart3, Zap, Wifi, Filter, Settings, Pause, Play } from 'lucide-react';
+import { AlertTriangle, Volume2, DollarSign, Activity, BarChart3, Zap, Wifi, Settings, Pause, Play } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { binanceWebSocketService } from '../services/BinanceWebSocketService';
-import { UnusualBuySellSection } from './sections/UnusualBuySellSection';
 import { LiquidationAlertSection } from './sections/LiquidationAlertSection';
 import { TopVolumeSection } from './sections/TopVolumeSection';
 import { LargeOrderSection } from './sections/LargeOrderSection';
@@ -29,12 +28,8 @@ export const TradingDashboard: React.FC = () => {
   // Calculate real-time statistics
   const stats = {
     totalAlerts: alerts.length,
-    buySignals: alerts.filter(a => a.type === 'unusual_volume' && a.details?.direction === 'buy').length,
-    sellSignals: alerts.filter(a => a.type === 'unusual_volume' && a.details?.direction === 'sell').length,
     liquidations: alerts.filter(a => a.type === 'liquidation').length,
     largeOrders: alerts.filter(a => a.type === 'large_order').length,
-    topGainer: flowData.reduce((max, current) => (current.change_24h > max.change_24h ? current : max), flowData[0] || { ticker: 'N/A', change_24h: 0 }),
-    topLoser: flowData.reduce((min, current) => (current.change_24h < min.change_24h ? current : min), flowData[0] || { ticker: 'N/A', change_24h: 0 })
   };
 
   return (
@@ -101,75 +96,17 @@ export const TradingDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-7 gap-4 mt-4">
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalAlerts}</div>
-              <div className="text-xs text-blue-700">Total Alerts</div>
-            </div>
-            <div className="bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
-              <div className="text-2xl font-bold text-green-600">{stats.buySignals}</div>
-              <div className="text-xs text-green-700">Buy Signals</div>
-            </div>
-            <div className="bg-gradient-to-r from-red-50 to-red-100 p-3 rounded-lg border border-red-200">
-              <div className="text-2xl font-bold text-red-600">{stats.sellSignals}</div>
-              <div className="text-xs text-red-700">Sell Signals</div>
-            </div>
-            <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-3 rounded-lg border border-orange-200">
-              <div className="text-2xl font-bold text-orange-600">{stats.liquidations}</div>
-              <div className="text-xs text-orange-700">Liquidations</div>
-            </div>
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
-              <div className="text-2xl font-bold text-purple-600">{stats.largeOrders}</div>
-              <div className="text-xs text-purple-700">Large Orders</div>
-            </div>
-            <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 p-3 rounded-lg border border-emerald-200">
-              <div className="text-lg font-bold text-emerald-600">{stats.topGainer?.ticker?.replace('USDT', '') || 'N/A'}</div>
-              <div className="text-xs text-emerald-700">Top Gainer</div>
-              <div className="text-xs text-emerald-600">+{stats.topGainer?.change_24h?.toFixed(2) || 0}%</div>
-            </div>
-            <div className="bg-gradient-to-r from-rose-50 to-rose-100 p-3 rounded-lg border border-rose-200">
-              <div className="text-lg font-bold text-rose-600">{stats.topLoser?.ticker?.replace('USDT', '') || 'N/A'}</div>
-              <div className="text-xs text-rose-700">Top Loser</div>
-              <div className="text-xs text-rose-600">{stats.topLoser?.change_24h?.toFixed(2) || 0}%</div>
-            </div>
-          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Main Grid Layout */}
-        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-300px)]">
+        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
           
-          {/* Left Side - 4 Alert Lists (2x2 Grid) */}
+          {/* Left Side - 3 Alert Lists (1x3 Grid) */}
           <div className="col-span-12 lg:col-span-6">
-            <div className="grid grid-cols-2 gap-4 h-full">
+            <div className="grid grid-rows-3 gap-4 h-full">
               
-              {/* Buy/Sell Signals */}
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow">
-                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="p-2 bg-blue-600 rounded-lg">
-                        <TrendingUp className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">Buy/Sell</h3>
-                        <p className="text-xs text-gray-500">Kline Analysis</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl font-bold text-blue-600">{stats.buySignals + stats.sellSignals}</div>
-                      <div className="text-xs text-gray-500">Active</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="h-[calc(100%-100px)] overflow-hidden">
-                  <UnusualBuySellSection />
-                </div>
-              </div>
-
               {/* Liquidations */}
               <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow">
                 <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-red-50 to-red-100">
@@ -292,9 +229,6 @@ export const TradingDashboard: React.FC = () => {
                         <div className="text-xl font-bold text-orange-600">{stats.totalAlerts}</div>
                         <div className="text-xs text-gray-500">Live</div>
                       </div>
-                      <button className="p-2 hover:bg-orange-100 rounded-lg transition-colors">
-                        <Filter className="w-4 h-4 text-orange-600" />
-                      </button>
                     </div>
                   </div>
                 </div>
