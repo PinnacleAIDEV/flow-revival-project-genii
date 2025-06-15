@@ -35,7 +35,7 @@ export class FlowAnalytics {
   }
 
   private detectUnusualVolume(data: FlowData): Alert | null {
-    const { ticker, volume } = data;
+    const { ticker, volume, price } = data;
     const history = this.volumeHistory.get(ticker) || [];
     
     if (history.length < 20) return null; // Precisa de histórico mínimo
@@ -51,12 +51,13 @@ export class FlowAnalytics {
         timestamp: new Date(),
         details: {
           change: `${volumeSpike.toFixed(1)}X`,
-          price: data.price.toFixed(2),
+          price: price.toFixed(2),
           volume: volume.toFixed(0),
           avgVolume: avgVolume.toFixed(0)
         },
         alert_level: this.calculateAlertLevel(volumeSpike),
-        direction: data.change_24h > 0 ? 'bullish' : 'bearish'
+        direction: data.change_24h > 0 ? 'bullish' : 'bearish',
+        price: price
       };
     }
 
@@ -84,7 +85,8 @@ export class FlowAnalytics {
           crossType: `Price crossed ${currentPosition} VWAP`
         },
         alert_level: 2,
-        direction: currentPosition === 'above' ? 'bullish' : 'bearish'
+        direction: currentPosition === 'above' ? 'bullish' : 'bearish',
+        price: price
       };
     }
 
@@ -93,7 +95,7 @@ export class FlowAnalytics {
   }
 
   private detectClimaticMove(data: FlowData): Alert | null {
-    const { ticker, change_24h, volume } = data;
+    const { ticker, change_24h, volume, price } = data;
     const volumeHistory = this.volumeHistory.get(ticker) || [];
     
     if (volumeHistory.length < 10) return null;
@@ -115,7 +117,8 @@ export class FlowAnalytics {
           significance: 'High'
         },
         alert_level: this.calculateAlertLevel(Math.abs(change_24h) / 5 + volumeSpike / 2),
-        direction: change_24h > 0 ? 'up' : 'down'
+        direction: change_24h > 0 ? 'up' : 'down',
+        price: price
       };
     }
 
