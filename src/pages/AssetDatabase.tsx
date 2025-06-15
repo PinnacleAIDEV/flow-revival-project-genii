@@ -7,23 +7,10 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
+import type { Database } from '@/integrations/supabase/types';
 
-interface Liquidation {
-  id: string;
-  asset: string;
-  type: 'long' | 'short';
-  amount: number;
-  price: number;
-  market_cap: string;
-  created_at: string;
-}
-
-interface CoinTrend {
-  id: string;
-  ticker: string;
-  volume_spike: number;
-  created_at: string;
-}
+type Liquidation = Database['public']['Tables']['liquidations']['Row'];
+type CoinTrend = Database['public']['Tables']['coin_trends']['Row'];
 
 const AssetDatabase: React.FC = () => {
   const navigate = useNavigate();
