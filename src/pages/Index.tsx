@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Activity, Database, Eye, LayoutDashboard } from 'lucide-react';
+import { TrendingUp, Activity, Database, Eye, LayoutDashboard, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -15,6 +16,14 @@ const Index = () => {
       route: "/dashboard",
       gradient: "from-[#00E0FF] to-[#A6FF00]",
       status: "NEW"
+    },
+    {
+      title: "AIPinnacle Pro",
+      description: "O único indicador que DELETA sinais falsos antes que você os veja",
+      icon: Star,
+      route: "/aipinnacle",
+      gradient: "from-[#FFD700] to-[#FFA500]",
+      status: "LANÇAMENTO"
     },
     {
       title: "Liquidation Tracker",
@@ -73,11 +82,10 @@ const Index = () => {
               🚀 ACESSAR DASHBOARD
             </Button>
             <Button
-              onClick={() => navigate('/liquidations')}
-              variant="outline"
-              className="border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5] px-8 py-3"
+              onClick={() => navigate('/aipinnacle')}
+              className="bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-bold px-8 py-3 rounded-lg hover:shadow-lg hover:shadow-[#FFD700]/25 transition-all duration-300"
             >
-              📊 Ver Liquidações
+              ⭐ VER AIPINNACLE PRO
             </Button>
           </div>
         </div>
@@ -99,7 +107,9 @@ const Index = () => {
                     </div>
                     {feature.status && (
                       <span className={`text-xs font-mono px-2 py-1 rounded ${
-                        feature.status === 'NEW' ? 'bg-[#A6FF00] text-black' : 'bg-[#FF8C00] text-white'
+                        feature.status === 'NEW' ? 'bg-[#A6FF00] text-black' : 
+                        feature.status === 'LANÇAMENTO' ? 'bg-[#FFD700] text-black' :
+                        'bg-[#FF8C00] text-white'
                       }`}>
                         {feature.status}
                       </span>

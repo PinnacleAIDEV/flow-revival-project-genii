@@ -10,6 +10,7 @@ import AssetDatabase from "./pages/AssetDatabase";
 import UnusualVolume from "./pages/UnusualVolume";
 import ArkhamIntelligence from "./pages/ArkhamIntelligence";
 import Dashboard from "./pages/Dashboard";
+import AIPinnacle from "./pages/AIPinnacle";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/unusual-volume" element={<UnusualVolume />} />
           <Route path="/arkham" element={<ArkhamIntelligence />} />
           <Route path="/database" element={<AssetDatabase />} />
+          <Route path="/aipinnacle" element={<AIPinnacle />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
