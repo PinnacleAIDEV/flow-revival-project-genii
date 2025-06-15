@@ -1,3 +1,4 @@
+
 import { FlowData, Alert } from './BinanceWebSocketService';
 
 export class FlowAnalytics {
@@ -29,7 +30,7 @@ export class FlowAnalytics {
     const largeOrderAlert = this.detectLargeOrders(data);
     if (largeOrderAlert) alerts.push(largeOrderAlert);
 
-    // Detectar padrões de kline anormais
+    // Detectar padrões de kline anormais (AJUSTADO PARA 3X MÍNIMO)
     if (data.kline_volume) {
       const klineAlert = this.detectAbnormalKline(data);
       if (klineAlert) alerts.push(klineAlert);
@@ -98,10 +99,12 @@ export class FlowAnalytics {
     // Calcular média de volume das últimas 20 klines
     const recentKlines = history.slice(-20, -1); // Excluir a atual
     const avgVolume = recentKlines.reduce((sum, k) => sum + k.volume, 0) / recentKlines.length;
-    const volumeIncrease = (kline_volume / avgVolume) * 100;
+    
+    // NOVO THRESHOLD: Mínimo 3X para detectar (300% = 3X)
+    const volumeMultiplier = kline_volume / avgVolume;
 
-    // Detectar volume anormal em kline (350%+ da média)
-    if (volumeIncrease >= 350 && avgVolume > 0) {
+    // Detectar volume anormal em kline (3X+ da média)
+    if (volumeMultiplier >= 3.0 && avgVolume > 0) {
       const priceMovement = ((close - open) / open) * 100;
       
       // Determinar direção do sinal
@@ -115,11 +118,12 @@ export class FlowAnalytics {
         details: {
           direction: alertType,
           volume: kline_volume.toFixed(0),
-          volumeIncrease: `${(volumeIncrease - 100).toFixed(0)}%`,
+          volumeMultiplier: `${volumeMultiplier.toFixed(1)}X`,
           priceMove: `${priceMovement.toFixed(2)}%`,
-          timeframe: '1min'
+          timeframe: '1min',
+          avgVolume: avgVolume.toFixed(0)
         },
-        alert_level: this.calculateKlineAlertLevel(volumeIncrease, Math.abs(priceMovement)),
+        alert_level: this.calculateKlineAlertLevel(volumeMultiplier, Math.abs(priceMovement)),
         direction: alertType,
         price: price
       };
@@ -155,16 +159,18 @@ export class FlowAnalytics {
     return buySignals > sellSignals ? 'buy' : 'sell';
   }
 
-  private calculateKlineAlertLevel(volumeIncrease: number, priceMove: number): number {
+  private calculateKlineAlertLevel(volumeMultiplier: number, priceMove: number): number {
     let level = 1;
     
-    if (volumeIncrease >= 800) level = 5; // Extremo
-    else if (volumeIncrease >= 600) level = 4; // Alto
-    else if (volumeIncrease >= 450) level = 3; // Médio
-    else if (volumeIncrease >= 350) level = 2; // Baixo
+    // Níveis baseados no multiplicador de volume (mais rigoroso)
+    if (volumeMultiplier >= 10) level = 5;      // 10X+ = Crítico
+    else if (volumeMultiplier >= 7) level = 4;  // 7X+ = Alto
+    else if (volumeMultiplier >= 5) level = 3;  // 5X+ = Médio
+    else if (volumeMultiplier >= 3) level = 2;  // 3X+ = Baixo
     
-    // Bonus por movimento de preço
+    // Bonus por movimento de preço significativo
     if (priceMove >= 2) level = Math.min(5, level + 1);
+    if (priceMove >= 5) level = Math.min(5, level + 1);
     
     return level;
   }
