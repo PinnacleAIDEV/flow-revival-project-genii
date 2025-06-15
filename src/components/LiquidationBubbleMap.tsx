@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
+import { useTrading } from '../contexts/TradingContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 
@@ -30,6 +31,7 @@ const highMarketCapAssets = [
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { flowData } = useRealFlowData();
+  const { setSelectedAsset } = useTrading();
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
@@ -193,6 +195,12 @@ export const LiquidationBubbleMap: React.FC = () => {
     }
   }, [flowData, processedTickers]);
 
+  const handleAssetClick = (asset: string) => {
+    const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
+    setSelectedAsset(fullTicker);
+    console.log(`📈 Ativo selecionado: ${fullTicker}`);
+  };
+
   const formatAmount = (amount: number) => {
     if (!amount || isNaN(amount)) return '$0.00';
     if (amount >= 1e9) return `$${(amount / 1e9).toFixed(2)}B`;
@@ -268,7 +276,12 @@ export const LiquidationBubbleMap: React.FC = () => {
                     <TableCell className="font-bold">
                       <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                        <span className={textColor}>{liquidation.asset}</span>
+                        <button
+                          onClick={() => handleAssetClick(liquidation.asset)}
+                          className={`${textColor} hover:underline cursor-pointer font-bold`}
+                        >
+                          {liquidation.asset}
+                        </button>
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-sm">

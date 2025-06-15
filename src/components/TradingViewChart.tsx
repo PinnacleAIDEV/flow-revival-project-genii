@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { BarChart3, TrendingUp } from 'lucide-react';
+import { useTrading } from '../contexts/TradingContext';
 
 declare global {
   interface Window {
@@ -12,12 +13,13 @@ export const TradingViewChart: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { selectedAsset } = useTrading();
 
   useEffect(() => {
     const loadTradingViewWidget = () => {
       if (!containerRef.current) return;
 
-      console.log('🔄 Iniciando carregamento do TradingView widget...');
+      console.log(`🔄 Carregando TradingView widget para ${selectedAsset}...`);
       setIsLoading(true);
       setError(null);
 
@@ -71,14 +73,14 @@ export const TradingViewChart: React.FC = () => {
         widgetDiv.style.height = '100%';
         widgetDiv.style.width = '100%';
 
-        // Configuração do widget
+        // Configuração do widget com 3min candles e VWAP
         const config = {
           autosize: true,
-          symbol: 'BINANCE:BTCUSDT',
-          interval: '15',
+          symbol: `BINANCE:${selectedAsset}`,
+          interval: '3', // 3 minutos
           timezone: 'America/Sao_Paulo',
           theme: 'light',
-          style: '1',
+          style: '1', // Candles
           locale: 'pt_BR',
           enable_publishing: false,
           allow_symbol_change: true,
@@ -88,7 +90,10 @@ export const TradingViewChart: React.FC = () => {
           save_image: false,
           container_id: 'tradingview_' + Date.now(),
           width: '100%',
-          height: '100%'
+          height: '100%',
+          studies: [
+            'VWAP@tv-basicstudies' // Adicionar VWAP por padrão
+          ]
         };
 
         // Criar script com configuração
@@ -104,7 +109,7 @@ export const TradingViewChart: React.FC = () => {
         // Widget criado com sucesso
         setTimeout(() => {
           setIsLoading(false);
-          console.log('✅ Widget TradingView inicializado');
+          console.log(`✅ Widget TradingView inicializado para ${selectedAsset}`);
         }, 2000);
 
       } catch (err) {
@@ -121,7 +126,7 @@ export const TradingViewChart: React.FC = () => {
         containerRef.current.innerHTML = '';
       }
     };
-  }, []);
+  }, [selectedAsset]); // Recarregar quando selectedAsset mudar
 
   return (
     <div className="h-full w-full relative bg-white">
@@ -139,12 +144,14 @@ export const TradingViewChart: React.FC = () => {
               <TrendingUp className="w-8 h-8 text-green-500" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">TradingView Chart</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                TradingView Chart - {selectedAsset}
+              </h3>
               {error ? (
                 <p className="text-red-600 text-sm">{error}</p>
               ) : (
                 <p className="text-gray-600 text-sm">
-                  Carregando gráfico profissional...
+                  Carregando gráfico de 3min com VWAP...
                 </p>
               )}
             </div>

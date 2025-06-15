@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, TrendingDown, TrendingUp, Eye, Clock, Zap } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
+import { useTrading } from '../contexts/TradingContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
@@ -29,6 +29,7 @@ const ignoreAssets = [
 
 export const CoinTrendHunter: React.FC = () => {
   const { flowData } = useRealFlowData();
+  const { setSelectedAsset } = useTrading();
   const [liquidations, setLiquidations] = useState<UncommonLiquidation[]>([]);
 
   useEffect(() => {
@@ -126,6 +127,12 @@ export const CoinTrendHunter: React.FC = () => {
     }
   }, [flowData]);
 
+  const handleAssetClick = (asset: string) => {
+    const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
+    setSelectedAsset(fullTicker);
+    console.log(`🔍 Micro-cap selecionado: ${fullTicker}`);
+  };
+
   const formatAmount = (amount: number) => {
     if (amount >= 1e6) return `$${(amount / 1e6).toFixed(1)}M`;
     if (amount >= 1e3) return `$${(amount / 1e3).toFixed(1)}K`;
@@ -201,7 +208,12 @@ export const CoinTrendHunter: React.FC = () => {
                     <TableCell className="font-bold">
                       <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                        <span className="text-purple-700">{liquidation.asset}</span>
+                        <button
+                          onClick={() => handleAssetClick(liquidation.asset)}
+                          className="text-purple-700 hover:underline cursor-pointer font-bold"
+                        >
+                          {liquidation.asset}
+                        </button>
                       </div>
                     </TableCell>
                     <TableCell>
