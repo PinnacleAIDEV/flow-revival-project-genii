@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle, Volume2, DollarSign, Activity, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
+import { binanceWebSocketService } from '../services/BinanceWebSocketService';
 import { UnusualBuySellSection } from './sections/UnusualBuySellSection';
 import { LiquidationAlertSection } from './sections/LiquidationAlertSection';
 import { TopVolumeSection } from './sections/TopVolumeSection';

@@ -1,5 +1,4 @@
-
-import { FlowData, Alert } from './WebSocketService';
+import { FlowData, Alert } from './BinanceWebSocketService';
 
 export class FlowAnalytics {
   private volumeHistory: Map<string, number[]> = new Map();
