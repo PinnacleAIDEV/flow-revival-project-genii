@@ -3,7 +3,6 @@ import React from 'react';
 import { TradingProvider } from '../contexts/TradingContext';
 import { LiquidationBubbleMap } from './LiquidationBubbleMap';
 import { CoinTrendHunter } from './CoinTrendHunter';
-import { AssetSearchPanel } from './AssetSearchPanel';
 
 export const TradingDashboard: React.FC = () => {
   return (
@@ -13,20 +12,15 @@ export const TradingDashboard: React.FC = () => {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Liquidation Monitor</h1>
-            <p className="text-lg text-gray-600">Real-time liquidation tracking and micro-cap detection with 4h storage</p>
+            <p className="text-lg text-gray-600">Real-time liquidation tracking and micro-cap detection</p>
           </div>
 
-          {/* Top Row: Liquidation Bubble Map + Asset Search */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-[500px]">
-            <div className="xl:col-span-2 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow">
-              <LiquidationBubbleMap />
-            </div>
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow">
-              <AssetSearchPanel />
-            </div>
+          {/* Liquidation Bubble Map - Top Section */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow h-[500px]">
+            <LiquidationBubbleMap />
           </div>
 
-          {/* Bottom Row: CoinTrendHunter - Full Width */}
+          {/* CoinTrendHunter - Bottom Section */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow h-[500px]">
             <CoinTrendHunter />
           </div>
