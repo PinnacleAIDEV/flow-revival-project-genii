@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, TrendingDown, TrendingUp, Eye, Clock, Zap } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { useTrading } from '../contexts/TradingContext';
+import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
@@ -30,6 +31,7 @@ const ignoreAssets = [
 export const CoinTrendHunter: React.FC = () => {
   const { flowData } = useRealFlowData();
   const { setSelectedAsset } = useTrading();
+  const { saveCoinTrend } = useSupabaseStorage();
   const [liquidations, setLiquidations] = useState<UncommonLiquidation[]>([]);
 
   useEffect(() => {
@@ -39,7 +41,6 @@ export const CoinTrendHunter: React.FC = () => {
     const newLiquidations: UncommonLiquidation[] = [];
 
     flowData.forEach(data => {
-      // Filtrar apenas ativos menores/incomuns
       if (!data.ticker || ignoreAssets.includes(data.ticker) || 
           isNaN(data.price) || data.price <= 0 || 
           isNaN(data.volume) || data.volume <= 0) return;
@@ -48,38 +49,28 @@ export const CoinTrendHunter: React.FC = () => {
       const volumeValue = data.volume * data.price;
       const priceChange = Math.abs(data.change_24h || 0);
       
-      // **CRITÉRIOS MAIS REALISTAS** para detectar micro-cap liquidations:
-      // 1. Valor da liquidação > $5k (bem baixo para pegar micro-caps)
-      // 2. Movimento de preço > 3% (mais sensível)
-      // 3. Volume acima de threshold mínimo
-      
-      const hasMinLiquidationValue = volumeValue >= 5000; // $5k+
-      const hasSignificantMove = priceChange >= 3.0; // 3%+
-      const hasMinVolume = data.volume >= 1000; // Volume mínimo
+      const hasMinLiquidationValue = volumeValue >= 5000;
+      const hasSignificantMove = priceChange >= 3.0;
+      const hasMinVolume = data.volume >= 1000;
       
       if (hasMinLiquidationValue && hasSignificantMove && hasMinVolume) {
-        // Calcular score de anomalia baseado em tamanho relativo
         let anomalyScore = 1;
         
-        // Score por valor da liquidação
-        if (volumeValue >= 500000) anomalyScore += 4; // $500k+
-        else if (volumeValue >= 100000) anomalyScore += 3; // $100k+
-        else if (volumeValue >= 50000) anomalyScore += 2; // $50k+
-        else if (volumeValue >= 20000) anomalyScore += 1; // $20k+
+        if (volumeValue >= 500000) anomalyScore += 4;
+        else if (volumeValue >= 100000) anomalyScore += 3;
+        else if (volumeValue >= 50000) anomalyScore += 2;
+        else if (volumeValue >= 20000) anomalyScore += 1;
         
-        // Score por movimento de preço
         if (priceChange >= 15) anomalyScore += 3;
         else if (priceChange >= 10) anomalyScore += 2;
         else if (priceChange >= 5) anomalyScore += 1;
         
-        // Bonus para ativos muito pequenos
-        if (data.price < 0.01) anomalyScore += 1; // Muito barato = micro-cap
-        if (data.price < 1) anomalyScore += 1; // Preço baixo
+        if (data.price < 0.01) anomalyScore += 1;
+        if (data.price < 1) anomalyScore += 1;
         
         anomalyScore = Math.min(10, anomalyScore);
         
-        // Simular volume spike (já que não temos histórico real)
-        const volumeSpike = Math.random() * 8 + 2; // Entre 2x e 10x
+        const volumeSpike = Math.random() * 8 + 2;
         
         const liquidation: UncommonLiquidation = {
           id: `${data.ticker}-${now.getTime()}-${Math.random()}`,
@@ -89,14 +80,32 @@ export const CoinTrendHunter: React.FC = () => {
           price: data.price,
           anomalyScore,
           volumeSpike,
-          lastActivity: Math.random() * 24 + 1, // 1-25 horas
-          dailyVolumeImpact: Math.min(100, (volumeValue / 100000) * 10), // Estimativa
+          lastActivity: Math.random() * 24 + 1,
+          dailyVolumeImpact: Math.min(100, (volumeValue / 100000) * 10),
           timestamp: new Date(data.timestamp || now.getTime()),
           change24h: data.change_24h || 0,
-          isHidden: data.price < 0.1 || volumeValue < 25000 // Muito pequeno = "escondido"
+          isHidden: data.price < 0.1 || volumeValue < 25000
         };
         
         console.log(`🔍 Liquidação micro-cap detectada: ${liquidation.asset} - Score: ${liquidation.anomalyScore}/10 - ${formatAmount(liquidation.amount)}`);
+        
+        // Salvar no Supabase
+        saveCoinTrend({
+          asset: liquidation.asset,
+          ticker: data.ticker,
+          type: liquidation.type,
+          amount: liquidation.amount,
+          price: liquidation.price,
+          anomaly_score: liquidation.anomalyScore,
+          volume_spike: liquidation.volumeSpike,
+          last_activity_hours: liquidation.lastActivity,
+          daily_volume_impact: liquidation.dailyVolumeImpact,
+          change_24h: liquidation.change24h,
+          volume: data.volume,
+          is_hidden: liquidation.isHidden,
+          is_micro_cap: data.price < 1
+        });
+        
         newLiquidations.push(liquidation);
       }
     });
@@ -108,7 +117,6 @@ export const CoinTrendHunter: React.FC = () => {
         newLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            // Atualizar existente apenas se for mais recente
             if (newLiq.timestamp > updated[existingIndex].timestamp) {
               updated[existingIndex] = newLiq;
             }
@@ -117,7 +125,6 @@ export const CoinTrendHunter: React.FC = () => {
           }
         });
         
-        // Remover muito antigos (>10 min) e manter ordenado
         const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
         return updated
           .filter(liq => liq.timestamp > tenMinutesAgo)
@@ -125,7 +132,7 @@ export const CoinTrendHunter: React.FC = () => {
           .slice(0, 30);
       });
     }
-  }, [flowData]);
+  }, [flowData, saveCoinTrend]);
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;

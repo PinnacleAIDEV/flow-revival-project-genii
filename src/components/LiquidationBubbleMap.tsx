@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { useTrading } from '../contexts/TradingContext';
+import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
 import { LiquidationTable } from './liquidation/LiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
@@ -33,6 +34,7 @@ const highMarketCapAssets = [
 export const LiquidationBubbleMap: React.FC = () => {
   const { flowData } = useRealFlowData();
   const { setSelectedAsset } = useTrading();
+  const { saveLiquidation } = useSupabaseStorage();
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
@@ -133,6 +135,21 @@ export const LiquidationBubbleMap: React.FC = () => {
         
         console.log(`💥 Nova liquidação detectada: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - ${formatAmount(liquidation.totalLiquidated)}`);
         
+        // Salvar no Supabase
+        saveLiquidation({
+          asset: liquidation.asset,
+          ticker: data.ticker,
+          type: liquidation.type,
+          amount: liquidation.amount,
+          price: liquidation.price,
+          market_cap: liquidation.marketCap,
+          intensity: liquidation.intensity,
+          change_24h: liquidation.change24h,
+          volume: liquidation.volume,
+          total_liquidated: liquidation.totalLiquidated,
+          volume_spike: 1
+        });
+        
         if (liquidation.type === 'long') {
           newLongLiquidations.push(liquidation);
         } else {
@@ -194,7 +211,7 @@ export const LiquidationBubbleMap: React.FC = () => {
           .slice(0, 50); // Limitar a 50 para performance
       });
     }
-  }, [flowData, processedTickers]);
+  }, [flowData, processedTickers, saveLiquidation]);
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;

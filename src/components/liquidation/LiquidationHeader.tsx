@@ -1,8 +1,12 @@
 
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Database } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '../ui/button';
 
 export const LiquidationHeader: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-4 border-b border-gray-200 bg-white">
       <div className="flex items-center justify-between">
@@ -17,14 +21,24 @@ export const LiquidationHeader: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-4 text-sm">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span>Long Liquidations</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span>Short Liquidations</span>
+        <div className="flex items-center space-x-4">
+          <Button
+            onClick={() => navigate('/database')}
+            variant="outline"
+            className="flex items-center space-x-2"
+          >
+            <Database className="w-4 h-4" />
+            <span>Base de Dados</span>
+          </Button>
+          <div className="flex items-center space-x-4 text-sm">
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span>Long Liquidations</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Short Liquidations</span>
+            </div>
           </div>
         </div>
       </div>
