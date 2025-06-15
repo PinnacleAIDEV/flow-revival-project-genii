@@ -1,11 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import { Header } from '../components/Header';
+import { FlowBuilder } from '../components/FlowBuilder';
+import { NodePanel } from '../components/NodePanel';
+import { Dashboard } from '../components/Dashboard';
 
 const Index = () => {
+  const [activeTab, setActiveTab] = useState<'flow' | 'dashboard'>('flow');
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Header activeTab={activeTab} onTabChange={setActiveTab} />
+      
+      <div className="flex-1 flex">
+        {activeTab === 'flow' ? (
+          <>
+            <NodePanel />
+            <div className="flex-1">
+              <FlowBuilder />
+            </div>
+          </>
+        ) : (
+          <div className="flex-1">
+            <Dashboard />
+          </div>
+        )}
       </div>
     </div>
   );
