@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { AlertTriangle, BarChart3 } from 'lucide-react';
-import { LiquidationAlertSection } from './sections/LiquidationAlertSection';
+import { BarChart3 } from 'lucide-react';
+import { LiquidationBubbleMap } from './LiquidationBubbleMap';
 import { TradingViewChart } from './TradingViewChart';
 
 export const TradingDashboard: React.FC = () => {
@@ -32,24 +32,9 @@ export const TradingDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Liquidations - Bottom Section */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow h-[400px]">
-          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-red-50 to-red-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="p-2 bg-red-600 rounded-lg">
-                  <AlertTriangle className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">Liquidations Monitor</h3>
-                  <p className="text-xs text-gray-500">Real-time Liquidation Alerts</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="h-[calc(100%-80px)] overflow-hidden">
-            <LiquidationAlertSection />
-          </div>
+        {/* Liquidation Bubble Map - Bottom Section */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow h-[500px]">
+          <LiquidationBubbleMap />
         </div>
 
       </div>
