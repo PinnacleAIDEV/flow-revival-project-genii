@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Filter, Download, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -177,7 +178,7 @@ const AssetDatabase: React.FC = () => {
                         {liquidation.type === 'long' ? (
                           <Badge variant="destructive">Long</Badge>
                         ) : (
-                          <Badge variant="success">Short</Badge>
+                          <Badge variant="secondary">Short</Badge>
                         )}
                       </td>
                       <td className="py-2 px-4">
