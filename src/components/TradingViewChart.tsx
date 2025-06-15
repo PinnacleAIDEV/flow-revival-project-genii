@@ -28,40 +28,6 @@ export const TradingViewChart: React.FC = () => {
       container.innerHTML = '';
 
       try {
-        // Verificar se o script já foi carregado
-        if (!document.querySelector('script[src*="tradingview.com"]')) {
-          const script = document.createElement('script');
-          script.type = 'text/javascript';
-          script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-          script.async = true;
-          
-          script.onload = () => {
-            console.log('✅ Script TradingView carregado');
-            initializeWidget();
-          };
-          
-          script.onerror = () => {
-            console.error('❌ Erro ao carregar script TradingView');
-            setError('Erro ao carregar TradingView');
-            setIsLoading(false);
-          };
-
-          document.head.appendChild(script);
-        } else {
-          // Script já carregado, inicializar widget diretamente
-          initializeWidget();
-        }
-      } catch (err) {
-        console.error('❌ Erro ao configurar TradingView:', err);
-        setError('Erro na configuração');
-        setIsLoading(false);
-      }
-    };
-
-    const initializeWidget = () => {
-      if (!containerRef.current) return;
-
-      try {
         // Criar container do widget
         const widgetContainer = document.createElement('div');
         widgetContainer.className = 'tradingview-widget-container';
@@ -70,51 +36,78 @@ export const TradingViewChart: React.FC = () => {
 
         const widgetDiv = document.createElement('div');
         widgetDiv.className = 'tradingview-widget-container__widget';
-        widgetDiv.style.height = '100%';
+        widgetDiv.style.height = 'calc(100% - 32px)';
         widgetDiv.style.width = '100%';
 
-        // Configuração do widget com 3min candles e VWAP
+        // Configuração do widget
         const config = {
-          autosize: true,
-          symbol: `BINANCE:${selectedAsset}`,
-          interval: '3', // 3 minutos
-          timezone: 'America/Sao_Paulo',
-          theme: 'light',
-          style: '1', // Candles
-          locale: 'pt_BR',
-          enable_publishing: false,
-          allow_symbol_change: true,
-          calendar: false,
-          hide_top_toolbar: false,
-          hide_legend: false,
-          save_image: false,
-          container_id: 'tradingview_' + Date.now(),
-          width: '100%',
-          height: '100%',
-          studies: [
-            'VWAP@tv-basicstudies' // Adicionar VWAP por padrão
+          "autosize": true,
+          "symbol": `BINANCE:${selectedAsset}`,
+          "interval": "3",
+          "timezone": "America/Sao_Paulo",
+          "theme": "light",
+          "style": "1",
+          "locale": "pt_BR",
+          "enable_publishing": false,
+          "allow_symbol_change": true,
+          "calendar": false,
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "save_image": false,
+          "container_id": "tradingview_" + Date.now(),
+          "width": "100%",
+          "height": "100%",
+          "studies": [
+            "VWAP@tv-basicstudies"
           ]
         };
 
-        // Criar script com configuração
+        // Criar script com configuração correta
         const configScript = document.createElement('script');
         configScript.type = 'text/javascript';
-        configScript.innerHTML = JSON.stringify(config);
+        configScript.text = `
+          new TradingView.widget(${JSON.stringify(config)});
+        `;
 
-        widgetContainer.appendChild(widgetDiv);
-        widgetContainer.appendChild(configScript);
-        
-        containerRef.current.appendChild(widgetContainer);
+        // Criar script do TradingView se não existir
+        if (!document.querySelector('script[src*="tradingview.com"]')) {
+          const tvScript = document.createElement('script');
+          tvScript.type = 'text/javascript';
+          tvScript.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+          tvScript.async = true;
+          
+          tvScript.onload = () => {
+            console.log('✅ Script TradingView carregado');
+            setTimeout(() => {
+              widgetContainer.appendChild(widgetDiv);
+              widgetContainer.appendChild(configScript);
+              container.appendChild(widgetContainer);
+              setIsLoading(false);
+              console.log(`✅ Widget TradingView inicializado para ${selectedAsset}`);
+            }, 1000);
+          };
+          
+          tvScript.onerror = () => {
+            console.error('❌ Erro ao carregar script TradingView');
+            setError('Erro ao carregar TradingView');
+            setIsLoading(false);
+          };
 
-        // Widget criado com sucesso
-        setTimeout(() => {
-          setIsLoading(false);
-          console.log(`✅ Widget TradingView inicializado para ${selectedAsset}`);
-        }, 2000);
+          document.head.appendChild(tvScript);
+        } else {
+          // Script já carregado
+          setTimeout(() => {
+            widgetContainer.appendChild(widgetDiv);
+            widgetContainer.appendChild(configScript);
+            container.appendChild(widgetContainer);
+            setIsLoading(false);
+            console.log(`✅ Widget TradingView inicializado para ${selectedAsset}`);
+          }, 1000);
+        }
 
       } catch (err) {
-        console.error('❌ Erro ao inicializar widget:', err);
-        setError('Erro na inicialização');
+        console.error('❌ Erro ao configurar TradingView:', err);
+        setError('Erro na configuração');
         setIsLoading(false);
       }
     };
@@ -126,7 +119,7 @@ export const TradingViewChart: React.FC = () => {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [selectedAsset]); // Recarregar quando selectedAsset mudar
+  }, [selectedAsset]);
 
   return (
     <div className="h-full w-full relative bg-white">
