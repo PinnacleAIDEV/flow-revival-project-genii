@@ -15,7 +15,7 @@ interface LiquidationBubble {
   change24h: number;
   volume: number;
   lastUpdateTime: Date;
-  liquidationCount: number; // Novo campo para contar quantas liquidações
+  liquidationCount: number;
 }
 
 export const LiquidationBubbleMap: React.FC = () => {
@@ -44,7 +44,7 @@ export const LiquidationBubbleMap: React.FC = () => {
       setShortLiquidations(prev => 
         prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo)
       );
-    }, 60000); // Executa a cada minuto
+    }, 60000);
 
     return () => clearInterval(cleanupInterval);
   }, []);
@@ -67,8 +67,8 @@ export const LiquidationBubbleMap: React.FC = () => {
       
       // Critérios MAIS SENSÍVEIS para detectar liquidação
       const threshold = isHighMarketCap ? 
-        { volume: 50000, priceChange: 1.5 } :    // Reduzido de 200k/3% para 50k/1.5%
-        { volume: 10000, priceChange: 2.5 };     // Reduzido de 30k/5% para 10k/2.5%
+        { volume: 50000, priceChange: 1.5 } :
+        { volume: 10000, priceChange: 2.5 };
       
       if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
         // Cálculo de intensidade mais generoso
@@ -95,7 +95,7 @@ export const LiquidationBubbleMap: React.FC = () => {
           change24h: data.change_24h || 0,
           volume: data.volume,
           lastUpdateTime: now,
-          liquidationCount: 1 // Inicializa com 1 liquidação
+          liquidationCount: 1
         };
         
         if (liquidation.type === 'long') {
@@ -113,11 +113,12 @@ export const LiquidationBubbleMap: React.FC = () => {
       newLongLiquidations.forEach(newLiq => {
         const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
         if (existingIndex >= 0) {
-          // Atualiza liquidação existente com novos dados e incrementa contador
+          // Atualiza liquidação existente mantendo o contador válido
+          const currentCount = updated[existingIndex].liquidationCount || 0;
           updated[existingIndex] = { 
             ...newLiq, 
             lastUpdateTime: now,
-            liquidationCount: updated[existingIndex].liquidationCount + 1
+            liquidationCount: currentCount + 1
           };
         } else {
           // Adiciona nova liquidação
@@ -126,7 +127,8 @@ export const LiquidationBubbleMap: React.FC = () => {
       });
       
       return updated
-        .sort((a, b) => b.liquidationCount - a.liquidationCount) // Ordena por número de liquidações
+        .filter(liq => liq.liquidationCount && !isNaN(liq.liquidationCount)) // Remove entradas inválidas
+        .sort((a, b) => (b.liquidationCount || 0) - (a.liquidationCount || 0))
         .slice(0, 50);
     });
     
@@ -136,11 +138,12 @@ export const LiquidationBubbleMap: React.FC = () => {
       newShortLiquidations.forEach(newLiq => {
         const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
         if (existingIndex >= 0) {
-          // Atualiza liquidação existente com novos dados e incrementa contador
+          // Atualiza liquidação existente mantendo o contador válido
+          const currentCount = updated[existingIndex].liquidationCount || 0;
           updated[existingIndex] = { 
             ...newLiq, 
             lastUpdateTime: now,
-            liquidationCount: updated[existingIndex].liquidationCount + 1
+            liquidationCount: currentCount + 1
           };
         } else {
           // Adiciona nova liquidação
@@ -149,7 +152,8 @@ export const LiquidationBubbleMap: React.FC = () => {
       });
       
       return updated
-        .sort((a, b) => b.liquidationCount - a.liquidationCount) // Ordena por número de liquidações
+        .filter(liq => liq.liquidationCount && !isNaN(liq.liquidationCount)) // Remove entradas inválidas
+        .sort((a, b) => (b.liquidationCount || 0) - (a.liquidationCount || 0))
         .slice(0, 50);
     });
   }, [flowData]);
@@ -218,10 +222,10 @@ export const LiquidationBubbleMap: React.FC = () => {
         </div>
       </div>
       
-      <div className="h-80 overflow-y-auto bg-white">
+      <div className="bg-white" style={{ height: '400px', overflowY: 'auto' }}>
         {liquidations.length > 0 ? (
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-white z-10">
               <TableRow>
                 <TableHead className="w-20">Asset</TableHead>
                 <TableHead className="w-16">Count</TableHead>
@@ -243,7 +247,7 @@ export const LiquidationBubbleMap: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold">
-                      {liquidation.liquidationCount}
+                      {liquidation.liquidationCount || 0}
                     </span>
                   </TableCell>
                   <TableCell className="font-mono text-sm">
@@ -359,7 +363,7 @@ export const LiquidationBubbleMap: React.FC = () => {
           <div className="text-center">
             <div className="font-bold text-blue-600">
               {[...longLiquidations, ...shortLiquidations]
-                .reduce((total, liq) => total + liq.liquidationCount, 0)}
+                .reduce((total, liq) => total + (liq.liquidationCount || 0), 0)}
             </div>
             <div className="text-gray-600">Total Count</div>
           </div>
