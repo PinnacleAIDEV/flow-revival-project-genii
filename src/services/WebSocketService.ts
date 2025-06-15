@@ -25,7 +25,7 @@ export interface Alert {
   timestamp: Date;
   details: any;
   alert_level: number;
-  direction?: 'bullish' | 'bearish' | 'up' | 'down';
+  direction?: 'bullish' | 'bearish' | 'up' | 'down' | 'buy' | 'sell';
   price: number;
   amount?: number;
 }
