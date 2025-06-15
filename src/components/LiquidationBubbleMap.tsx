@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
@@ -15,70 +16,25 @@ interface LiquidationBubble {
   change24h: number;
   volume: number;
   lastUpdateTime: Date;
-  totalLiquidated: number; // Valor total liquidado acumulado
+  totalLiquidated: number;
 }
+
+// Top 50 assets considerados high market cap
+const highMarketCapAssets = [
+  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'DOTUSDT', 'LINKUSDT', 'MATICUSDT',
+  'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEOUSDT',
+  'ALGOUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 'CHZUSDT', 'GALAUSDT', 'ENJUSDT', 'NEARUSDT', 'QNTUSDT',
+  'FLOWUSDT', 'ICPUSDT', 'THETAUSDT', 'XTZUSDT', 'MKRUSDT', 'FTMUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT', 'COMPUSDT',
+  'UNIUSDT', 'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT', 'ALPHAUSDT', 'ZENUSDT'
+];
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { flowData } = useRealFlowData();
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
+  const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
 
-  // TODOS os pares USDT principais da Binance - 500+ ativos
-  const allBinanceAssets = [
-    // Giants (Top 10)
-    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'DOTUSDT', 'LINKUSDT', 'MATICUSDT',
-    
-    // Large Caps (Top 11-50)
-    'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEOUSDT',
-    'ALGOUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 'CHZUSDT', 'GALAUSDT', 'ENJUSDT', 'NEARUSDT', 'QNTUSDT',
-    'FLOWUSDT', 'ICPUSDT', 'THETAUSDT', 'XTZUSDT', 'MKRUSDT', 'FTMUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT', 'COMPUSDT',
-    'UNIUSDT', 'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT', 'ALPHAUSDT', 'ZENUSDT',
-    
-    // Mid Caps (Top 51-150)
-    'ONEUSDT', 'ONTUSDT', 'ZILUSDT', 'RVNUSDT', 'CELRUSDT', 'CTKUSDT', 'AKROUSDT', 'ANKRUSDT', 'AUDIOUSDT', 'AVAUSDT',
-    'BELUSDT', 'BLZUSDT', 'BNXUSDT', 'BTCSTUSDT', 'CELOUSDT', 'CFXUSDT', 'CKBUSDT', 'COTIUSDT', 'CTSIUSDT', 'CVXUSDT',
-    'DARUSDT', 'DASHUSDT', 'DATAUSDT', 'DENTUSDT', 'DGBUSDT', 'DNTUSDT', 'DUSKUSDT', 'DYDXUSDT', 'EGLDUSDT',
-    'ENSUSDT', 'EOSUSDT', 'FETUSDT', 'FIDAUSDT', 'FLMUSDT', 'FORTHUSDT', 'FTTUSDT', 'GALUSDT', 'GMTUSDT', 'GRTUSDT',
-    'GTCUSDT', 'HBARUSDT', 'HNTUSDT', 'HOTUSDT', 'INOSUSDT', 'IOSTUSDT', 'IOTAUSDT', 'JASMYUSDT', 'JOEUSDT', 'KAVAUSDT',
-    
-    // Smaller but Active Caps (150-300)
-    'KEYUSDT', 'KLAYUSDT', 'KSMUSDT', 'LAZIOUSDT', 'LDOUSDT', 'LEVERUSDT', 'LINAUSDT', 'LITUSDT', 'LOOKSUSDT', 'LPTUSDT',
-    'LUNAUSDT', 'MAGICUSDT', 'MASKUSDT', 'MDTUSDT', 'MINAUSDT', 'MOVRUSDT', 'MTLUSDT', 'NKNUSDT', 'NMRUSDT', 'NULSUSDT',
-    'OCEANUSDT', 'OGNUSDT', 'OMGUSDT', 'ONGUSDT', 'OPUSDT', 'ORBSUSDT', 'OXTUSDT', 'PENDLEUSDT', 'PEOPLEUSDT', 'PERPUSDT',
-    'PHBUSDT', 'POLYXUSDT', 'PORAUSDT', 'PUNDIXUSDT', 'QTUMUSDT', 'RAREUSDT', 'RAYUSDT', 'REEFUSDT', 'REQUSDT', 'RLCUSDT',
-    'ROSEUSDT', 'RNDRUSDT', 'RUNEUSDT', 'SCRTUSDT', 'SFPUSDT', 'SKLUSDT', 'SLPUSDT', 'SPELLUSDT', 'SRMUSDT', 'STGUSDT',
-    
-    // DeFi & New Generation (300-400)
-    'CAKEUSDT', 'INJUSDT', 'GMXUSDT', 'ARBUSDT', 'BLURUSDT', 'SUIUSDT', 'APTUSDT', 'SEIUSDT', 'STXUSDT', 'KASUSDT',
-    'MANTAUSDT', 'STRKUSDT', 'PYTHUSDT', 'JUPUSDT', 'TIAUSDT', 'ALTUSDT', 'MEMEUSDT', 'ACEUSDT', 'NFPUSDT', 'AIUSDT',
-    
-    // Meme Coins & High Volume
-    'SHIBUSDT', 'PEPEUSDT', 'FLOKIUSDT', 'BONKUSDT', 'WIFUSDT', 'BOMEUSDT', 'MYRO', 'RATUSDT', 'ORDIUSDT', '1000SATSUSDT',
-    
-    // Additional Active Trading Pairs (400-500+)
-    'AERGOUSDT', 'AGIUSDT', 'AIOUSDT', 'ALICEUSDT', 'AMBUSDT', 'AMPUSDT', 'ANCUSDT', 'ANTUSDT', 'ARDRUSDT', 'ARUSDT',
-    'ATALUSDT', 'ATMUSDT', 'ATOMUSDT', 'AUCTIONUSDT', 'BADGERUSDT', 'BALUSDT', 'BANDUSDT', 'BNTUSDT', 'BONDUSDT', 'BTSUSDT',
-    'BURGERUSDT', 'BZRXUSDT', 'C98USDT', 'CHESSUSDT', 'CHRUSDT', 'CLVUSDT', 'COCOSUSDT', 'COSUSDT', 'CREAMUSDT', 'CUBUSDT',
-    'CVPUSDT', 'DEGOUSDT', 'DEXEUSDT', 'DFUSDT', 'DIABUSDT', 'DOCKUSDT', 'DREPUSDT', 'DUSKUSDT', 'DVIUSDT', 'DYORUSDT',
-    'EASYUSDT', 'ELFUSDT', 'EPXUSDT', 'ERNUSDT', 'ETHWUSDT', 'FARMUSDT', 'FISUSDT', 'FMOUSDT', 'FORUSDT', 'FRONTUSDT',
-    'FXSUSDT', 'GHSTUSDT', 'GLMRUSDT', 'GLMUSDT', 'GMTUSDT', 'GNOUSDT', 'GOUSDT', 'GPUSDT', 'HARDUSDT', 'HFTUSDT',
-    'HIVEUSDT', 'ICXUSDT', 'IDUSDT', 'IDEXUSDT', 'ILVUSDT', 'IMXUSDT', 'INJUSDT', 'IRISUSDT', 'JASMYUSDT', 'JSMUSDT',
-    'KDAUSDT', 'KEEPUSDT', 'KEYUSDT', 'KLAYUSDT', 'KLAYUSDT', 'LAZIOUSDT', 'LRCUSDT', 'LTOUSDT', 'LUNCUSDT', 'LYXEUSDT',
-    'MBOXUSDT', 'MDXUSDT', 'MIOUSDT', 'MITHUSDT', 'MKTUSDT', 'MLNUSDT', 'MOBUSDT', 'MOODENGUSDT', 'MRBEASTUSDT', 'MXUSDT',
-    'NCTUSDT', 'NEBLUSDT', 'NFTUSDT', 'NIFTYUSDT', 'NUBSUSDT', 'NXMUSDT', 'OGUSDT', 'OMUSDT', 'PAXGUSDT', 'PENDLEUSDT',
-    'PENUUSDT', 'PIKAUSDT', 'PIXELUSDT', 'PNUTUSDT', 'POPCATUSDT', 'PROMUSDT', 'PROSUSDT', 'PSGUSDT', 'PUNDIXUSDT', 'PYSUSDT',
-    'QUICKUSDT', 'RADUSDT', 'RAMUSDT', 'RDNTUSDT', 'REEFUSDT', 'REIUSDT', 'RIFUSDT', 'RNDRUSDT', 'RPLAUSDT', 'RSRUSDT',
-    'SAFEUSDT', 'SANTOSUSDT', 'SCUSDT', 'SCRTUSDT', 'SEIUSDT', 'SELFUSDT', 'SFTUSDT', 'SHLBUSDT', 'SKLUSDT', 'SNTUSDT',
-    'SNXUSDT', 'SYSUSDT', 'TFUELUSDT', 'TLMUSDT', 'TOKENUSDT', 'TORNUSDT', 'TRBUSDT', 'TRIBEUSDT', 'TRUUSDT', 'TUSDT',
-    'TVKUSDT', 'TWTUSDT', 'UMAUSDT', 'UNFIUSDT', 'UTKUSDT', 'VGXUSDT', 'VIDTUSDT', 'VITEUSDT', 'VOXELUSDT', 'VTHOUSDT',
-    'WAXPUSDT', 'WBETHUSDT', 'WLDUSDT', 'WOOUSDT', 'WRXUSDT', 'XCNUSDT', 'XECUSDT', 'XEMXUSDT', 'XLMUSDT', 'XNOUSDT',
-    'XTZUSDT', 'XVGUSDT', 'XVSUSDT', 'YFIUSDT', 'YGUSDT', 'YOYOUSDT', 'ZECUSDT', 'ZRXUSDT', 'ZYXUSDT', 'ZILUSDT'
-  ];
-
-  // Classificação por market cap (top 50 são considerados high cap)
-  const highMarketCapAssets = allBinanceAssets.slice(0, 50);
-
-  // Sistema de limpeza automática - remove liquidações antigas a cada minuto
+  // Limpeza automática a cada minuto
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       const now = new Date();
@@ -103,114 +59,139 @@ export const LiquidationBubbleMap: React.FC = () => {
         }
         return filtered;
       });
-    }, 60000); // A cada 1 minuto
+
+      // Limpar tickers processados também
+      setProcessedTickers(new Set());
+    }, 60000);
 
     return () => clearInterval(cleanupInterval);
   }, []);
 
   useEffect(() => {
+    if (!flowData || flowData.length === 0) return;
+
+    const now = new Date();
     const newLongLiquidations: LiquidationBubble[] = [];
     const newShortLiquidations: LiquidationBubble[] = [];
-    const now = new Date();
 
-    flowData.forEach(data => {
-      // Validar dados obrigatórios
-      if (!data.ticker || !data.price || !data.volume || data.change_24h === undefined) {
-        return;
-      }
+    // Processar apenas dados únicos e válidos
+    const uniqueData = flowData.filter((data, index, self) => {
+      const key = `${data.ticker}-${data.timestamp}`;
+      return (
+        data.ticker && 
+        !isNaN(data.price) && 
+        data.price > 0 &&
+        !isNaN(data.volume) && 
+        data.volume > 0 &&
+        data.change_24h !== undefined &&
+        !processedTickers.has(key) &&
+        index === self.findIndex(d => d.ticker === data.ticker) // Pegar apenas o mais recente de cada ticker
+      );
+    });
 
+    uniqueData.forEach(data => {
       const priceChange = Math.abs(data.change_24h || 0);
       const volumeValue = data.volume * data.price;
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
       
-      // Critérios para detectar liquidação
+      // Filtros ajustados para detectar liquidações
       const threshold = isHighMarketCap ? 
-        { volume: 30000, priceChange: 1.0 } :   // Top 50: $30k + 1%
-        { volume: 5000, priceChange: 1.5 };     // Resto: $5k + 1.5%
+        { volume: 25000, priceChange: 0.8 } :   // High cap: $25k + 0.8%
+        { volume: 8000, priceChange: 1.2 };     // Low cap: $8k + 1.2%
       
+      // Detectar liquidação
       if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
-        // Cálculo de intensidade
+        // Calcular intensidade baseada nos dados
         const volumeRatio = volumeValue / threshold.volume;
         const priceRatio = priceChange / threshold.priceChange;
         const combinedRatio = (volumeRatio + priceRatio) / 2;
         
         let intensity = 1;
-        if (combinedRatio >= 8) intensity = 5;
-        else if (combinedRatio >= 5) intensity = 4;
-        else if (combinedRatio >= 3) intensity = 3;
+        if (combinedRatio >= 10) intensity = 5;
+        else if (combinedRatio >= 6) intensity = 4;
+        else if (combinedRatio >= 3.5) intensity = 3;
         else if (combinedRatio >= 2) intensity = 2;
         else intensity = 1;
         
         const liquidation: LiquidationBubble = {
-          id: `${data.ticker}-${data.timestamp}`,
+          id: `${data.ticker}-${now.getTime()}`,
           asset: data.ticker.replace('USDT', ''),
           type: (data.change_24h || 0) < 0 ? 'long' : 'short',
           amount: volumeValue,
           price: data.price,
           marketCap: isHighMarketCap ? 'high' : 'low',
-          timestamp: new Date(data.timestamp),
+          timestamp: new Date(data.timestamp || now.getTime()),
           intensity,
           change24h: data.change_24h || 0,
           volume: data.volume,
           lastUpdateTime: now,
-          totalLiquidated: volumeValue // Inicializar com o valor atual
+          totalLiquidated: volumeValue
         };
+        
+        console.log(`💥 Nova liquidação detectada: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - ${formatAmount(liquidation.totalLiquidated)}`);
         
         if (liquidation.type === 'long') {
           newLongLiquidations.push(liquidation);
         } else {
           newShortLiquidations.push(liquidation);
         }
+
+        // Marcar como processado
+        setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
       }
     });
 
-    // Atualizar liquidações existentes e adicionar novas, acumulando valores
-    setLongLiquidations(prev => {
-      const updated = [...prev];
-      
-      newLongLiquidations.forEach(newLiq => {
-        const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
-        if (existingIndex >= 0) {
-          // Atualizar liquidação existente, acumulando o valor total
-          updated[existingIndex] = { 
-            ...newLiq, 
-            totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
-            lastUpdateTime: now
-          };
-        } else {
-          updated.push(newLiq);
-        }
+    // Atualizar liquidações acumulando valores
+    if (newLongLiquidations.length > 0) {
+      setLongLiquidations(prev => {
+        const updated = [...prev];
+        
+        newLongLiquidations.forEach(newLiq => {
+          const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
+          if (existingIndex >= 0) {
+            // Acumular valor total
+            updated[existingIndex] = { 
+              ...newLiq, 
+              totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
+              lastUpdateTime: now
+            };
+          } else {
+            updated.push(newLiq);
+          }
+        });
+        
+        // Ordenar por maior valor liquidado total
+        return updated
+          .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
+          .slice(0, 50); // Limitar a 50 para performance
       });
-      
-      // ORDENAR POR MAIOR VALOR TOTAL LIQUIDADO
-      return updated
-        .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
-        .slice(0, 100);
-    });
+    }
     
-    setShortLiquidations(prev => {
-      const updated = [...prev];
-      
-      newShortLiquidations.forEach(newLiq => {
-        const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
-        if (existingIndex >= 0) {
-          // Atualizar liquidação existente, acumulando o valor total
-          updated[existingIndex] = { 
-            ...newLiq, 
-            totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
-            lastUpdateTime: now
-          };
-        } else {
-          updated.push(newLiq);
-        }
+    if (newShortLiquidations.length > 0) {
+      setShortLiquidations(prev => {
+        const updated = [...prev];
+        
+        newShortLiquidations.forEach(newLiq => {
+          const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
+          if (existingIndex >= 0) {
+            // Acumular valor total
+            updated[existingIndex] = { 
+              ...newLiq, 
+              totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
+              lastUpdateTime: now
+            };
+          } else {
+            updated.push(newLiq);
+          }
+        });
+        
+        // Ordenar por maior valor liquidado total
+        return updated
+          .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
+          .slice(0, 50); // Limitar a 50 para performance
       });
-      
-      // ORDENAR POR MAIOR VALOR TOTAL LIQUIDADO
-      return updated
-        .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
-        .slice(0, 100);
-    });
-  }, [flowData]);
+    }
+  }, [flowData, processedTickers]);
 
   const formatAmount = (amount: number) => {
     if (!amount || isNaN(amount)) return '$0.00';
@@ -341,9 +322,9 @@ export const LiquidationBubbleMap: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor - BY TOTAL LIQUIDATED</h2>
+              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor</h2>
               <p className="text-sm text-gray-500">
-                Ordenado por maior valor total liquidado • Auto-remove após 15min sem atividade • {allBinanceAssets.length}+ assets
+                Ordenado por maior valor total liquidado • Auto-remove após 15min sem atividade
               </p>
             </div>
           </div>
@@ -398,10 +379,6 @@ export const LiquidationBubbleMap: React.FC = () => {
               )}
             </div>
             <div className="text-gray-600">Total Liquidated</div>
-          </div>
-          <div className="text-center">
-            <div className="font-bold text-blue-600">{allBinanceAssets.length}+</div>
-            <div className="text-gray-600">Assets Tracked</div>
           </div>
         </div>
       </div>
