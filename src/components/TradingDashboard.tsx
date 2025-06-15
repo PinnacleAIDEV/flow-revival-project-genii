@@ -8,63 +8,10 @@ import { LiquidationAlertSection } from './sections/LiquidationAlertSection';
 import { TopVolumeSection } from './sections/TopVolumeSection';
 import { LargeOrderSection } from './sections/LargeOrderSection';
 import { TradingViewChart } from './TradingViewChart';
+import { LiveSignalsFeed } from './LiveSignalsFeed';
 
 export const TradingDashboard: React.FC = () => {
   const { isConnected, connectionStatus, flowData, marketSentiment, alerts } = useRealFlowData();
-  const [activeSection, setActiveSection] = useState<string>('unusual');
-
-  const sections = [
-    { 
-      id: 'unusual', 
-      label: 'Buy/Sell Signals', 
-      icon: TrendingUp, 
-      color: 'blue',
-      description: 'Kline Analysis',
-      count: alerts.filter(a => a.type === 'unusual_volume').length
-    },
-    { 
-      id: 'liquidation', 
-      label: 'Liquidations', 
-      icon: AlertTriangle, 
-      color: 'red',
-      description: 'Market Events',
-      count: alerts.filter(a => a.type === 'liquidation').length
-    },
-    { 
-      id: 'volume', 
-      label: 'Top Volume', 
-      icon: Volume2, 
-      color: 'green',
-      description: '24h Rankings',
-      count: flowData.filter(d => d.volume_24h > 100000000).length
-    },
-    { 
-      id: 'orders', 
-      label: 'Large Orders', 
-      icon: DollarSign, 
-      color: 'purple',
-      description: 'Whale Activity',
-      count: alerts.filter(a => a.type === 'large_order').length
-    }
-  ];
-
-  const getSectionColor = (color: string, active: boolean) => {
-    const colors = {
-      blue: active 
-        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg transform scale-105' 
-        : 'bg-white text-blue-700 hover:bg-blue-50 border-blue-200 hover:border-blue-300 hover:shadow-md',
-      red: active 
-        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-lg transform scale-105' 
-        : 'bg-white text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300 hover:shadow-md',
-      green: active 
-        ? 'bg-gradient-to-r from-green-600 to-green-700 text-white border-green-600 shadow-lg transform scale-105' 
-        : 'bg-white text-green-700 hover:bg-green-50 border-green-200 hover:border-green-300 hover:shadow-md',
-      purple: active 
-        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-600 shadow-lg transform scale-105' 
-        : 'bg-white text-purple-700 hover:bg-purple-50 border-purple-200 hover:border-purple-300 hover:shadow-md'
-    };
-    return colors[color as keyof typeof colors] || colors.blue;
-  };
 
   const getConnectionInfo = () => {
     const status = binanceWebSocketService.getConnectionStatus();
@@ -79,7 +26,7 @@ export const TradingDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      {/* Enhanced Header */}
+      {/* Header */}
       <div className="bg-white shadow-lg border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
@@ -96,7 +43,7 @@ export const TradingDashboard: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Enhanced Connection Status */}
+              {/* Connection Status */}
               <div className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium border-2 ${
                 isConnected 
                   ? 'bg-green-50 text-green-700 border-green-200' 
@@ -126,135 +73,123 @@ export const TradingDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-          
-          {/* Quick Stats */}
-          <div className="mt-6 grid grid-cols-4 gap-4">
-            {sections.map((section) => {
-              const IconComponent = section.icon;
-              return (
-                <div key={section.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <IconComponent className={`w-5 h-5 text-${section.color}-600`} />
-                      <span className="text-sm font-medium text-gray-700">{section.label}</span>
-                    </div>
-                    <span className={`text-lg font-bold text-${section.color}-600`}>
-                      {section.count}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Enhanced Section Navigation */}
-        <div className="mb-6">
-          <div className="grid grid-cols-4 gap-4">
-            {sections.map((section) => {
-              const IconComponent = section.icon;
-              const isActive = activeSection === section.id;
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
+          
+          {/* Left Side - 4 Alert Lists (2x2 Grid) */}
+          <div className="col-span-12 lg:col-span-6">
+            <div className="grid grid-cols-2 gap-4 h-full">
               
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`p-6 rounded-xl border-2 transition-all duration-300 transform hover:scale-102 ${getSectionColor(section.color, isActive)}`}
-                >
-                  <div className="flex flex-col items-center space-y-3">
-                    <div className="relative">
-                      <IconComponent className="w-7 h-7" />
-                      {section.count > 0 && (
-                        <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${
-                          isActive ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
-                        }`}>
-                          {section.count > 99 ? '99+' : section.count}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <div className="font-bold text-sm">{section.label}</div>
-                      <div className={`text-xs ${isActive ? 'text-blue-100' : 'text-gray-500'}`}>
-                        {section.description}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Enhanced Main Dashboard Grid */}
-        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-280px)]">
-          {/* Left Panel - Active Section */}
-          <div className="col-span-12 lg:col-span-5">
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 h-full overflow-hidden">
-              <div className="h-full flex flex-col">
-                <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {sections.find(s => s.id === activeSection)?.icon && (
-                        React.createElement(sections.find(s => s.id === activeSection)!.icon, { 
-                          className: "w-6 h-6 text-gray-700" 
-                        })
-                      )}
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900">
-                          {sections.find(s => s.id === activeSection)?.label}
-                        </h2>
-                        <p className="text-sm text-gray-500">
-                          {sections.find(s => s.id === activeSection)?.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
-                      Live Data
+              {/* Buy/Sell Signals */}
+              <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Buy/Sell Signals</h3>
+                      <p className="text-xs text-gray-500">Kline Analysis</p>
                     </div>
                   </div>
                 </div>
-                
-                <div className="flex-1 overflow-hidden">
-                  {activeSection === 'unusual' && <UnusualBuySellSection />}
-                  {activeSection === 'liquidation' && <LiquidationAlertSection />}
-                  {activeSection === 'volume' && <TopVolumeSection />}
-                  {activeSection === 'orders' && <LargeOrderSection />}
+                <div className="h-[calc(100%-80px)] overflow-hidden">
+                  <UnusualBuySellSection />
                 </div>
               </div>
+
+              {/* Liquidations */}
+              <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-red-50 to-red-100">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Liquidations</h3>
+                      <p className="text-xs text-gray-500">Market Events</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-[calc(100%-80px)] overflow-hidden">
+                  <LiquidationAlertSection />
+                </div>
+              </div>
+
+              {/* Top Volume */}
+              <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
+                  <div className="flex items-center space-x-2">
+                    <Volume2 className="w-5 h-5 text-green-600" />
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Top Volume</h3>
+                      <p className="text-xs text-gray-500">24h Rankings</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-[calc(100%-80px)] overflow-hidden">
+                  <TopVolumeSection />
+                </div>
+              </div>
+
+              {/* Large Orders */}
+              <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-purple-100">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="w-5 h-5 text-purple-600" />
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Large Orders</h3>
+                      <p className="text-xs text-gray-500">Whale Activity</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-[calc(100%-80px)] overflow-hidden">
+                  <LargeOrderSection />
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {/* Right Panel - Enhanced TradingView Chart */}
-          <div className="col-span-12 lg:col-span-7">
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 h-full overflow-hidden">
-              <div className="h-full flex flex-col">
-                <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <BarChart3 className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900">Market Analysis</h2>
-                        <p className="text-sm text-gray-500">Professional charting tools</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
-                        TradingView
-                      </div>
+          {/* Right Side - TradingView Chart and Live Signals */}
+          <div className="col-span-12 lg:col-span-6">
+            <div className="grid grid-rows-2 gap-4 h-full">
+              
+              {/* TradingView Chart */}
+              <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                  <div className="flex items-center space-x-2">
+                    <BarChart3 className="w-5 h-5 text-gray-700" />
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Market Analysis</h3>
+                      <p className="text-xs text-gray-500">TradingView Professional</p>
                     </div>
                   </div>
                 </div>
-                
-                <div className="flex-1 p-6">
+                <div className="h-[calc(100%-80px)]">
                   <TradingViewChart />
                 </div>
               </div>
+
+              {/* Live Signals Feed */}
+              <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-orange-100">
+                  <div className="flex items-center space-x-2">
+                    <Activity className="w-5 h-5 text-orange-600" />
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Live Signals</h3>
+                      <p className="text-xs text-gray-500">All Alerts Combined</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-[calc(100%-80px)] overflow-hidden">
+                  <LiveSignalsFeed />
+                </div>
+              </div>
+
             </div>
           </div>
+
         </div>
       </div>
     </div>
