@@ -35,7 +35,13 @@ export const LiquidationBubbleMap: React.FC = () => {
     const newShortLiquidations: LiquidationBubble[] = [];
 
     flowData.forEach(data => {
-      const priceChange = Math.abs(data.change_24h);
+      // Validar dados obrigatórios
+      if (!data.ticker || !data.price || !data.volume || !data.change_24h === undefined) {
+        console.log('⚠️ Dados inválidos para liquidação:', data);
+        return;
+      }
+
+      const priceChange = Math.abs(data.change_24h || 0);
       const volumeValue = data.volume * data.price;
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
       
@@ -60,13 +66,13 @@ export const LiquidationBubbleMap: React.FC = () => {
         const liquidation: LiquidationBubble = {
           id: `${data.ticker}-${data.timestamp}`,
           asset: data.ticker.replace('USDT', ''),
-          type: data.change_24h < 0 ? 'long' : 'short',
+          type: (data.change_24h || 0) < 0 ? 'long' : 'short',
           amount: volumeValue,
           price: data.price,
           marketCap: isHighMarketCap ? 'high' : 'low',
           timestamp: new Date(data.timestamp),
           intensity,
-          change24h: data.change_24h,
+          change24h: data.change_24h || 0,
           volume: data.volume
         };
         
@@ -93,6 +99,7 @@ export const LiquidationBubbleMap: React.FC = () => {
   }, [flowData]);
 
   const formatAmount = (amount: number) => {
+    if (!amount || isNaN(amount)) return '$0.00';
     if (amount >= 1e9) return `$${(amount / 1e9).toFixed(2)}B`;
     if (amount >= 1e6) return `$${(amount / 1e6).toFixed(2)}M`;
     if (amount >= 1e3) return `$${(amount / 1e3).toFixed(2)}K`;
@@ -100,11 +107,13 @@ export const LiquidationBubbleMap: React.FC = () => {
   };
 
   const formatPrice = (price: number) => {
+    if (!price || isNaN(price)) return '$0.00';
     if (price >= 1) return `$${price.toFixed(4)}`;
     return `$${price.toFixed(6)}`;
   };
 
   const formatChange = (change: number) => {
+    if (change === undefined || change === null || isNaN(change)) return '0.00%';
     const sign = change >= 0 ? '+' : '';
     return `${sign}${change.toFixed(2)}%`;
   };
