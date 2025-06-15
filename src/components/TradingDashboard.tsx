@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Volume2, DollarSign, Activity, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Volume2, DollarSign, Activity, BarChart3, Zap, Wifi } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { binanceWebSocketService } from '../services/BinanceWebSocketService';
 import { UnusualBuySellSection } from './sections/UnusualBuySellSection';
@@ -10,46 +10,58 @@ import { LargeOrderSection } from './sections/LargeOrderSection';
 import { TradingViewChart } from './TradingViewChart';
 
 export const TradingDashboard: React.FC = () => {
-  const { isConnected, connectionStatus, flowData, marketSentiment } = useRealFlowData();
+  const { isConnected, connectionStatus, flowData, marketSentiment, alerts } = useRealFlowData();
   const [activeSection, setActiveSection] = useState<string>('unusual');
 
   const sections = [
     { 
       id: 'unusual', 
-      label: 'Unusual Buy/Sell', 
+      label: 'Buy/Sell Signals', 
       icon: TrendingUp, 
       color: 'blue',
-      description: '3min Kline Analysis'
+      description: 'Kline Analysis',
+      count: alerts.filter(a => a.type === 'unusual_volume').length
     },
     { 
       id: 'liquidation', 
-      label: 'Liquidation Alerts', 
+      label: 'Liquidations', 
       icon: AlertTriangle, 
       color: 'red',
-      description: 'Market Cap Based'
+      description: 'Market Events',
+      count: alerts.filter(a => a.type === 'liquidation').length
     },
     { 
       id: 'volume', 
-      label: 'Top 40 Volume', 
+      label: 'Top Volume', 
       icon: Volume2, 
       color: 'green',
-      description: '24h Futures Volume'
+      description: '24h Rankings',
+      count: flowData.filter(d => d.volume_24h > 100000000).length
     },
     { 
       id: 'orders', 
       label: 'Large Orders', 
       icon: DollarSign, 
       color: 'purple',
-      description: 'Orders > $1M'
+      description: 'Whale Activity',
+      count: alerts.filter(a => a.type === 'large_order').length
     }
   ];
 
   const getSectionColor = (color: string, active: boolean) => {
     const colors = {
-      blue: active ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200',
-      red: active ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200',
-      green: active ? 'bg-green-600 text-white border-green-600' : 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200',
-      purple: active ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200'
+      blue: active 
+        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg transform scale-105' 
+        : 'bg-white text-blue-700 hover:bg-blue-50 border-blue-200 hover:border-blue-300 hover:shadow-md',
+      red: active 
+        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white border-red-600 shadow-lg transform scale-105' 
+        : 'bg-white text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300 hover:shadow-md',
+      green: active 
+        ? 'bg-gradient-to-r from-green-600 to-green-700 text-white border-green-600 shadow-lg transform scale-105' 
+        : 'bg-white text-green-700 hover:bg-green-50 border-green-200 hover:border-green-300 hover:shadow-md',
+      purple: active 
+        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-600 shadow-lg transform scale-105' 
+        : 'bg-white text-purple-700 hover:bg-purple-50 border-purple-200 hover:border-purple-300 hover:shadow-md'
     };
     return colors[color as keyof typeof colors] || colors.blue;
   };
@@ -66,49 +78,79 @@ export const TradingDashboard: React.FC = () => {
   const connectionInfo = getConnectionInfo();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      {/* Enhanced Header */}
+      <div className="bg-white shadow-lg border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
-                <BarChart3 className="w-7 h-7 text-blue-600" />
-                <span>Pinnacle AI Pro</span>
-              </h1>
-              <p className="text-gray-600 text-sm mt-1">Real-time Binance Professional Trading Monitor</p>
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl">
+                <BarChart3 className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Pinnacle AI Pro
+                </h1>
+                <p className="text-gray-600 text-sm mt-1">Professional Trading Intelligence Platform</p>
+              </div>
             </div>
             
-            <div className="flex items-center space-x-6">
-              {/* Connection Status */}
-              <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium ${
+            <div className="flex items-center space-x-4">
+              {/* Enhanced Connection Status */}
+              <div className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium border-2 ${
                 isConnected 
-                  ? 'bg-green-100 text-green-800 border border-green-200' 
-                  : 'bg-red-100 text-red-800 border border-red-200'
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : 'bg-red-50 text-red-700 border-red-200'
               }`}>
-                <Activity className="w-4 h-4" />
-                <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+                {isConnected ? <Wifi className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+                <span>{isConnected ? 'Live Data' : 'Disconnected'}</span>
+                {isConnected && <Zap className="w-3 h-3" />}
               </div>
               
               {/* Market Sentiment */}
-              <div className="bg-gray-100 px-3 py-2 rounded-lg text-sm">
-                <span className="text-gray-600">Sentiment: </span>
-                <span className="font-medium text-gray-900">{marketSentiment.interpretation}</span>
+              <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-4 py-2 rounded-xl text-sm border">
+                <span className="text-gray-600">Market: </span>
+                <span className={`font-bold ${
+                  marketSentiment.score > 0.1 ? 'text-green-600' : 
+                  marketSentiment.score < -0.1 ? 'text-red-600' : 'text-gray-600'
+                }`}>
+                  {marketSentiment.interpretation}
+                </span>
               </div>
               
               {/* Asset Count */}
-              <div className="bg-blue-100 px-3 py-2 rounded-lg text-sm">
-                <span className="text-blue-700 font-medium">
+              <div className="bg-gradient-to-r from-blue-100 to-purple-100 px-4 py-2 rounded-xl text-sm border border-blue-200">
+                <span className="text-blue-700 font-bold">
                   {connectionInfo.activeAssets}/{connectionInfo.totalSymbols} Assets
                 </span>
               </div>
             </div>
           </div>
+          
+          {/* Quick Stats */}
+          <div className="mt-6 grid grid-cols-4 gap-4">
+            {sections.map((section) => {
+              const IconComponent = section.icon;
+              return (
+                <div key={section.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <IconComponent className={`w-5 h-5 text-${section.color}-600`} />
+                      <span className="text-sm font-medium text-gray-700">{section.label}</span>
+                    </div>
+                    <span className={`text-lg font-bold text-${section.color}-600`}>
+                      {section.count}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Section Navigation */}
+        {/* Enhanced Section Navigation */}
         <div className="mb-6">
           <div className="grid grid-cols-4 gap-4">
             {sections.map((section) => {
@@ -119,13 +161,24 @@ export const TradingDashboard: React.FC = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 transform hover:scale-105 ${getSectionColor(section.color, isActive)}`}
+                  className={`p-6 rounded-xl border-2 transition-all duration-300 transform hover:scale-102 ${getSectionColor(section.color, isActive)}`}
                 >
-                  <div className="flex flex-col items-center space-y-2">
-                    <IconComponent className="w-6 h-6" />
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="relative">
+                      <IconComponent className="w-7 h-7" />
+                      {section.count > 0 && (
+                        <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${
+                          isActive ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
+                        }`}>
+                          {section.count > 99 ? '99+' : section.count}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-center">
-                      <div className="font-semibold text-sm">{section.label}</div>
-                      <div className="text-xs opacity-75">{section.description}</div>
+                      <div className="font-bold text-sm">{section.label}</div>
+                      <div className={`text-xs ${isActive ? 'text-blue-100' : 'text-gray-500'}`}>
+                        {section.description}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -134,26 +187,36 @@ export const TradingDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Dashboard Grid */}
-        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
+        {/* Enhanced Main Dashboard Grid */}
+        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-280px)]">
           {/* Left Panel - Active Section */}
-          <div className="col-span-12 lg:col-span-4">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 h-full">
+          <div className="col-span-12 lg:col-span-5">
+            <div className="bg-white rounded-xl shadow-xl border border-gray-200 h-full overflow-hidden">
               <div className="h-full flex flex-col">
-                <div className="p-6 border-b border-gray-200 bg-gray-50 rounded-t-xl">
-                  <div className="flex items-center space-x-2">
-                    {sections.find(s => s.id === activeSection)?.icon && (
-                      React.createElement(sections.find(s => s.id === activeSection)!.icon, { 
-                        className: "w-5 h-5 text-gray-700" 
-                      })
-                    )}
-                    <h2 className="text-lg font-bold text-gray-900">
-                      {sections.find(s => s.id === activeSection)?.label}
-                    </h2>
+                <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {sections.find(s => s.id === activeSection)?.icon && (
+                        React.createElement(sections.find(s => s.id === activeSection)!.icon, { 
+                          className: "w-6 h-6 text-gray-700" 
+                        })
+                      )}
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">
+                          {sections.find(s => s.id === activeSection)?.label}
+                        </h2>
+                        <p className="text-sm text-gray-500">
+                          {sections.find(s => s.id === activeSection)?.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
+                      Live Data
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex-1 p-6 overflow-hidden">
+                <div className="flex-1 overflow-hidden">
                   {activeSection === 'unusual' && <UnusualBuySellSection />}
                   {activeSection === 'liquidation' && <LiquidationAlertSection />}
                   {activeSection === 'volume' && <TopVolumeSection />}
@@ -163,16 +226,27 @@ export const TradingDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Panel - TradingView Chart */}
-          <div className="col-span-12 lg:col-span-8">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 h-full">
+          {/* Right Panel - Enhanced TradingView Chart */}
+          <div className="col-span-12 lg:col-span-7">
+            <div className="bg-white rounded-xl shadow-xl border border-gray-200 h-full overflow-hidden">
               <div className="h-full flex flex-col">
-                <div className="p-4 border-b border-gray-200 bg-gray-50 rounded-t-xl">
-                  <h2 className="text-lg font-bold text-gray-900 flex items-center space-x-2">
-                    <BarChart3 className="w-5 h-5" />
-                    <span>TradingView Chart</span>
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-1">Professional charting and analysis</p>
+                <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <BarChart3 className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">Market Analysis</h2>
+                        <p className="text-sm text-gray-500">Professional charting tools</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
+                        TradingView
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex-1 p-6">
