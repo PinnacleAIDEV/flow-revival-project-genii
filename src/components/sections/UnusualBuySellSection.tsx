@@ -150,7 +150,7 @@ export const UnusualBuySellSection: React.FC = () => {
       console.log(`🚨 ${newAlerts.length} novos alertas de volume detectados`);
       
       setAlerts(prev => {
-        const combined = [newAlert, ...prev];
+        const combined = [...newAlerts, ...prev];
         return combined.slice(0, 50); // Limitar a 50
       });
       
