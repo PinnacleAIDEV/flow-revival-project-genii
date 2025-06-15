@@ -3,15 +3,8 @@ import React from 'react';
 import { TradingProvider } from '../contexts/TradingContext';
 import { LiquidationBubbleMap } from './LiquidationBubbleMap';
 import { CoinTrendHunter } from './CoinTrendHunter';
-import { DailyResetCounter } from './DailyResetCounter';
 
 export const TradingDashboard: React.FC = () => {
-  const handleDailyReset = async () => {
-    // Limpar dados específicos do dashboard se necessário
-    console.log('🔄 Dashboard reset diário executado');
-    // Aqui você pode adicionar lógica específica de reset se necessário
-  };
-
   return (
     <TradingProvider>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
@@ -21,9 +14,6 @@ export const TradingDashboard: React.FC = () => {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Liquidation Monitor</h1>
             <p className="text-lg text-gray-600">Real-time liquidation tracking and micro-cap detection</p>
           </div>
-
-          {/* Daily Reset Counter */}
-          <DailyResetCounter onReset={handleDailyReset} showForceReset={true} />
 
           {/* Liquidation Bubble Map - Top Section */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-shadow h-[500px]">

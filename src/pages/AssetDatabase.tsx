@@ -7,7 +7,6 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
-import { DailyResetCounter } from '../components/DailyResetCounter';
 
 interface Liquidation {
   id: string;
@@ -77,14 +76,6 @@ const AssetDatabase: React.FC = () => {
     setFilteredCoinTrends(filteredTrends);
   }, [coinTrends, searchQuery]);
 
-  const handleDailyReset = async () => {
-    console.log('🔄 Reset diário executado - recarregando dados...');
-    await Promise.all([
-      fetchLiquidations(),
-      fetchCoinTrends()
-    ]);
-  };
-
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
@@ -118,9 +109,6 @@ const AssetDatabase: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Daily Reset Counter */}
-        <DailyResetCounter onReset={handleDailyReset} showForceReset={false} />
 
         {/* Search and Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
