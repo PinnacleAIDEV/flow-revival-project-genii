@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
@@ -231,7 +230,6 @@ export const LiquidationBubbleMap: React.FC = () => {
                 <TableHead className="w-28">Volume</TableHead>
                 <TableHead className="w-20">Cap</TableHead>
                 <TableHead className="w-16">Risk</TableHead>
-                <TableHead className="w-16">Time</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -272,9 +270,6 @@ export const LiquidationBubbleMap: React.FC = () => {
                     <span className={`px-2 py-1 rounded text-xs font-bold ${getIntensityColor(liquidation.intensity)}`}>
                       {liquidation.intensity}
                     </span>
-                  </TableCell>
-                  <TableCell className="text-xs text-gray-500">
-                    {getTimeAgo(liquidation.timestamp)}
                   </TableCell>
                 </TableRow>
               ))}
