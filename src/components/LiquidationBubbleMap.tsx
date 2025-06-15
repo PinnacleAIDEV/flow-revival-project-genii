@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { useRealFlowData } from '../hooks/useRealFlowData';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 interface LiquidationBubble {
   id: string;
@@ -10,7 +12,9 @@ interface LiquidationBubble {
   price: number;
   marketCap: 'high' | 'low';
   timestamp: Date;
-  intensity: number; // 1-5 para determinar tamanho da bolha
+  intensity: number;
+  change24h: number;
+  volume: number;
 }
 
 export const LiquidationBubbleMap: React.FC = () => {
@@ -61,7 +65,9 @@ export const LiquidationBubbleMap: React.FC = () => {
           price: data.price,
           marketCap: isHighMarketCap ? 'high' : 'low',
           timestamp: new Date(data.timestamp),
-          intensity
+          intensity,
+          change24h: data.change_24h,
+          volume: data.volume
         };
         
         if (liquidation.type === 'long') {
@@ -72,17 +78,17 @@ export const LiquidationBubbleMap: React.FC = () => {
       }
     });
 
-    // Aumentar limite para 30 liquidações por tipo e ordenar por valor
+    // Aumentar limite para 50 liquidações por tipo e ordenar por valor
     setLongLiquidations(
       newLongLiquidations
         .sort((a, b) => b.amount - a.amount)
-        .slice(0, 30)
+        .slice(0, 50)
     );
     
     setShortLiquidations(
       newShortLiquidations
         .sort((a, b) => b.amount - a.amount)
-        .slice(0, 30)
+        .slice(0, 50)
     );
   }, [flowData]);
 
@@ -93,27 +99,14 @@ export const LiquidationBubbleMap: React.FC = () => {
     return `$${amount.toFixed(2)}`;
   };
 
-  const getBubbleSize = (intensity: number) => {
-    const sizes = {
-      1: 'w-10 h-10 text-xs',    // Reduzido de w-12 h-12
-      2: 'w-14 h-14 text-sm',    // Reduzido de w-16 h-16
-      3: 'w-18 h-18 text-sm',    // Reduzido de w-20 h-20
-      4: 'w-22 h-22 text-base',  // Reduzido de w-24 h-24
-      5: 'w-26 h-26 text-lg'     // Reduzido de w-28 h-28
-    };
-    return sizes[intensity as keyof typeof sizes] || sizes[1];
+  const formatPrice = (price: number) => {
+    if (price >= 1) return `$${price.toFixed(4)}`;
+    return `$${price.toFixed(6)}`;
   };
 
-  const getBubbleColor = (marketCap: 'high' | 'low', type: 'long' | 'short') => {
-    if (type === 'long') {
-      return marketCap === 'high' 
-        ? 'bg-red-500 hover:bg-red-600' 
-        : 'bg-red-400 hover:bg-red-500';
-    } else {
-      return marketCap === 'high' 
-        ? 'bg-green-500 hover:bg-green-600' 
-        : 'bg-green-400 hover:bg-green-500';
-    }
+  const formatChange = (change: number) => {
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(2)}%`;
   };
 
   const getTimeAgo = (timestamp: Date) => {
@@ -125,61 +118,96 @@ export const LiquidationBubbleMap: React.FC = () => {
     return `${Math.floor(diffInSeconds / 3600)}h`;
   };
 
-  const BubbleSection = ({ 
+  const getIntensityColor = (intensity: number) => {
+    const colors = {
+      1: 'bg-gray-100 text-gray-700',
+      2: 'bg-yellow-100 text-yellow-800',
+      3: 'bg-orange-100 text-orange-800',
+      4: 'bg-red-100 text-red-800',
+      5: 'bg-red-200 text-red-900'
+    };
+    return colors[intensity as keyof typeof colors] || colors[1];
+  };
+
+  const LiquidationTable = ({ 
     title, 
     liquidations, 
     icon: Icon, 
-    bgColor 
+    bgColor,
+    textColor 
   }: { 
     title: string; 
     liquidations: LiquidationBubble[]; 
     icon: any; 
     bgColor: string;
+    textColor: string;
   }) => (
     <div className="flex-1 min-h-0">
       <div className={`p-3 ${bgColor} rounded-t-lg border-b border-gray-200`}>
-        <div className="flex items-center space-x-2">
-          <Icon className="w-5 h-5 text-white" />
-          <h3 className="text-lg font-bold text-white">{title}</h3>
-          <span className="text-sm text-white/80">({liquidations.length})</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Icon className="w-5 h-5 text-white" />
+            <h3 className="text-lg font-bold text-white">{title}</h3>
+            <span className="text-sm text-white/80">({liquidations.length})</span>
+          </div>
         </div>
       </div>
       
-      <div className="h-80 overflow-y-auto p-4 bg-gray-50">
+      <div className="h-80 overflow-y-auto bg-white">
         {liquidations.length > 0 ? (
-          <div className="flex flex-wrap gap-2 justify-center">
-            {liquidations.map((liquidation) => (
-              <div
-                key={liquidation.id}
-                className={`
-                  ${getBubbleSize(liquidation.intensity)}
-                  ${getBubbleColor(liquidation.marketCap, liquidation.type)}
-                  rounded-full flex flex-col items-center justify-center
-                  text-white font-bold cursor-pointer
-                  transform transition-all duration-200
-                  hover:scale-110 shadow-lg hover:shadow-xl
-                  relative group
-                `}
-                title={`${liquidation.asset}: ${formatAmount(liquidation.amount)}`}
-              >
-                {/* Asset Symbol */}
-                <div className="text-center leading-tight">
-                  <div className="font-bold">{liquidation.asset}</div>
-                  <div className="text-xs opacity-90">{formatAmount(liquidation.amount)}</div>
-                </div>
-                
-                {/* Tooltip */}
-                <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 
-                              bg-black text-white text-xs rounded px-2 py-1 
-                              opacity-0 group-hover:opacity-100 transition-opacity
-                              whitespace-nowrap z-10">
-                  <div>{liquidation.asset} • {getTimeAgo(liquidation.timestamp)} ago</div>
-                  <div>{formatAmount(liquidation.amount)} • {liquidation.marketCap} cap</div>
-                  <div>Price: ${liquidation.price.toFixed(6)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-20">Asset</TableHead>
+                <TableHead className="w-24">Price</TableHead>
+                <TableHead className="w-20">24h %</TableHead>
+                <TableHead className="w-28">Volume</TableHead>
+                <TableHead className="w-20">Cap</TableHead>
+                <TableHead className="w-16">Risk</TableHead>
+                <TableHead className="w-16">Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {liquidations.map((liquidation) => (
+                <TableRow key={liquidation.id} className="hover:bg-gray-50">
+                  <TableCell className="font-bold">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                      <span className={textColor}>{liquidation.asset}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {formatPrice(liquidation.price)}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`font-semibold ${liquidation.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatChange(liquidation.change24h)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {formatAmount(liquidation.amount)}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      liquidation.marketCap === 'high' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {liquidation.marketCap === 'high' ? 'HIGH' : 'LOW'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${getIntensityColor(liquidation.intensity)}`}>
+                      {liquidation.intensity}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs text-gray-500">
+                    {getTimeAgo(liquidation.timestamp)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         ) : (
           <div className="h-full flex items-center justify-center text-center">
             <div className="space-y-2">
@@ -203,39 +231,41 @@ export const LiquidationBubbleMap: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Liquidation Bubble Map</h2>
+              <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor</h2>
               <p className="text-sm text-gray-500">
-                Real-time liquidation visualization • {longLiquidations.length + shortLiquidations.length} active • Enhanced sensitivity
+                Real-time liquidation tracking • {longLiquidations.length + shortLiquidations.length} active positions • Enhanced sensitivity
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-1">
               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span>High Cap</span>
+              <span>Long Liquidations</span>
             </div>
             <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-              <span>Low Cap</span>
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Short Liquidations</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bubble Map Sections */}
+      {/* Liquidation Tables */}
       <div className="flex-1 flex gap-4 p-4 min-h-0">
-        <BubbleSection
+        <LiquidationTable
           title="Long Liquidations"
           liquidations={longLiquidations}
           icon={TrendingDown}
           bgColor="bg-red-600"
+          textColor="text-red-700"
         />
         
-        <BubbleSection
+        <LiquidationTable
           title="Short Liquidations"
           liquidations={shortLiquidations}
           icon={TrendingUp}
           bgColor="bg-green-600"
+          textColor="text-green-700"
         />
       </div>
 
