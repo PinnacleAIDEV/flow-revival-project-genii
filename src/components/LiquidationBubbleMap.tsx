@@ -16,14 +16,12 @@ interface LiquidationBubble {
   change24h: number;
   volume: number;
   lastUpdateTime: Date;
-  liquidationCount: number;
 }
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { flowData } = useRealFlowData();
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
-  const [liquidationCountAboveFilter, setLiquidationCountAboveFilter] = useState({ long: 0, short: 0 });
 
   // Lista expandida de ativos com market cap alto
   const highMarketCapAssets = [
@@ -57,8 +55,6 @@ export const LiquidationBubbleMap: React.FC = () => {
     const newLongLiquidations: LiquidationBubble[] = [];
     const newShortLiquidations: LiquidationBubble[] = [];
     const now = new Date();
-    let longCountAboveFilter = 0;
-    let shortCountAboveFilter = 0;
 
     flowData.forEach(data => {
       // Validar dados obrigatórios
@@ -77,13 +73,6 @@ export const LiquidationBubbleMap: React.FC = () => {
         { volume: 10000, priceChange: 2.5 };
       
       if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
-        // Contar liquidações que passaram pelo filtro
-        if ((data.change_24h || 0) < 0) {
-          longCountAboveFilter++;
-        } else {
-          shortCountAboveFilter++;
-        }
-
         // Cálculo de intensidade mais generoso
         const volumeRatio = volumeValue / threshold.volume;
         const priceRatio = priceChange / threshold.priceChange;
@@ -107,8 +96,7 @@ export const LiquidationBubbleMap: React.FC = () => {
           intensity,
           change24h: data.change_24h || 0,
           volume: data.volume,
-          lastUpdateTime: now,
-          liquidationCount: 1
+          lastUpdateTime: now
         };
         
         if (liquidation.type === 'long') {
@@ -119,12 +107,6 @@ export const LiquidationBubbleMap: React.FC = () => {
       }
     });
 
-    // Atualizar contadores de liquidações acima do filtro
-    setLiquidationCountAboveFilter(prev => ({
-      long: prev.long + longCountAboveFilter,
-      short: prev.short + shortCountAboveFilter
-    }));
-
     // Atualizar liquidações existentes e adicionar novas
     setLongLiquidations(prev => {
       const updated = [...prev];
@@ -134,8 +116,7 @@ export const LiquidationBubbleMap: React.FC = () => {
         if (existingIndex >= 0) {
           updated[existingIndex] = { 
             ...newLiq, 
-            lastUpdateTime: now,
-            liquidationCount: (updated[existingIndex].liquidationCount || 0) + 1
+            lastUpdateTime: now
           };
         } else {
           updated.push(newLiq);
@@ -143,8 +124,7 @@ export const LiquidationBubbleMap: React.FC = () => {
       });
       
       return updated
-        .filter(liq => liq.liquidationCount && !isNaN(liq.liquidationCount))
-        .sort((a, b) => (b.liquidationCount || 0) - (a.liquidationCount || 0))
+        .sort((a, b) => b.amount - a.amount)
         .slice(0, 50);
     });
     
@@ -156,8 +136,7 @@ export const LiquidationBubbleMap: React.FC = () => {
         if (existingIndex >= 0) {
           updated[existingIndex] = { 
             ...newLiq, 
-            lastUpdateTime: now,
-            liquidationCount: (updated[existingIndex].liquidationCount || 0) + 1
+            lastUpdateTime: now
           };
         } else {
           updated.push(newLiq);
@@ -165,8 +144,7 @@ export const LiquidationBubbleMap: React.FC = () => {
       });
       
       return updated
-        .filter(liq => liq.liquidationCount && !isNaN(liq.liquidationCount))
-        .sort((a, b) => (b.liquidationCount || 0) - (a.liquidationCount || 0))
+        .sort((a, b) => b.amount - a.amount)
         .slice(0, 50);
     });
   }, [flowData]);
@@ -207,15 +185,13 @@ export const LiquidationBubbleMap: React.FC = () => {
     liquidations, 
     icon: Icon, 
     bgColor,
-    textColor,
-    countAboveFilter
+    textColor
   }: { 
     title: string; 
     liquidations: LiquidationBubble[]; 
     icon: any; 
     bgColor: string;
     textColor: string;
-    countAboveFilter: number;
   }) => (
     <div className="flex-1 min-h-0">
       <div className={`p-3 ${bgColor} rounded-t-lg border-b border-gray-200`}>
@@ -224,10 +200,6 @@ export const LiquidationBubbleMap: React.FC = () => {
             <Icon className="w-5 h-5 text-white" />
             <h3 className="text-lg font-bold text-white">{title}</h3>
             <span className="text-sm text-white/80">({liquidations.length})</span>
-          </div>
-          <div className="bg-white/20 px-3 py-1 rounded-lg">
-            <span className="text-white font-bold text-lg">{countAboveFilter}</span>
-            <span className="text-white/80 text-sm ml-1">acima filtro</span>
           </div>
         </div>
       </div>
@@ -238,7 +210,6 @@ export const LiquidationBubbleMap: React.FC = () => {
             <TableHeader className="sticky top-0 bg-white z-10">
               <TableRow>
                 <TableHead className="w-20">Asset</TableHead>
-                <TableHead className="w-16">Count</TableHead>
                 <TableHead className="w-24">Price</TableHead>
                 <TableHead className="w-20">24h %</TableHead>
                 <TableHead className="w-28">Volume</TableHead>
@@ -254,11 +225,6 @@ export const LiquidationBubbleMap: React.FC = () => {
                       <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
                       <span className={textColor}>{liquidation.asset}</span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold">
-                      {liquidation.liquidationCount || 0}
-                    </span>
                   </TableCell>
                   <TableCell className="font-mono text-sm">
                     {formatPrice(liquidation.price)}
@@ -314,7 +280,7 @@ export const LiquidationBubbleMap: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold text-gray-900">Live Liquidations Monitor</h2>
               <p className="text-sm text-gray-500">
-                Real-time liquidation tracking • {longLiquidations.length + shortLiquidations.length} active positions • Ordered by liquidation count
+                Real-time liquidation tracking • {longLiquidations.length + shortLiquidations.length} active positions • Ordered by volume
               </p>
             </div>
           </div>
@@ -339,7 +305,6 @@ export const LiquidationBubbleMap: React.FC = () => {
           icon={TrendingDown}
           bgColor="bg-red-600"
           textColor="text-red-700"
-          countAboveFilter={liquidationCountAboveFilter.long}
         />
         
         <LiquidationTable
@@ -348,7 +313,6 @@ export const LiquidationBubbleMap: React.FC = () => {
           icon={TrendingUp}
           bgColor="bg-green-600"
           textColor="text-green-700"
-          countAboveFilter={liquidationCountAboveFilter.short}
         />
       </div>
 
@@ -371,12 +335,6 @@ export const LiquidationBubbleMap: React.FC = () => {
               )}
             </div>
             <div className="text-gray-600">Total Volume</div>
-          </div>
-          <div className="text-center">
-            <div className="font-bold text-blue-600">
-              {liquidationCountAboveFilter.long + liquidationCountAboveFilter.short}
-            </div>
-            <div className="text-gray-600">Acima Filtro</div>
           </div>
         </div>
       </div>
