@@ -15,14 +15,14 @@ interface Liquidation {
   amount: number;
   price: number;
   market_cap: string;
-  timestamp: string;
+  created_at: string;
 }
 
 interface CoinTrend {
   id: string;
   ticker: string;
   volume_spike: number;
-  timestamp: string;
+  created_at: string;
 }
 
 const AssetDatabase: React.FC = () => {
@@ -177,7 +177,7 @@ const AssetDatabase: React.FC = () => {
                       </td>
                       <td className="py-2 px-4">${liquidation.price.toLocaleString()}</td>
                       <td className="py-2 px-4">{liquidation.market_cap}</td>
-                      <td className="py-2 px-4">{formatDate(liquidation.timestamp)}</td>
+                      <td className="py-2 px-4">{formatDate(liquidation.created_at)}</td>
                     </tr>
                   ))}
                   {filteredLiquidations.length === 0 && (
@@ -215,7 +215,7 @@ const AssetDatabase: React.FC = () => {
                         {trend.ticker}
                       </td>
                       <td className="py-2 px-4">{trend.volume_spike}</td>
-                      <td className="py-2 px-4">{formatDate(trend.timestamp)}</td>
+                      <td className="py-2 px-4">{formatDate(trend.created_at)}</td>
                     </tr>
                   ))}
                   {filteredCoinTrends.length === 0 && (
