@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Database, TrendingUp, TrendingDown, BarChart3, Clock, ArrowLeft } from 'lucide-react';
+import { Search, Database as DatabaseIcon, TrendingUp, TrendingDown, BarChart3, Clock, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 import { Input } from '../components/ui/input';
@@ -97,7 +97,7 @@ export const AssetDatabase: React.FC = () => {
             </Button>
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-600 rounded-lg">
-                <Database className="w-6 h-6 text-white" />
+                <DatabaseIcon className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Base de Dados de Ativos</h1>
@@ -326,7 +326,7 @@ export const AssetDatabase: React.FC = () => {
               <Card>
                 <CardContent className="flex items-center justify-center h-[400px]">
                   <div className="text-center">
-                    <Database className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <DatabaseIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-700 mb-2">
                       Selecione um Ativo
                     </h3>
