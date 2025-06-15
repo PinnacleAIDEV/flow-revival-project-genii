@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Database, RefreshCw, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -104,6 +103,25 @@ const UnusualVolume: React.FC = () => {
     return `${hours}h atrás`;
   };
 
+  const getVolumeDirection = (item: VolumeData): { direction: string; emoji: string; color: string } => {
+    // Analisa direção baseada em múltiplos fatores
+    const priceMovement = item.change24h;
+    const volumeSpike = item.volumeSpike;
+    
+    // Lógica para determinar se é volume comprador ou vendedor
+    if (priceMovement > 1 && volumeSpike > 4) {
+      return { direction: 'Volume Comprador Forte', emoji: '🟢', color: 'text-[#A6FF00]' };
+    } else if (priceMovement > 0.5) {
+      return { direction: 'Volume Comprador', emoji: '🔵', color: 'text-[#00E0FF]' };
+    } else if (priceMovement < -1 && volumeSpike > 4) {
+      return { direction: 'Volume Vendedor Forte', emoji: '🔴', color: 'text-[#FF4D4D]' };
+    } else if (priceMovement < -0.5) {
+      return { direction: 'Volume Vendedor', emoji: '🟠', color: 'text-[#FF8C00]' };
+    } else {
+      return { direction: 'Volume Neutro', emoji: '⚪', color: 'text-[#AAAAAA]' };
+    }
+  };
+
   const VolumeTable = ({ data, title }: { data: VolumeData[], title: string }) => (
     <Card className="h-full bg-[#1C1C1E] border-[#2E2E2E] hover:border-[#00E0FF]/50 transition-all duration-300 backdrop-blur-sm">
       <CardHeader className="pb-4">
@@ -129,6 +147,7 @@ const UnusualVolume: React.FC = () => {
               {data.map((item) => {
                 const { time, date } = formatDateTime(item.timestamp);
                 const timeAgo = getTimeAgo(item.timestamp);
+                const volumeInfo = getVolumeDirection(item);
                 
                 return (
                   <TooltipProvider key={item.id}>
@@ -136,7 +155,10 @@ const UnusualVolume: React.FC = () => {
                       <TooltipTrigger asChild>
                         <tr className="hover:bg-[#2E2E2E]/50 transition-colors cursor-pointer">
                           <td className="py-3 px-4">
-                            <span className="font-bold text-[#F5F5F5] font-mono">{item.symbol}</span>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-bold text-[#F5F5F5] font-mono">{item.symbol}</span>
+                              <span className="text-lg">{volumeInfo.emoji}</span>
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-right">
                             <Badge className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80 text-black font-mono">
@@ -172,6 +194,10 @@ const UnusualVolume: React.FC = () => {
                             <div>⏱️ <span className="text-[#A6FF00]">{timeAgo}</span></div>
                             <div>📈 Volume: <span className="text-[#F5F5F5] font-mono">{formatVolume(item.volume)}</span></div>
                             <div>🚀 Spike: <span className="text-[#FF4D4D] font-mono">{item.volumeSpike.toFixed(1)}x normal</span></div>
+                            <div className="flex items-center space-x-2 pt-1 border-t border-[#2E2E2E]">
+                              <span>{volumeInfo.emoji}</span>
+                              <span className={`font-mono text-xs ${volumeInfo.color}`}>{volumeInfo.direction}</span>
+                            </div>
                           </div>
                         </div>
                       </TooltipContent>
