@@ -258,41 +258,41 @@ export const LiquidationBubbleMap: React.FC = () => {
       
       <div className="bg-white rounded-b-lg">
         {liquidations.length > 0 ? (
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[600px]">
             <Table>
-              <TableHeader className="sticky top-0 bg-white z-10">
+              <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
                 <TableRow>
-                  <TableHead className="w-20">Asset</TableHead>
-                  <TableHead className="w-24">Price</TableHead>
-                  <TableHead className="w-20">24h %</TableHead>
-                  <TableHead className="w-28">Total Liq</TableHead>
-                  <TableHead className="w-20">Cap</TableHead>
-                  <TableHead className="w-16">Risk</TableHead>
+                  <TableHead className="w-20 font-bold">Asset</TableHead>
+                  <TableHead className="w-24 font-bold">Price</TableHead>
+                  <TableHead className="w-20 font-bold">24h %</TableHead>
+                  <TableHead className="w-28 font-bold">Total Liq</TableHead>
+                  <TableHead className="w-20 font-bold">Cap</TableHead>
+                  <TableHead className="w-16 font-bold">Risk</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {liquidations.map((liquidation) => (
-                  <TableRow key={liquidation.id} className="hover:bg-gray-50">
+                {liquidations.map((liquidation, index) => (
+                  <TableRow key={liquidation.id} className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
                     <TableCell className="font-bold">
                       <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${liquidation.type === 'long' ? 'bg-red-500' : 'bg-green-500'}`}></div>
                         <button
                           onClick={() => handleAssetClick(liquidation.asset)}
-                          className={`${textColor} hover:underline cursor-pointer font-bold`}
+                          className={`${textColor} hover:underline cursor-pointer font-bold text-sm`}
                         >
                           {liquidation.asset}
                         </button>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">
+                    <TableCell className="font-mono text-xs">
                       {formatPrice(liquidation.price)}
                     </TableCell>
                     <TableCell>
-                      <span className={`font-semibold ${liquidation.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`font-semibold text-xs ${liquidation.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatChange(liquidation.change24h)}
                       </span>
                     </TableCell>
-                    <TableCell className="font-mono text-sm font-bold">
+                    <TableCell className="font-mono text-xs font-bold">
                       {formatAmount(liquidation.totalLiquidated)}
                     </TableCell>
                     <TableCell>
@@ -315,7 +315,7 @@ export const LiquidationBubbleMap: React.FC = () => {
             </Table>
           </ScrollArea>
         ) : (
-          <div className="h-[400px] flex items-center justify-center text-center">
+          <div className="h-[600px] flex items-center justify-center text-center">
             <div className="space-y-2">
               <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto" />
               <h4 className="text-lg font-medium text-gray-600">No {title}</h4>
