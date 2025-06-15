@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Filter, Download, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -63,24 +62,37 @@ const AssetDatabase: React.FC = () => {
     setFilteredCoinTrends(filteredTrends);
   }, [coinTrends, searchQuery]);
 
+  const formatAmount = (amount: number) => {
+    if (!amount || isNaN(amount)) return '$0.00';
+    if (amount >= 1e9) return `$${(amount / 1e9).toFixed(2)}B`;
+    if (amount >= 1e6) return `$${(amount / 1e6).toFixed(2)}M`;
+    if (amount >= 1e3) return `$${(amount / 1e3).toFixed(1)}K`;
+    return `$${amount.toFixed(2)}`;
+  };
+
+  const formatPrice = (price: number) => {
+    if (!price || isNaN(price)) return '$0.00';
+    if (price >= 1000) return `$${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+    if (price >= 1) return `$${price.toFixed(4)}`;
+    return `$${price.toFixed(6)}`;
+  };
+
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'UTC'
-    }) + ' UTC';
+      minute: '2-digit'
+    });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 lg:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-4">
             <Button
               variant="outline"
@@ -91,36 +103,37 @@ const AssetDatabase: React.FC = () => {
               <span>Voltar</span>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Base de Dados</h1>
-              <p className="text-gray-600">Histórico completo de liquidações e tendências</p>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Base de Dados</h1>
+              <p className="text-sm lg:text-base text-gray-600">Histórico completo de liquidações e tendências</p>
             </div>
           </div>
         </div>
 
         {/* Search and Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <Input
             type="text"
             placeholder="Buscar ativo..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
           />
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
             <Button
               variant="outline"
               onClick={() => downloadLiquidationsCSV()}
-              className="flex items-center space-x-2"
+              className="flex items-center justify-center space-x-2 w-full sm:w-auto"
             >
               <Download className="w-4 h-4" />
-              <span>Exportar Liquidações</span>
+              <span className="text-sm">Exportar Liquidações</span>
             </Button>
             <Button
               variant="outline"
               onClick={() => downloadCoinTrendsCSV()}
-              className="flex items-center space-x-2"
+              className="flex items-center justify-center space-x-2 w-full sm:w-auto"
             >
               <Download className="w-4 h-4" />
-              <span>Exportar Tendências</span>
+              <span className="text-sm">Exportar Tendências</span>
             </Button>
           </div>
         </div>
@@ -130,46 +143,63 @@ const AssetDatabase: React.FC = () => {
           <CardHeader>
             <CardTitle>Histórico de Liquidações</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <div className="min-w-[800px]">
-              <table className="w-full text-sm text-left text-gray-500">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                   <tr>
-                    <th className="py-3 px-4">Ativo</th>
-                    <th className="py-3 px-4">Tipo</th>
-                    <th className="py-3 px-4">Valor</th>
-                    <th className="py-3 px-4">Preço</th>
-                    <th className="py-3 px-4">Market Cap</th>
-                    <th className="py-3 px-4">Data/Hora (UTC)</th>
+                    <th className="py-3 px-3 text-left font-semibold min-w-[80px]">Ativo</th>
+                    <th className="py-3 px-3 text-left font-semibold min-w-[60px]">Tipo</th>
+                    <th className="py-3 px-3 text-right font-semibold min-w-[90px]">Valor</th>
+                    <th className="py-3 px-3 text-right font-semibold min-w-[90px]">Preço</th>
+                    <th className="py-3 px-3 text-center font-semibold min-w-[80px]">Cap</th>
+                    <th className="py-3 px-3 text-center font-semibold min-w-[120px]">Data</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {filteredLiquidations.map((liquidation) => (
-                    <tr key={liquidation.id} className="bg-white border-b">
-                      <td className="py-2 px-4 font-medium text-gray-900 whitespace-nowrap">
-                        {liquidation.asset}
+                    <tr key={liquidation.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-gray-900 text-sm truncate max-w-[80px]">
+                          {liquidation.asset}
+                        </div>
                       </td>
-                      <td className="py-2 px-4">
+                      <td className="py-3 px-3">
                         {liquidation.type === 'long' ? (
-                          <Badge variant="destructive">Long</Badge>
+                          <Badge variant="destructive" className="text-xs px-2 py-1">Long</Badge>
                         ) : (
-                          <Badge variant="secondary">Short</Badge>
+                          <Badge variant="secondary" className="text-xs px-2 py-1">Short</Badge>
                         )}
                       </td>
-                      <td className="py-2 px-4">
-                        {liquidation.amount.toLocaleString('pt-BR', {
-                          style: 'currency',
-                          currency: 'USD',
-                        })}
+                      <td className="py-3 px-3 text-right">
+                        <span className="font-mono text-xs font-semibold text-gray-900">
+                          {formatAmount(liquidation.amount)}
+                        </span>
                       </td>
-                      <td className="py-2 px-4">${liquidation.price.toLocaleString()}</td>
-                      <td className="py-2 px-4">{liquidation.market_cap}</td>
-                      <td className="py-2 px-4">{formatDate(liquidation.created_at)}</td>
+                      <td className="py-3 px-3 text-right">
+                        <span className="font-mono text-xs text-gray-700">
+                          {formatPrice(liquidation.price)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${
+                          liquidation.market_cap === 'high' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {liquidation.market_cap === 'high' ? 'HIGH' : 'LOW'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className="text-xs text-gray-600">
+                          {formatDate(liquidation.created_at)}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                   {filteredLiquidations.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-4 px-4 text-center text-gray-500">
+                      <td colSpan={6} className="py-8 text-center text-gray-500">
                         Nenhuma liquidação encontrada.
                       </td>
                     </tr>
@@ -185,29 +215,39 @@ const AssetDatabase: React.FC = () => {
           <CardHeader>
             <CardTitle>Tendências de Moedas</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <div className="min-w-[600px]">
-              <table className="w-full text-sm text-left text-gray-500">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                   <tr>
-                    <th className="py-3 px-4">Ticker</th>
-                    <th className="py-3 px-4">Volume Spike</th>
-                    <th className="py-3 px-4">Data/Hora (UTC)</th>
+                    <th className="py-3 px-3 text-left font-semibold min-w-[100px]">Ticker</th>
+                    <th className="py-3 px-3 text-right font-semibold min-w-[100px]">Volume Spike</th>
+                    <th className="py-3 px-3 text-center font-semibold min-w-[120px]">Data</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {filteredCoinTrends.map((trend) => (
-                    <tr key={trend.id} className="bg-white border-b">
-                      <td className="py-2 px-4 font-medium text-gray-900 whitespace-nowrap">
-                        {trend.ticker}
+                    <tr key={trend.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-3">
+                        <span className="font-bold text-gray-900 text-sm">
+                          {trend.ticker}
+                        </span>
                       </td>
-                      <td className="py-2 px-4">{trend.volume_spike}</td>
-                      <td className="py-2 px-4">{formatDate(trend.created_at)}</td>
+                      <td className="py-3 px-3 text-right">
+                        <span className="font-mono text-sm font-semibold text-orange-600">
+                          {trend.volume_spike}x
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className="text-xs text-gray-600">
+                          {formatDate(trend.created_at)}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                   {filteredCoinTrends.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="py-4 px-4 text-center text-gray-500">
+                      <td colSpan={3} className="py-8 text-center text-gray-500">
                         Nenhuma tendência encontrada.
                       </td>
                     </tr>
