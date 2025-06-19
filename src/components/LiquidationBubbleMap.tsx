@@ -33,6 +33,32 @@ const highMarketCapAssets = [
   'UNIUSDT', 'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT', 'ALPHAUSDT', 'ZENUSDT'
 ];
 
+// Helper function to safely create dates
+const safeCreateDate = (timestamp: any): Date => {
+  if (!timestamp) return new Date();
+  
+  let dateValue: Date;
+  
+  if (timestamp instanceof Date) {
+    dateValue = timestamp;
+  } else if (typeof timestamp === 'number') {
+    dateValue = new Date(timestamp);
+  } else if (typeof timestamp === 'string') {
+    dateValue = new Date(timestamp);
+  } else {
+    console.warn('Invalid timestamp format:', timestamp);
+    return new Date();
+  }
+  
+  // Check if the date is valid
+  if (isNaN(dateValue.getTime())) {
+    console.warn('Invalid date created from timestamp:', timestamp);
+    return new Date();
+  }
+  
+  return dateValue;
+};
+
 export const LiquidationBubbleMap: React.FC = () => {
   const { flowData } = useRealFlowData();
   const { setSelectedAsset } = useTrading();
@@ -125,69 +151,73 @@ export const LiquidationBubbleMap: React.FC = () => {
     });
 
     uniqueData.forEach(data => {
-      const priceChange = Math.abs(data.change_24h || 0);
-      const volumeValue = data.volume * data.price;
-      const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
-      
-      // Filtros ajustados para detectar liquidações
-      const threshold = isHighMarketCap ? 
-        { volume: 25000, priceChange: 0.8 } :   // High cap: $25k + 0.8%
-        { volume: 8000, priceChange: 1.2 };     // Low cap: $8k + 1.2%
-      
-      // Detectar liquidação
-      if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
-        // Calcular intensidade baseada nos dados
-        const volumeRatio = volumeValue / threshold.volume;
-        const priceRatio = priceChange / threshold.priceChange;
-        const combinedRatio = (volumeRatio + priceRatio) / 2;
+      try {
+        const priceChange = Math.abs(data.change_24h || 0);
+        const volumeValue = data.volume * data.price;
+        const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
         
-        let intensity = 1;
-        if (combinedRatio >= 10) intensity = 5;
-        else if (combinedRatio >= 6) intensity = 4;
-        else if (combinedRatio >= 3.5) intensity = 3;
-        else if (combinedRatio >= 2) intensity = 2;
-        else intensity = 1;
+        // Filtros ajustados para detectar liquidações
+        const threshold = isHighMarketCap ? 
+          { volume: 25000, priceChange: 0.8 } :   // High cap: $25k + 0.8%
+          { volume: 8000, priceChange: 1.2 };     // Low cap: $8k + 1.2%
         
-        const liquidation: LiquidationBubble = {
-          id: `${data.ticker}-${now.getTime()}`,
-          asset: data.ticker.replace('USDT', ''),
-          type: (data.change_24h || 0) < 0 ? 'long' : 'short',
-          amount: volumeValue,
-          price: data.price,
-          marketCap: isHighMarketCap ? 'high' : 'low',
-          timestamp: new Date(data.timestamp || now.getTime()),
-          intensity,
-          change24h: data.change_24h || 0,
-          volume: data.volume,
-          lastUpdateTime: now,
-          totalLiquidated: volumeValue
-        };
-        
-        console.log(`💥 Nova liquidação detectada: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - ${formatAmount(liquidation.totalLiquidated)}`);
-        
-        // Salvar no Supabase
-        saveLiquidation({
-          asset: liquidation.asset,
-          ticker: data.ticker,
-          type: liquidation.type,
-          amount: liquidation.amount,
-          price: liquidation.price,
-          market_cap: liquidation.marketCap,
-          intensity: liquidation.intensity,
-          change_24h: liquidation.change24h,
-          volume: liquidation.volume,
-          total_liquidated: liquidation.totalLiquidated,
-          volume_spike: 1
-        });
-        
-        if (liquidation.type === 'long') {
-          newLongLiquidations.push(liquidation);
-        } else {
-          newShortLiquidations.push(liquidation);
-        }
+        // Detectar liquidação
+        if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
+          // Calcular intensidade baseada nos dados
+          const volumeRatio = volumeValue / threshold.volume;
+          const priceRatio = priceChange / threshold.priceChange;
+          const combinedRatio = (volumeRatio + priceRatio) / 2;
+          
+          let intensity = 1;
+          if (combinedRatio >= 10) intensity = 5;
+          else if (combinedRatio >= 6) intensity = 4;
+          else if (combinedRatio >= 3.5) intensity = 3;
+          else if (combinedRatio >= 2) intensity = 2;
+          else intensity = 1;
+          
+          const liquidation: LiquidationBubble = {
+            id: `${data.ticker}-${now.getTime()}`,
+            asset: data.ticker.replace('USDT', ''),
+            type: (data.change_24h || 0) < 0 ? 'long' : 'short',
+            amount: volumeValue,
+            price: data.price,
+            marketCap: isHighMarketCap ? 'high' : 'low',
+            timestamp: safeCreateDate(data.timestamp),
+            intensity,
+            change24h: data.change_24h || 0,
+            volume: data.volume,
+            lastUpdateTime: now,
+            totalLiquidated: volumeValue
+          };
+          
+          console.log(`💥 Nova liquidação detectada: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - ${formatAmount(liquidation.totalLiquidated)}`);
+          
+          // Salvar no Supabase
+          saveLiquidation({
+            asset: liquidation.asset,
+            ticker: data.ticker,
+            type: liquidation.type,
+            amount: liquidation.amount,
+            price: liquidation.price,
+            market_cap: liquidation.marketCap,
+            intensity: liquidation.intensity,
+            change_24h: liquidation.change24h,
+            volume: liquidation.volume,
+            total_liquidated: liquidation.totalLiquidated,
+            volume_spike: 1
+          });
+          
+          if (liquidation.type === 'long') {
+            newLongLiquidations.push(liquidation);
+          } else {
+            newShortLiquidations.push(liquidation);
+          }
 
-        // Marcar como processado
-        setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
+          // Marcar como processado
+          setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
+        }
+      } catch (error) {
+        console.error('Erro ao processar dados de liquidação:', error, data);
       }
     });
 

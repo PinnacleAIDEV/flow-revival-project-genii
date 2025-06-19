@@ -7,6 +7,32 @@ interface PersistedDataOptions<T> {
   initialData?: T[];
 }
 
+// Helper function to safely create dates
+const safeCreateDate = (timestamp: any): Date => {
+  if (!timestamp) return new Date();
+  
+  let dateValue: Date;
+  
+  if (timestamp instanceof Date) {
+    dateValue = timestamp;
+  } else if (typeof timestamp === 'number') {
+    dateValue = new Date(timestamp);
+  } else if (typeof timestamp === 'string') {
+    dateValue = new Date(timestamp);
+  } else {
+    console.warn('Invalid timestamp format in usePersistedData:', timestamp);
+    return new Date();
+  }
+  
+  // Check if the date is valid
+  if (isNaN(dateValue.getTime())) {
+    console.warn('Invalid date created from timestamp in usePersistedData:', timestamp);
+    return new Date();
+  }
+  
+  return dateValue;
+};
+
 export const usePersistedData = <T extends { timestamp: Date | number; id: string }>({
   key,
   maxAgeMinutes = 5,
@@ -26,9 +52,17 @@ export const usePersistedData = <T extends { timestamp: Date | number; id: strin
           
           // Filtrar apenas dados dos últimos N minutos
           const validData = parsed.filter((item: T) => {
-            const itemTime = new Date(item.timestamp);
-            return itemTime > cutoffTime;
-          });
+            try {
+              const itemTime = safeCreateDate(item.timestamp);
+              return itemTime > cutoffTime;
+            } catch (error) {
+              console.error('Erro ao processar timestamp do item:', error, item);
+              return false;
+            }
+          }).map((item: any) => ({
+            ...item,
+            timestamp: safeCreateDate(item.timestamp)
+          }));
           
           console.log(`📦 Carregados ${validData.length} itens do cache para ${key}`);
           setData(validData);
@@ -63,17 +97,27 @@ export const usePersistedData = <T extends { timestamp: Date | number; id: strin
       
       // Remover duplicatas baseado no ID e filtrar por tempo
       const unique = combined.filter((item, index, array) => {
-        const itemTime = new Date(item.timestamp);
-        const isRecent = itemTime > cutoffTime;
-        const isFirstOccurrence = array.findIndex(i => i.id === item.id) === index;
-        return isRecent && isFirstOccurrence;
+        try {
+          const itemTime = safeCreateDate(item.timestamp);
+          const isRecent = itemTime > cutoffTime;
+          const isFirstOccurrence = array.findIndex(i => i.id === item.id) === index;
+          return isRecent && isFirstOccurrence;
+        } catch (error) {
+          console.error('Erro ao processar item na filtragem:', error, item);
+          return false;
+        }
       });
       
       // Ordenar por timestamp (mais recente primeiro)
       const sorted = unique.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
-        return timeB - timeA;
+        try {
+          const timeA = safeCreateDate(a.timestamp).getTime();
+          const timeB = safeCreateDate(b.timestamp).getTime();
+          return timeB - timeA;
+        } catch (error) {
+          console.error('Erro ao ordenar itens:', error);
+          return 0;
+        }
       });
       
       // Limitar a 100 itens para performance

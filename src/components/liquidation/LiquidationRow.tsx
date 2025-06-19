@@ -52,13 +52,23 @@ export const LiquidationRow: React.FC<LiquidationRowProps> = ({
   };
 
   const formatTimestamp = (timestamp: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit'
-    }).format(timestamp);
+    try {
+      // Verificar se timestamp é válido
+      if (!timestamp || !(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
+        return '--:--:--';
+      }
+      
+      return new Intl.DateTimeFormat('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+      }).format(timestamp);
+    } catch (error) {
+      console.error('Erro ao formatar timestamp:', error, timestamp);
+      return '--:--:--';
+    }
   };
 
   const getIntensityColor = (intensity: number) => {
