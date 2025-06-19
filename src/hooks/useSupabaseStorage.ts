@@ -12,7 +12,7 @@ export const useSupabaseStorage = () => {
   const [liquidations, setLiquidations] = useState<Liquidation[]>([]);
   const [coinTrends, setCoinTrends] = useState<CoinTrend[]>([]);
 
-  // Salvar liquidação no banco
+  // Salvar liquidação no banco com otimização
   const saveLiquidation = useCallback(async (liquidationData: Omit<LiquidationInsert, 'id' | 'created_at' | 'updated_at' | 'expires_at'>) => {
     try {
       const { data, error } = await supabase
@@ -27,7 +27,7 @@ export const useSupabaseStorage = () => {
       
       console.log('💾 Liquidação salva no Supabase:', liquidationData.asset);
       
-      // Atualizar estatísticas do ativo
+      // Usar função otimizada para atualizar estatísticas
       await supabase.rpc('update_asset_statistics', { asset_name: liquidationData.asset });
       
       return data;
@@ -37,7 +37,7 @@ export const useSupabaseStorage = () => {
     }
   }, []);
 
-  // Salvar dados do CoinTrendHunter
+  // Salvar dados do CoinTrendHunter com otimização
   const saveCoinTrend = useCallback(async (trendData: Omit<CoinTrendInsert, 'id' | 'created_at' | 'updated_at' | 'expires_at'>) => {
     try {
       const { data, error } = await supabase
@@ -52,7 +52,7 @@ export const useSupabaseStorage = () => {
       
       console.log('💾 Trend salvo no Supabase:', trendData.asset);
       
-      // Atualizar estatísticas do ativo
+      // Usar função otimizada para atualizar estatísticas
       await supabase.rpc('update_asset_statistics', { asset_name: trendData.asset });
       
       return data;
@@ -62,13 +62,15 @@ export const useSupabaseStorage = () => {
     }
   }, []);
 
-  // Buscar todas as liquidações
+  // Buscar liquidações com índices otimizados
   const fetchLiquidations = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('liquidations')
         .select('*')
-        .order('created_at', { ascending: false });
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1000);
       
       if (error) {
         console.error('❌ Erro ao buscar liquidações:', error);
@@ -76,18 +78,21 @@ export const useSupabaseStorage = () => {
       }
       
       setLiquidations(data || []);
+      console.log(`📊 Carregadas ${data?.length || 0} liquidações ativas`);
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar liquidações:', error);
     }
   }, []);
 
-  // Buscar todas as tendências
+  // Buscar tendências com índices otimizados
   const fetchCoinTrends = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('coin_trends')
         .select('*')
-        .order('created_at', { ascending: false });
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1000);
       
       if (error) {
         console.error('❌ Erro ao buscar tendências:', error);
@@ -95,6 +100,7 @@ export const useSupabaseStorage = () => {
       }
       
       setCoinTrends(data || []);
+      console.log(`📊 Carregadas ${data?.length || 0} tendências ativas`);
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar tendências:', error);
     }
@@ -155,7 +161,7 @@ export const useSupabaseStorage = () => {
     window.URL.revokeObjectURL(url);
   }, [coinTrends]);
 
-  // Buscar liquidações por ativo
+  // Buscar liquidações por ativo usando índice otimizado
   const getLiquidationsByAsset = useCallback(async (asset: string) => {
     try {
       const { data, error } = await supabase
@@ -163,7 +169,8 @@ export const useSupabaseStorage = () => {
         .select('*')
         .eq('asset', asset)
         .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
       
       if (error) {
         console.error('❌ Erro ao buscar liquidações:', error);
@@ -177,7 +184,7 @@ export const useSupabaseStorage = () => {
     }
   }, []);
 
-  // Buscar trends por ativo
+  // Buscar trends por ativo usando índice otimizado
   const getTrendsByAsset = useCallback(async (asset: string) => {
     try {
       const { data, error } = await supabase
@@ -185,7 +192,8 @@ export const useSupabaseStorage = () => {
         .select('*')
         .eq('asset', asset)
         .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
       
       if (error) {
         console.error('❌ Erro ao buscar trends:', error);
@@ -220,25 +228,40 @@ export const useSupabaseStorage = () => {
     }
   }, []);
 
-  // Buscar todos os ativos com atividade recente
-  const getAllActiveAssets = useCallback(async () => {
+  // Usar nova função otimizada para buscar ativos ativos
+  const getAllActiveAssets = useCallback(async (limitCount: number = 100) => {
     try {
       const { data, error } = await supabase
-        .from('asset_statistics')
-        .select('*')
-        .eq('is_trending', true)
-        .order('last_activity', { ascending: false })
-        .limit(100);
+        .rpc('get_active_assets_optimized', { limit_count: limitCount });
       
       if (error) {
         console.error('❌ Erro ao buscar ativos ativos:', error);
         return [];
       }
       
+      console.log(`📊 Carregados ${data?.length || 0} ativos ativos via função otimizada`);
       return data || [];
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar ativos ativos:', error);
       return [];
+    }
+  }, []);
+
+  // Executar limpeza manual de dados expirados
+  const cleanupExpiredData = useCallback(async () => {
+    try {
+      const { error } = await supabase.rpc('cleanup_expired_data');
+      
+      if (error) {
+        console.error('❌ Erro na limpeza de dados:', error);
+        return false;
+      }
+      
+      console.log('🧹 Limpeza de dados executada com sucesso');
+      return true;
+    } catch (error) {
+      console.error('❌ Erro inesperado na limpeza:', error);
+      return false;
     }
   }, []);
 
@@ -254,6 +277,7 @@ export const useSupabaseStorage = () => {
     getLiquidationsByAsset,
     getTrendsByAsset,
     getAssetStatistics,
-    getAllActiveAssets
+    getAllActiveAssets,
+    cleanupExpiredData
   };
 };

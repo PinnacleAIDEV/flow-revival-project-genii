@@ -252,6 +252,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_active_assets_optimized: {
+        Args: { limit_count?: number }
+        Returns: {
+          asset: string
+          ticker: string
+          total_liquidations: number
+          is_trending: boolean
+          last_activity: string
+        }[]
+      }
       update_asset_statistics: {
         Args: { asset_name: string }
         Returns: undefined
