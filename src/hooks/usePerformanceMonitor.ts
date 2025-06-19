@@ -23,7 +23,7 @@ export const usePerformanceMonitor = () => {
     totalTrends: 0
   });
 
-  const { getAllActiveAssets, fetchLiquidations, fetchCoinTrends, cleanupExpiredData } = useSupabaseStorage();
+  const { getAllActiveAssets, liquidations, coinTrends, cleanupExpiredData } = useSupabaseStorage();
 
   // Monitorar métricas de performance
   const updateMetrics = useCallback(async () => {
@@ -31,29 +31,25 @@ export const usePerformanceMonitor = () => {
     
     try {
       // Buscar dados para calcular métricas
-      const [activeAssets, liquidations, trends] = await Promise.all([
-        getAllActiveAssets(50),
-        fetchLiquidations(),
-        fetchCoinTrends()
-      ]);
+      const activeAssets = await getAllActiveAssets(50);
 
       const endTime = performance.now();
       const queryTime = endTime - startTime;
 
       setMetrics(prev => ({
         ...prev,
-        dbQueries: prev.dbQueries + 3,
+        dbQueries: prev.dbQueries + 1,
         avgQueryTime: (prev.avgQueryTime + queryTime) / 2,
         activeAssets: activeAssets?.length || 0,
         totalLiquidations: liquidations?.length || 0,
-        totalTrends: trends?.length || 0
+        totalTrends: coinTrends?.length || 0
       }));
 
-      console.log(`📊 Performance: ${queryTime.toFixed(2)}ms para 3 queries`);
+      console.log(`📊 Performance: ${queryTime.toFixed(2)}ms para buscar ativos ativos`);
     } catch (error) {
       console.error('❌ Erro ao monitorar performance:', error);
     }
-  }, [getAllActiveAssets, fetchLiquidations, fetchCoinTrends]);
+  }, [getAllActiveAssets, liquidations, coinTrends]);
 
   // Executar limpeza automática
   const runCleanup = useCallback(async () => {
