@@ -38,7 +38,7 @@ const AIAnalytics = () => {
                 </div>
                 <div>
                   <h1 className="font-display text-neon text-2xl">AI_ANALYTICS_SUITE</h1>
-                  <p className="text-electric font-mono text-sm">ARTIFICIAL INTELLIGENCE // MARKET ANALYSIS // REAL-TIME INSIGHTS</p>
+                  <p className="text-electric font-mono text-sm">INTELIGÊNCIA ARTIFICIAL // ANÁLISE DE MERCADO // INSIGHTS EM TEMPO REAL</p>
                 </div>
               </div>
             </div>
