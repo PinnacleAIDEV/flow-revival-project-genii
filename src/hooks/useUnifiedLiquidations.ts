@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { UnifiedLiquidationAsset, TrendReversal, getMarketCapCategory } from '../types/liquidation';
 import { 
@@ -22,12 +23,11 @@ export const useUnifiedLiquidations = () => {
   const [trendReversals, setTrendReversals] = useState<TrendReversal[]>([]);
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
 
-  // CORRIGIDO: Processar SEPARADAMENTE long e short liquidations
+  // CORRIGIDO: Processar liquidações sem dependência circular
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
     const now = new Date();
-    const newUpdates = new Map<string, UnifiedLiquidationAsset>();
 
     // Processar apenas dados únicos e válidos
     const uniqueData = flowData.filter((data, index, self) => {
@@ -46,6 +46,8 @@ export const useUnifiedLiquidations = () => {
 
     console.log(`🔍 Processando ${uniqueData.length} ativos únicos para liquidações unificadas...`);
 
+    if (uniqueData.length === 0) return;
+
     uniqueData.forEach(data => {
       try {
         const priceChange = data.change_24h || 0;
@@ -58,7 +60,7 @@ export const useUnifiedLiquidations = () => {
         // Detectar liquidações usando lógica corrigida
         const detection = detectLiquidations(data.ticker, volumeValue, priceChange, isHighMarketCap);
         
-        // CRUCIAL: Processar APENAS liquidações long se detectadas
+        // Processar APENAS se detectou long liquidation (sem short)
         if (detection.longLiquidation && !detection.shortLiquidation) {
           const assetName = data.ticker.replace('USDT', '');
           
@@ -77,10 +79,15 @@ export const useUnifiedLiquidations = () => {
             totalLiquidated: volumeValue
           };
           
-          const unifiedAsset = createOrUpdateUnifiedAsset(unifiedAssets, liquidation);
-          newUpdates.set(assetName, unifiedAsset);
+          console.log(`🔴 PROCESSANDO LONG: ${assetName} - ${(volumeValue/1e6).toFixed(2)}M`);
           
-          console.log(`🔴 LONG LIQUIDATION CONFIRMADA: ${assetName} - ${(volumeValue/1e6).toFixed(2)}M - Preço caiu ${priceChange.toFixed(2)}%`);
+          // Atualizar assets de forma isolada
+          setUnifiedAssets(prevAssets => {
+            const updatedAssets = new Map(prevAssets);
+            const unifiedAsset = createOrUpdateUnifiedAsset(updatedAssets, liquidation);
+            updatedAssets.set(assetName, unifiedAsset);
+            return updatedAssets;
+          });
           
           saveLiquidation({
             asset: liquidation.asset,
@@ -97,7 +104,7 @@ export const useUnifiedLiquidations = () => {
           });
         }
         
-        // CRUCIAL: Processar APENAS liquidações short se detectadas
+        // Processar APENAS se detectou short liquidation (sem long)
         if (detection.shortLiquidation && !detection.longLiquidation) {
           const assetName = data.ticker.replace('USDT', '');
           
@@ -116,10 +123,15 @@ export const useUnifiedLiquidations = () => {
             totalLiquidated: volumeValue
           };
           
-          const unifiedAsset = createOrUpdateUnifiedAsset(unifiedAssets, liquidation);
-          newUpdates.set(assetName, unifiedAsset);
+          console.log(`🟢 PROCESSANDO SHORT: ${assetName} - ${(volumeValue/1e6).toFixed(2)}M`);
           
-          console.log(`🟢 SHORT LIQUIDATION CONFIRMADA: ${assetName} - ${(volumeValue/1e6).toFixed(2)}M - Preço subiu ${priceChange.toFixed(2)}%`);
+          // Atualizar assets de forma isolada
+          setUnifiedAssets(prevAssets => {
+            const updatedAssets = new Map(prevAssets);
+            const unifiedAsset = createOrUpdateUnifiedAsset(updatedAssets, liquidation);
+            updatedAssets.set(assetName, unifiedAsset);
+            return updatedAssets;
+          });
           
           saveLiquidation({
             asset: liquidation.asset,
@@ -136,12 +148,7 @@ export const useUnifiedLiquidations = () => {
           });
         }
 
-        // Log de detecção simultânea (NÃO deve acontecer)
-        if (detection.longLiquidation && detection.shortLiquidation) {
-          console.warn(`⚠️ DETECÇÃO SIMULTÂNEA IMPEDIDA: ${data.ticker} - Este caso não deve acontecer`);
-        }
-
-        // Se não detectou nada, log para debug
+        // Log se não detectou nada
         if (!detection.longLiquidation && !detection.shortLiquidation) {
           console.log(`⚪ SEM LIQUIDAÇÃO: ${data.ticker} - Price=${priceChange.toFixed(2)}%, Vol=${(volumeValue/1000).toFixed(0)}K`);
         }
@@ -152,20 +159,7 @@ export const useUnifiedLiquidations = () => {
         console.error('❌ Erro ao processar liquidação unificada:', error, data);
       }
     });
-
-    // Atualizar assets unificados
-    if (newUpdates.size > 0) {
-      console.log(`📈 ATUALIZANDO ${newUpdates.size} assets com novas liquidações`);
-      
-      setUnifiedAssets(prev => {
-        const updated = new Map(prev);
-        newUpdates.forEach((asset, key) => {
-          updated.set(key, asset);
-        });
-        return updated;
-      });
-    }
-  }, [flowData, processedTickers, saveLiquidation, unifiedAssets]);
+  }, [flowData, saveLiquidation]); // REMOVIDO unifiedAssets da dependência
 
   // Detectar trend reversals
   useEffect(() => {
@@ -174,10 +168,7 @@ export const useUnifiedLiquidations = () => {
       setTrendReversals(reversals);
       
       if (reversals.length > 0) {
-        console.log(`🔄 Detectadas ${reversals.length} reversões de tendência:`);
-        reversals.slice(0, 3).forEach(r => {
-          console.log(`   - ${r.asset}: ${r.previousType.toUpperCase()} → ${r.currentType.toUpperCase()} (${r.reversalRatio.toFixed(2)}x)`);
-        });
+        console.log(`🔄 Detectadas ${reversals.length} reversões de tendência`);
       }
     }
   }, [unifiedAssets]);
@@ -202,45 +193,59 @@ export const useUnifiedLiquidations = () => {
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // CORRIGIDO: Computar listas filtradas com lógica mais rigorosa
+  // CORRIGIDO: Filtragem mais rigorosa e separada
   const { longLiquidations, shortLiquidations } = useMemo(() => {
     const assetsArray = Array.from(unifiedAssets.values());
     
-    // RIGOROSO: Filtrar assets que têm APENAS liquidações long (sem short)
-    const longAssets = assetsArray.filter(asset => {
+    console.log(`🔍 FILTRANDO ${assetsArray.length} assets totais...`);
+    
+    // FILTRO RIGOROSO: Assets que têm APENAS liquidações long (shortLiquidated deve ser 0)
+    const pureHongAssets = assetsArray.filter(asset => {
       const filters = getAdaptiveFilters(asset.marketCap);
       const hasSignificantLong = asset.longLiquidated >= filters.minAmount && 
                                  asset.longPositions >= filters.minPositions &&
                                  asset.intensity >= filters.minIntensity;
       
-      // IMPORTANTE: Só mostrar se tem liquidação long significativa
-      const isLongDominant = asset.longLiquidated > 0;
+      // CRUCIAL: Deve ter long E não ter short
+      const isPureLong = asset.longLiquidated > 0 && asset.shortLiquidated === 0;
       
-      console.log(`🔴 FILTRO LONG ${asset.asset}: Long=${(asset.longLiquidated/1000).toFixed(0)}K, Short=${(asset.shortLiquidated/1000).toFixed(0)}K, Incluir=${hasSignificantLong && isLongDominant}`);
+      const include = hasSignificantLong && isPureLong;
       
-      return hasSignificantLong && isLongDominant;
+      console.log(`🔴 FILTRO LONG ${asset.asset}: L=${(asset.longLiquidated/1000).toFixed(0)}K, S=${(asset.shortLiquidated/1000).toFixed(0)}K, Pure=${isPureLong}, Include=${include}`);
+      
+      return include;
     });
     
-    // RIGOROSO: Filtrar assets que têm APENAS liquidações short (sem long)
-    const shortAssets = assetsArray.filter(asset => {
+    // FILTRO RIGOROSO: Assets que têm APENAS liquidações short (longLiquidated deve ser 0)
+    const pureShortAssets = assetsArray.filter(asset => {
       const filters = getAdaptiveFilters(asset.marketCap);
       const hasSignificantShort = asset.shortLiquidated >= filters.minAmount && 
                                   asset.shortPositions >= filters.minPositions &&
                                   asset.intensity >= filters.minIntensity;
       
-      // IMPORTANTE: Só mostrar se tem liquidação short significativa
-      const isShortDominant = asset.shortLiquidated > 0;
+      // CRUCIAL: Deve ter short E não ter long
+      const isPureShort = asset.shortLiquidated > 0 && asset.longLiquidated === 0;
       
-      console.log(`🟢 FILTRO SHORT ${asset.asset}: Long=${(asset.longLiquidated/1000).toFixed(0)}K, Short=${(asset.shortLiquidated/1000).toFixed(0)}K, Incluir=${hasSignificantShort && isShortDominant}`);
+      const include = hasSignificantShort && isPureShort;
       
-      return hasSignificantShort && isShortDominant;
+      console.log(`🟢 FILTRO SHORT ${asset.asset}: L=${(asset.longLiquidated/1000).toFixed(0)}K, S=${(asset.shortLiquidated/1000).toFixed(0)}K, Pure=${isPureShort}, Include=${include}`);
+      
+      return include;
     });
     
     // Ordenar e limitar
-    const sortedLong = sortAssetsByRelevance(longAssets, 'long').slice(0, 50);
-    const sortedShort = sortAssetsByRelevance(shortAssets, 'short').slice(0, 50);
+    const sortedLong = sortAssetsByRelevance(pureHongAssets, 'long').slice(0, 50);
+    const sortedShort = sortAssetsByRelevance(pureShortAssets, 'short').slice(0, 50);
     
-    console.log(`📊 LISTAS FINAIS: ${sortedLong.length} Long Puras / ${sortedShort.length} Short Puras`);
+    console.log(`📊 RESULTADO FINAL: ${sortedLong.length} Long Puros / ${sortedShort.length} Short Puros`);
+    
+    // Debug dos primeiros assets de cada lista
+    if (sortedLong.length > 0) {
+      console.log(`🔴 TOP 3 LONG:`, sortedLong.slice(0, 3).map(a => `${a.asset}(${(a.longLiquidated/1000).toFixed(0)}K)`));
+    }
+    if (sortedShort.length > 0) {
+      console.log(`🟢 TOP 3 SHORT:`, sortedShort.slice(0, 3).map(a => `${a.asset}(${(a.shortLiquidated/1000).toFixed(0)}K)`));
+    }
     
     return {
       longLiquidations: sortedLong,

@@ -1,4 +1,3 @@
-
 import { UnifiedLiquidationAsset, LiquidationBubble, TrendReversal } from '../types/liquidation';
 import { safeCreateDate, formatAmount } from './liquidationUtils';
 
@@ -20,22 +19,26 @@ export const createOrUpdateUnifiedAsset = (
   const now = new Date();
   
   if (existing) {
-    // Atualizar asset existente
+    console.log(`🔄 ATUALIZANDO ${liquidation.asset}: Tipo ${liquidation.type.toUpperCase()}`);
+    
+    // CRUCIAL: Atualizar APENAS o tipo correto, não misturar
     const updatedAsset: UnifiedLiquidationAsset = {
       ...existing,
       price: liquidation.price,
       lastUpdateTime: now,
       
-      // Incrementar contadores
+      // SEPARADO: Atualizar apenas contadores do tipo correto
       longPositions: liquidation.type === 'long' ? existing.longPositions + 1 : existing.longPositions,
       shortPositions: liquidation.type === 'short' ? existing.shortPositions + 1 : existing.shortPositions,
       totalPositions: existing.totalPositions + 1,
       
-      // Acumular totais
+      // SEPARADO: Acumular apenas totais do tipo correto
       longLiquidated: liquidation.type === 'long' ? 
         existing.longLiquidated + liquidation.amount : existing.longLiquidated,
       shortLiquidated: liquidation.type === 'short' ? 
         existing.shortLiquidated + liquidation.amount : existing.shortLiquidated,
+      
+      // Total combinado para estatísticas gerais
       combinedTotal: existing.combinedTotal + liquidation.amount,
       
       // Atualizar métricas
@@ -54,8 +57,12 @@ export const createOrUpdateUnifiedAsset = (
       ]
     };
     
-    // Determinar tipo dominante
-    if (updatedAsset.longLiquidated > updatedAsset.shortLiquidated * 1.5) {
+    // CRUCIAL: Determinar tipo dominante baseado em valores SEPARADOS
+    if (updatedAsset.longLiquidated > 0 && updatedAsset.shortLiquidated === 0) {
+      updatedAsset.dominantType = 'long';
+    } else if (updatedAsset.shortLiquidated > 0 && updatedAsset.longLiquidated === 0) {
+      updatedAsset.dominantType = 'short';
+    } else if (updatedAsset.longLiquidated > updatedAsset.shortLiquidated * 1.5) {
       updatedAsset.dominantType = 'long';
     } else if (updatedAsset.shortLiquidated > updatedAsset.longLiquidated * 1.5) {
       updatedAsset.dominantType = 'short';
@@ -63,19 +70,25 @@ export const createOrUpdateUnifiedAsset = (
       updatedAsset.dominantType = 'balanced';
     }
     
+    console.log(`✅ ATUALIZADO ${liquidation.asset}: L=${(updatedAsset.longLiquidated/1000).toFixed(0)}K, S=${(updatedAsset.shortLiquidated/1000).toFixed(0)}K, Dom=${updatedAsset.dominantType}`);
+    
     return updatedAsset;
   } else {
-    // Criar novo asset
-    return {
+    console.log(`🆕 CRIANDO NOVO ${liquidation.asset}: Tipo ${liquidation.type.toUpperCase()}`);
+    
+    // CRUCIAL: Criar asset com valores SEPARADOS desde o início
+    const newAsset: UnifiedLiquidationAsset = {
       asset: liquidation.asset,
       ticker: liquidation.asset + 'USDT',
       price: liquidation.price,
       marketCap: liquidation.marketCap,
       
+      // SEPARADO: Inicializar contadores corretos
       longPositions: liquidation.type === 'long' ? 1 : 0,
       shortPositions: liquidation.type === 'short' ? 1 : 0,
       totalPositions: 1,
       
+      // SEPARADO: Inicializar totais corretos
       longLiquidated: liquidation.type === 'long' ? liquidation.amount : 0,
       shortLiquidated: liquidation.type === 'short' ? liquidation.amount : 0,
       combinedTotal: liquidation.amount,
@@ -94,6 +107,10 @@ export const createOrUpdateUnifiedAsset = (
         change24h: liquidation.change24h
       }]
     };
+    
+    console.log(`✅ CRIADO ${liquidation.asset}: L=${(newAsset.longLiquidated/1000).toFixed(0)}K, S=${(newAsset.shortLiquidated/1000).toFixed(0)}K, Dom=${newAsset.dominantType}`);
+    
+    return newAsset;
   }
 };
 
@@ -213,8 +230,6 @@ export const detectTrendReversals = (
         };
         
         reversals.push(reversal);
-        
-        console.log(`🔄 TREND REVERSAL: ${assetName} - ${firstPeriodStats.dominantType.toUpperCase()} → ${secondPeriodStats.dominantType.toUpperCase()} (${reversalRatio.toFixed(2)}x)`);
       }
     }
   });
