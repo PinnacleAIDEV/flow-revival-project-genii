@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -18,134 +19,109 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
   onAssetClick
 }) => {
   const [trendReversals, setTrendReversals] = useState<TrendReversal[]>([]);
-  const [liquidationHistory, setLiquidationHistory] = useState<Map<string, LiquidationBubble[]>>(new Map());
 
-  // Detectar reversões de tendência
-  useEffect(() => {
-    const updateHistory = () => {
-      const newHistory = new Map(liquidationHistory);
-      
-      // Adicionar novas liquidações ao histórico
-      [...longLiquidations, ...shortLiquidations].forEach(liq => {
-        const assetHistory = newHistory.get(liq.asset) || [];
-        const exists = assetHistory.some(h => h.id === liq.id);
-        
-        if (!exists) {
-          assetHistory.push(liq);
-          // Manter apenas últimas 10 liquidações por ativo
-          if (assetHistory.length > 10) {
-            assetHistory.splice(0, assetHistory.length - 10);
-          }
-          newHistory.set(liq.asset, assetHistory);
-        }
-      });
-      
-      setLiquidationHistory(newHistory);
-    };
-
-    updateHistory();
-  }, [longLiquidations, shortLiquidations, liquidationHistory]);
-
+  // Detectar reversões de tendência - LÓGICA CORRIGIDA
   useEffect(() => {
     const detectReversals = () => {
       const reversals: TrendReversal[] = [];
       const now = new Date();
-      const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+      const allLiquidations = [...longLiquidations, ...shortLiquidations];
+      
+      console.log(`🔄 Analisando ${allLiquidations.length} liquidações para reversões...`);
 
-      liquidationHistory.forEach((history, asset) => {
-        if (history.length < 3) return; // Precisamos de pelo menos 3 pontos de dados
+      // Agrupar liquidações por asset
+      const assetGroups = new Map<string, LiquidationBubble[]>();
+      
+      allLiquidations.forEach(liq => {
+        const existing = assetGroups.get(liq.asset) || [];
+        existing.push(liq);
+        assetGroups.set(liq.asset, existing);
+      });
 
-        // Filtrar liquidações recentes
-        const recentHistory = history.filter(h => h.lastUpdateTime > thirtyMinutesAgo);
-        if (recentHistory.length < 3) return;
-
-        // Ordenar por timestamp
-        recentHistory.sort((a, b) => a.lastUpdateTime.getTime() - b.lastUpdateTime.getTime());
-
-        // Analisar padrão de liquidação
-        const firstHalf = recentHistory.slice(0, Math.floor(recentHistory.length / 2));
-        const secondHalf = recentHistory.slice(Math.floor(recentHistory.length / 2));
-
-        if (firstHalf.length === 0 || secondHalf.length === 0) return;
-
-        // Calcular tipo dominante em cada período
-        const firstHalfLongVolume = firstHalf
-          .filter(h => h.type === 'long')
-          .reduce((sum, h) => sum + h.totalLiquidated, 0);
+      assetGroups.forEach((liquidations, asset) => {
+        // Precisamos de pelo menos uma liquidação long e uma short
+        const longLiqs = liquidations.filter(l => l.type === 'long');
+        const shortLiqs = liquidations.filter(l => l.type === 'short');
         
-        const firstHalfShortVolume = firstHalf
-          .filter(h => h.type === 'short')
-          .reduce((sum, h) => sum + h.totalLiquidated, 0);
+        if (longLiqs.length === 0 || shortLiqs.length === 0) return;
 
-        const secondHalfLongVolume = secondHalf
-          .filter(h => h.type === 'long')
-          .reduce((sum, h) => sum + h.totalLiquidated, 0);
+        // Pegar a liquidação mais recente de cada tipo
+        const latestLong = longLiqs.reduce((latest, current) => 
+          current.lastUpdateTime > latest.lastUpdateTime ? current : latest
+        );
         
-        const secondHalfShortVolume = secondHalf
-          .filter(h => h.type === 'short')
-          .reduce((sum, h) => sum + h.totalLiquidated, 0);
+        const latestShort = shortLiqs.reduce((latest, current) => 
+          current.lastUpdateTime > latest.lastUpdateTime ? current : latest
+        );
 
-        // Determinar tipo dominante
-        const firstPeriodType = firstHalfLongVolume > firstHalfShortVolume ? 'long' : 'short';
-        const secondPeriodType = secondHalfLongVolume > secondHalfShortVolume ? 'long' : 'short';
+        // Determinar qual tipo é mais recente (direção atual)
+        const isLongMoreRecent = latestLong.lastUpdateTime > latestShort.lastUpdateTime;
+        const currentType = isLongMoreRecent ? 'long' : 'short';
+        const previousType = isLongMoreRecent ? 'short' : 'long';
+        
+        const currentLiq = isLongMoreRecent ? latestLong : latestShort;
+        const previousLiq = isLongMoreRecent ? latestShort : latestLong;
 
-        // Detectar reversão
-        if (firstPeriodType !== secondPeriodType) {
-          const previousVolume = firstPeriodType === 'long' ? firstHalfLongVolume : firstHalfShortVolume;
-          const currentVolume = secondPeriodType === 'long' ? secondHalfLongVolume : secondHalfShortVolume;
+        // Calcular ratio de reversão baseado em amounts
+        const currentVolume = currentLiq.amount;
+        const previousVolume = previousLiq.amount;
+        
+        if (previousVolume <= 0) return;
+        
+        const reversalRatio = currentVolume / previousVolume;
+        
+        // Critério: reversão significativa (ratio >= 1.2) e recente (últimos 10 minutos)
+        const timeDiff = (now.getTime() - currentLiq.lastUpdateTime.getTime()) / (1000 * 60);
+        
+        if (reversalRatio >= 1.2 && timeDiff <= 10) {
+          // Calcular intensidade baseada no ratio
+          let intensity = 1;
+          if (reversalRatio >= 5) intensity = 5;
+          else if (reversalRatio >= 3) intensity = 4;
+          else if (reversalRatio >= 2) intensity = 3;
+          else if (reversalRatio >= 1.5) intensity = 2;
           
-          // Verificar se volume atual >= volume anterior (critério de reversão)
-          if (currentVolume >= previousVolume && previousVolume > 0) {
-            const reversalRatio = currentVolume / previousVolume;
-            const latestLiq = recentHistory[recentHistory.length - 1];
-            
-            // Calcular intensidade da reversão
-            let intensity = 1;
-            if (reversalRatio >= 3) intensity = 5;
-            else if (reversalRatio >= 2.5) intensity = 4;
-            else if (reversalRatio >= 2) intensity = 3;
-            else if (reversalRatio >= 1.5) intensity = 2;
-            
-            const reversal: TrendReversal = {
-              asset,
-              previousType: firstPeriodType,
-              currentType: secondPeriodType,
-              previousVolume,
-              currentVolume,
-              reversalRatio,
-              timestamp: latestLiq.lastUpdateTime,
-              intensity,
-              price: latestLiq.price,
-              marketCap: latestLiq.marketCap
-            };
-            
-            reversals.push(reversal);
-            
-            console.log(`🔄 TREND REVERSAL detectado: ${asset} - ${firstPeriodType.toUpperCase()} -> ${secondPeriodType.toUpperCase()} - Ratio: ${reversalRatio.toFixed(2)}x`);
-          }
+          const reversal: TrendReversal = {
+            asset: currentLiq.asset,
+            previousType,
+            currentType,
+            previousVolume,
+            currentVolume,
+            reversalRatio,
+            timestamp: currentLiq.lastUpdateTime,
+            intensity,
+            price: currentLiq.price,
+            marketCap: currentLiq.marketCap
+          };
+          
+          reversals.push(reversal);
+          
+          console.log(`🔄 TREND REVERSAL detectado: ${asset} - ${previousType.toUpperCase()} -> ${currentType.toUpperCase()} - Ratio: ${reversalRatio.toFixed(2)}x`);
         }
       });
 
-      // Ordenar por ratio de reversão e limitar a 20
+      // Ordenar por ratio de reversão e tempo
       const sortedReversals = reversals
-        .sort((a, b) => b.reversalRatio - a.reversalRatio)
+        .sort((a, b) => {
+          if (b.reversalRatio !== a.reversalRatio) {
+            return b.reversalRatio - a.reversalRatio;
+          }
+          return b.timestamp.getTime() - a.timestamp.getTime();
+        })
         .slice(0, 20);
 
       setTrendReversals(sortedReversals);
+      
+      if (sortedReversals.length > 0) {
+        console.log(`✅ ${sortedReversals.length} reversões detectadas`);
+      }
     };
 
-    if (liquidationHistory.size > 0) {
+    // Executar detecção sempre que houver mudanças nas liquidações
+    if (longLiquidations.length > 0 || shortLiquidations.length > 0) {
       detectReversals();
     }
-  }, [liquidationHistory]);
-
-  const formatAmount = (amount: number) => {
-    if (!amount || isNaN(amount)) return '$0.00';
-    if (amount >= 1e9) return `$${(amount / 1e9).toFixed(2)}B`;
-    if (amount >= 1e6) return `$${(amount / 1e6).toFixed(2)}M`;
-    if (amount >= 1e3) return `$${(amount / 1e3).toFixed(2)}K`;
-    return `$${amount.toFixed(2)}`;
-  };
+  }, [longLiquidations, shortLiquidations]);
 
   const formatPrice = (price: number) => {
     if (!price || isNaN(price)) return '$0.00';
@@ -181,7 +157,7 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
                   </Badge>
                 </CardTitle>
                 <p className="text-sm text-gray-400 font-mono">
-                  Detecta ativos que mudaram de direção de liquidação
+                  Detecta ativos que mudaram de direção de liquidação nos últimos 10min
                 </p>
               </div>
             </div>
@@ -238,7 +214,7 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
                         <div className="flex justify-between">
                           <span className="text-gray-600">Direção Anterior:</span>
                           <span className={`font-bold ${reversal.previousType === 'long' ? 'text-red-600' : 'text-green-600'}`}>
-                            {reversal.previousType.toUpperCase()} LIQUIDATIONS
+                            {reversal.previousType.toUpperCase()}
                           </span>
                         </div>
                         
@@ -252,7 +228,7 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
                         <div className="flex justify-between">
                           <span className="text-gray-600">Nova Direção:</span>
                           <span className={`font-bold ${reversal.currentType === 'long' ? 'text-red-600' : 'text-green-600'}`}>
-                            {reversal.currentType.toUpperCase()} LIQUIDATIONS
+                            {reversal.currentType.toUpperCase()}
                           </span>
                         </div>
                         
@@ -272,8 +248,7 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
                           {new Intl.DateTimeFormat('pt-BR', {
                             hour: '2-digit',
                             minute: '2-digit',
-                            day: '2-digit',
-                            month: '2-digit'
+                            second: '2-digit'
                           }).format(reversal.timestamp)}
                         </span>
                       </div>

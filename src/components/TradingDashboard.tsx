@@ -7,6 +7,7 @@ import { TradingProvider } from '../contexts/TradingContext';
 import { LiquidationBubbleMap } from './LiquidationBubbleMap';
 import { CoinTrendHunter } from './CoinTrendHunter';
 import { TrendReversalDetector } from './TrendReversalDetector';
+import { LiveTotalDetector } from './LiveTotalDetector';
 
 export const TradingDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ export const TradingDashboard: React.FC = () => {
           <div className="ascii-divider mb-6"></div>
 
           {/* Trend Reversal Detector */}
-          <div className="brutal-card h-[500px] scanlines">
+          <div className="brutal-card h-[500px] scanlines mb-8">
             <div className="p-4 border-b-2 border-neon">
               <h2 className="font-display text-electric text-lg glitch" data-text="TREND_REVERSAL_DETECTOR">
                 TREND_REVERSAL_DETECTOR
@@ -87,6 +88,21 @@ export const TradingDashboard: React.FC = () => {
             </div>
             <div className="h-[calc(100%-4rem)]">
               <TrendReversalDetector />
+            </div>
+          </div>
+
+          {/* ASCII Section Divider */}
+          <div className="ascii-divider mb-6"></div>
+
+          {/* Live Total Detector - NOVA SEÇÃO */}
+          <div className="brutal-card h-[500px] scanlines">
+            <div className="p-4 border-b-2 border-neon">
+              <h2 className="font-display text-electric text-lg glitch" data-text="LIVE_TOTAL_LIQUIDATED">
+                LIVE_TOTAL_LIQUIDATED
+              </h2>
+            </div>
+            <div className="h-[calc(100%-4rem)]">
+              <LiveTotalDetector />
             </div>
           </div>
         </div>
