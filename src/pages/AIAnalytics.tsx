@@ -96,7 +96,7 @@ const AIAnalytics = () => {
         <div className="text-center mt-8">
           <div className="ascii-divider"></div>
           <p className="text-electric font-mono text-sm">
-            >> AI_POWERED_MARKET_ANALYSIS // NEURAL_NETWORK_INSIGHTS
+            &gt;&gt; AI_POWERED_MARKET_ANALYSIS // NEURAL_NETWORK_INSIGHTS
           </p>
           <div className="ascii-divider"></div>
         </div>

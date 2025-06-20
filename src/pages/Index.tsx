@@ -77,7 +77,7 @@ const Index = () => {
           
           <div className="terminal p-6 mb-8 scanlines">
             <p className="text-electric font-mono-bold text-lg mb-4">
-              >> COMPLETE CRYPTO INTELLIGENCE PLATFORM
+              &gt;&gt; COMPLETE CRYPTO INTELLIGENCE PLATFORM
             </p>
             <p className="text-neon font-mono text-sm leading-relaxed">
               REAL-TIME ANALYSIS // LIQUIDATION TRACKING // ANOMALOUS VOLUME MONITORING
