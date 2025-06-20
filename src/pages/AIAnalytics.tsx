@@ -1,109 +1,107 @@
 
-import React from 'react';
-import { ArrowLeft, Brain, TrendingUp, Newspaper, Globe } from 'lucide-react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { DirectionAnalyzer } from '../components/ai/DirectionAnalyzer';
-import { NewsAnalyzer } from '../components/ai/NewsAnalyzer';
-import { MarketPerceptionAnalyzer } from '../components/ai/MarketPerceptionAnalyzer';
-import { MarketOpeningTracker } from '../components/ai/MarketOpeningTracker';
-import { ErrorBoundary } from '../components/ui/error-boundary';
+import { ArrowLeft, Brain, TrendingUp, Globe, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DirectionAnalyzer } from '@/components/ai/DirectionAnalyzer';
+import { NewsAnalyzer } from '@/components/ai/NewsAnalyzer';
+import { MarketPerceptionAnalyzer } from '@/components/ai/MarketPerceptionAnalyzer';
+import { MarketOpeningTracker } from '@/components/ai/MarketOpeningTracker';
 
-const AIAnalytics: React.FC = () => {
+const AIAnalytics = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'direction' | 'news' | 'perception' | 'market'>('direction');
+
+  const tabs = [
+    { id: 'direction' as const, label: 'DIRECTION_ANALYZER', icon: TrendingUp },
+    { id: 'news' as const, label: 'NEWS_ANALYZER', icon: Activity },
+    { id: 'perception' as const, label: 'MARKET_PERCEPTION', icon: Brain },
+    { id: 'market' as const, label: 'MARKET_TRACKER', icon: Globe },
+  ];
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-[#0A0A0A] via-[#1C1C1E] to-[#0A0A0A]">
-        <div className="max-w-7xl mx-auto p-6">
-          {/* Header */}
-          <div className="p-4 border-b border-[#2E2E2E] bg-[#1C1C1E]/90 backdrop-blur-md rounded-t-2xl mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/')}
-                  className="flex items-center space-x-2 border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5]"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>VOLTAR</span>
-                </Button>
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-[#A6FF00] to-[#00E0FF] rounded-lg flex items-center justify-center relative">
-                    <Brain className="w-5 h-5 text-black" />
-                    <div className="absolute inset-0 bg-[#A6FF00]/20 rounded-lg animate-pulse"></div>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-[#F5F5F5] font-mono">AI ANALYTICS SUITE 🧠</h2>
-                    <div className="flex items-center space-x-4 text-sm text-[#AAAAAA]">
-                      <span>Advanced market intelligence powered by AI/ML</span>
-                      <Badge className="bg-[#A6FF00]/20 text-[#A6FF00] border-[#A6FF00]/30">
-                        TERCEIRA ONDA
-                      </Badge>
-                    </div>
-                  </div>
+    <div className="min-h-screen bg-black grid-overlay">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* ASCII Header */}
+        <div className="terminal mb-6 scanlines">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/')}
+                className="brutal-btn px-4 py-2 text-sm"
+              >
+                &lt;&lt; BACK
+              </button>
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 border-2 border-neon bg-neon flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-black" />
+                </div>
+                <div>
+                  <h1 className="font-display text-neon text-2xl">AI_ANALYTICS_SUITE</h1>
+                  <p className="text-electric font-mono text-sm">ARTIFICIAL INTELLIGENCE // MARKET ANALYSIS // REAL-TIME INSIGHTS</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                  AI ATIVO
-                </Badge>
-                <Button
-                  onClick={() => navigate('/unusual-volume')}
-                  variant="outline"
-                  className="flex items-center space-x-2 border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5]"
+            </div>
+          </div>
+
+          {/* ASCII Art Banner */}
+          <pre className="text-neon text-xs font-mono leading-none mb-4">
+{`
+ █████╗ ██╗    ██╗██╗███╗   ██╗████████╗███████╗██╗     ██╗     ██╗ ██████╗ ███████╗███╗   ██╗ ██████╗███████╗
+██╔══██╗██║    ██║██║████╗  ██║╚══██╔══╝██╔════╝██║     ██║     ██║██╔════╝ ██╔════╝████╗  ██║██╔════╝██╔════╝
+███████║██║ █╗ ██║██║██╔██╗ ██║   ██║   █████╗  ██║     ██║     ██║██║  ███╗█████╗  ██╔██╗ ██║██║     █████╗  
+██╔══██║██║███╗██║██║██║╚██╗██║   ██║   ██╔══╝  ██║     ██║     ██║██║   ██║██╔══╝  ██║╚██╗██║██║     ██╔══╝  
+██║  ██║╚███╔███╔╝██║██║ ╚████║   ██║   ███████╗███████╗███████╗██║╚██████╔╝███████╗██║ ╚████║╚██████╗███████╗
+╚═╝  ╚═╝ ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚══════╝
+`}
+          </pre>
+
+          {/* Tab Navigation */}
+          <div className="flex space-x-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 border-2 font-mono-bold text-sm transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-neon text-black border-neon glitch'
+                      : 'bg-black text-electric border-electric hover:bg-electric hover:text-black'
+                  }`}
+                  data-text={tab.label}
                 >
-                  <TrendingUp className="w-4 h-4" />
-                  <span>VOLUME DATA</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Analytics Grid */}
-          <div className="space-y-6">
-            {/* Direction Analyzer */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <DirectionAnalyzer />
-              <NewsAnalyzer />
-            </div>
-
-            {/* Market Perception */}
-            <div className="grid grid-cols-1 gap-6">
-              <MarketPerceptionAnalyzer />
-            </div>
-
-            {/* Market Opening Tracker */}
-            <div className="grid grid-cols-1 gap-6">
-              <MarketOpeningTracker />
-            </div>
-          </div>
-
-          {/* Info Footer */}
-          <div className="mt-8 p-4 bg-[#1C1C1E]/50 rounded-lg border border-[#2E2E2E]">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-4 h-4 text-[#00E0FF]" />
-                <span className="text-[#AAAAAA]">Direction Analysis: Liquidações + Volume</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Newspaper className="w-4 h-4 text-[#00E0FF]" />
-                <span className="text-[#AAAAAA]">News Analysis: Sentiment IA</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Brain className="w-4 h-4 text-[#A6FF00]" />
-                <span className="text-[#AAAAAA]">Market Perception: Análise contextual</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Globe className="w-4 h-4 text-[#A6FF00]" />
-                <span className="text-[#AAAAAA]">VWAP Tracker: 5min anchor</span>
-              </div>
-            </div>
+                  <Icon className="w-4 h-4 mr-2 inline" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        {/* ASCII Section Divider */}
+        <div className="ascii-divider mb-6"></div>
+
+        {/* Content Area */}
+        <div className="brutal-card scanlines">
+          <div className="p-6">
+            {activeTab === 'direction' && <DirectionAnalyzer />}
+            {activeTab === 'news' && <NewsAnalyzer />}
+            {activeTab === 'perception' && <MarketPerceptionAnalyzer />}
+            {activeTab === 'market' && <MarketOpeningTracker />}
+          </div>
+        </div>
+
+        {/* ASCII Footer */}
+        <div className="text-center mt-8">
+          <div className="ascii-divider"></div>
+          <p className="text-electric font-mono text-sm">
+            >> AI_POWERED_MARKET_ANALYSIS // NEURAL_NETWORK_INSIGHTS
+          </p>
+          <div className="ascii-divider"></div>
+        </div>
       </div>
-    </ErrorBoundary>
+    </div>
   );
 };
 

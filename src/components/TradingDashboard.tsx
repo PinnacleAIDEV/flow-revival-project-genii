@@ -12,52 +12,66 @@ export const TradingDashboard: React.FC = () => {
 
   return (
     <TradingProvider>
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-slate-800">
+      <div className="min-h-screen bg-black grid-overlay">
         <div className="max-w-7xl mx-auto p-6">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-700 bg-gray-900/90 backdrop-blur-md rounded-t-2xl mb-6">
+          {/* ASCII Header */}
+          <div className="terminal mb-6 scanlines">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <Button
-                  variant="outline"
+                <button
                   onClick={() => navigate('/')}
-                  className="flex items-center space-x-2 border-gray-700 text-gray-300 hover:bg-gray-800 hover:border-cyan-400"
+                  className="brutal-btn px-4 py-2 text-sm"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>VOLTAR</span>
-                </Button>
+                  &lt;&lt; BACK
+                </button>
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-cyan-400 to-blue-600 rounded-lg flex items-center justify-center relative">
+                  <div className="w-8 h-8 border-2 border-electric bg-electric flex items-center justify-center">
                     <Eye className="w-5 h-5 text-black" />
-                    <div className="absolute inset-0 bg-cyan-400/20 rounded-lg animate-pulse"></div>
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-white font-mono">LIQUIDATION MONITOR</h1>
-                    <p className="text-gray-400">Rastreamento em tempo real e detecção de micro-caps</p>
+                    <h1 className="font-display text-neon text-2xl">LIQUIDATION_MONITOR</h1>
+                    <p className="text-electric font-mono text-sm">REAL-TIME TRACKING // MICRO-CAP DETECTION</p>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <Button
-                  onClick={() => navigate('/database')}
-                  variant="outline"
-                  className="flex items-center space-x-2 border-gray-700 text-gray-300 hover:bg-gray-800 hover:border-cyan-400"
-                >
-                  <Database className="w-4 h-4" />
-                  <span>DATABASE</span>
-                </Button>
-              </div>
+              <button
+                onClick={() => navigate('/database')}
+                className="brutal-btn px-4 py-2 text-sm"
+              >
+                <Database className="w-4 h-4 mr-2" />
+                DATABASE
+              </button>
             </div>
           </div>
 
-          {/* Liquidation Bubble Map - Top Section */}
-          <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-700 hover:border-cyan-400/50 overflow-hidden hover:shadow-cyan-400/10 transition-all h-[500px] mb-8">
-            <LiquidationBubbleMap />
+          {/* ASCII Section Divider */}
+          <div className="ascii-divider mb-6"></div>
+
+          {/* Liquidation Bubble Map */}
+          <div className="brutal-card mb-8 h-[500px] scanlines">
+            <div className="p-4 border-b-2 border-neon">
+              <h2 className="font-display text-electric text-lg glitch" data-text="LIQUIDATION_BUBBLE_MAP">
+                LIQUIDATION_BUBBLE_MAP
+              </h2>
+            </div>
+            <div className="h-[calc(100%-4rem)]">
+              <LiquidationBubbleMap />
+            </div>
           </div>
 
-          {/* CoinTrendHunter - Bottom Section */}
-          <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-700 hover:border-cyan-400/50 overflow-hidden hover:shadow-cyan-400/10 transition-all h-[500px]">
-            <CoinTrendHunter />
+          {/* ASCII Section Divider */}
+          <div className="ascii-divider mb-6"></div>
+
+          {/* CoinTrendHunter */}
+          <div className="brutal-card h-[500px] scanlines">
+            <div className="p-4 border-b-2 border-neon">
+              <h2 className="font-display text-electric text-lg glitch" data-text="COIN_TREND_HUNTER">
+                COIN_TREND_HUNTER
+              </h2>
+            </div>
+            <div className="h-[calc(100%-4rem)]">
+              <CoinTrendHunter />
+            </div>
           </div>
         </div>
       </div>

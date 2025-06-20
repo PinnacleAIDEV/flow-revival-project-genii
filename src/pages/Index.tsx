@@ -10,83 +10,95 @@ const Index = () => {
 
   const features = [
     {
-      title: "Dashboard Central",
-      description: "Acesse todas as ferramentas de análise crypto em um só lugar",
+      title: "DASHBOARD_CENTRAL",
+      description: ">> ACCESS ALL CRYPTO ANALYSIS TOOLS IN ONE TERMINAL",
       icon: LayoutDashboard,
       route: "/dashboard",
-      gradient: "from-[#00E0FF] to-[#A6FF00]",
       status: "NEW"
     },
     {
-      title: "AIPinnacle Pro",
-      description: "O único indicador que DELETA sinais falsos antes que você os veja",
+      title: "AIPINNACLE_PRO",
+      description: ">> THE ONLY INDICATOR THAT DELETES FALSE SIGNALS",
       icon: Star,
       route: "/aipinnacle",
-      gradient: "from-[#FFD700] to-[#FFA500]",
-      status: "LANÇAMENTO"
+      status: "LAUNCH"
     },
     {
-      title: "Liquidation Tracker",
-      description: "Monitore liquidações em tempo real com visualização interativa",
+      title: "LIQUIDATION_TRACKER",
+      description: ">> REAL-TIME LIQUIDATION MONITORING WITH INTERACTIVE VIZ",
       icon: TrendingUp,
-      route: "/liquidations",
-      gradient: "from-[#FF4D4D] to-[#FF8C00]"
+      route: "/liquidations"
     },
     {
-      title: "Unusual Volume Monitor",
-      description: "Detecte spikes de volume anormais com análise de candles 1min",
+      title: "UNUSUAL_VOLUME_MONITOR",
+      description: ">> DETECT ABNORMAL VOLUME SPIKES WITH 1MIN CANDLE ANALYSIS",
       icon: Eye,
-      route: "/unusual-volume",
-      gradient: "from-[#A6FF00] to-[#00E0FF]"
+      route: "/unusual-volume"
     },
     {
-      title: "Arkham Intelligence",
-      description: "Analytics on-chain e whale tracking com dados da Arkham",
+      title: "ARKHAM_INTELLIGENCE",
+      description: ">> ON-CHAIN ANALYTICS AND WHALE TRACKING",
       icon: Activity,
       route: "/arkham",
-      gradient: "from-[#FF8C00] to-[#FF4D4D]",
       status: "BETA"
     },
     {
-      title: "Asset Database",
-      description: "Base de dados completa com métricas avançadas de criptomoedas",
+      title: "ASSET_DATABASE",
+      description: ">> COMPLETE DATABASE WITH ADVANCED CRYPTO METRICS",
       icon: Database,
-      route: "/database",
-      gradient: "from-[#8B5CF6] to-[#EC4899]"
+      route: "/database"
     }
   ];
 
+  const stats = [
+    { label: "EXCHANGES_MONITORED", value: "50+", ascii: "📊" },
+    { label: "ALERTS_PER_DAY", value: "1.2K+", ascii: "🚨" },
+    { label: "SIGNAL_ACCURACY", value: "94%", ascii: "🎯" },
+    { label: "SYSTEM_UPTIME", value: "99.9%", ascii: "⚡" }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A0A0A] via-[#1C1C1E] to-[#0A0A0A]">
-      <div className="container mx-auto px-4 py-16">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-r from-[#00E0FF] to-[#A6FF00] rounded-xl flex items-center justify-center relative">
-              <Activity className="w-7 h-7 text-black" />
-              <div className="absolute inset-0 bg-[#00E0FF]/20 rounded-xl animate-pulse"></div>
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-[#F5F5F5] font-mono">
-              CRYPTO INTEL
-            </h1>
+    <div className="min-h-screen bg-black grid-overlay">
+      <div className="container mx-auto px-4 py-8">
+        {/* ASCII Header */}
+        <div className="text-center mb-12">
+          <div className="ascii-divider"></div>
+          <pre className="text-neon text-xs mb-4 font-mono leading-none">
+{`
+ ██████╗██████╗ ██╗   ██╗██████╗ ████████╗ ██████╗     ██╗███╗   ██╗████████╗███████╗██╗     
+██╔════╝██╔══██╗╚██╗ ██╔╝██╔══██╗╚══██╔══╝██╔═══██╗    ██║████╗  ██║╚══██╔══╝██╔════╝██║     
+██║     ██████╔╝ ╚████╔╝ ██████╔╝   ██║   ██║   ██║    ██║██╔██╗ ██║   ██║   █████╗  ██║     
+██║     ██╔══██╗  ╚██╔╝  ██╔═══╝    ██║   ██║   ██║    ██║██║╚██╗██║   ██║   ██╔══╝  ██║     
+╚██████╗██║  ██║   ██║   ██║        ██║   ╚██████╔╝    ██║██║ ╚████║   ██║   ███████╗███████╗
+ ╚═════╝╚═╝  ╚═╝   ╚═╝   ╚═╝        ╚═╝    ╚═════╝     ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝
+`}
+          </pre>
+          <div className="ascii-divider"></div>
+          
+          <div className="terminal p-6 mb-8 scanlines">
+            <p className="text-electric font-mono-bold text-lg mb-4">
+              >> COMPLETE CRYPTO INTELLIGENCE PLATFORM
+            </p>
+            <p className="text-neon font-mono text-sm leading-relaxed">
+              REAL-TIME ANALYSIS // LIQUIDATION TRACKING // ANOMALOUS VOLUME MONITORING
+            </p>
           </div>
-          <p className="text-xl text-[#AAAAAA] mb-8 max-w-2xl mx-auto">
-            Plataforma completa de inteligência crypto com análise em tempo real, 
-            tracking de liquidações e monitoramento de volume anômalo
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <Button
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+            <button
               onClick={() => navigate('/dashboard')}
-              className="bg-gradient-to-r from-[#00E0FF] to-[#A6FF00] text-black font-bold px-8 py-3 rounded-lg hover:shadow-lg hover:shadow-[#00E0FF]/25 transition-all duration-300"
+              className="brutal-btn px-8 py-4 text-lg font-display glitch"
+              data-text=">> ACCESS DASHBOARD"
             >
-              🚀 ACESSAR DASHBOARD
-            </Button>
-            <Button
+              &gt;&gt; ACCESS DASHBOARD
+            </button>
+            <button
               onClick={() => navigate('/aipinnacle')}
-              className="bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-bold px-8 py-3 rounded-lg hover:shadow-lg hover:shadow-[#FFD700]/25 transition-all duration-300"
+              className="brutal-btn px-8 py-4 text-lg font-display glitch bg-electric text-black border-electric hover:bg-neon hover:border-neon"
+              data-text=">> AIPINNACLE PRO"
             >
-              ⭐ VER AIPINNACLE PRO
-            </Button>
+              ★ AIPINNACLE PRO
+            </button>
           </div>
         </div>
 
@@ -95,70 +107,64 @@ const Index = () => {
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <Card
+              <div
                 key={index}
-                className="bg-[#1C1C1E] border-[#2E2E2E] hover:border-[#00E0FF]/50 transition-all duration-300 cursor-pointer group"
+                className="brutal-card p-6 cursor-pointer group scanlines"
                 onClick={() => navigate(feature.route)}
               >
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-12 h-12 bg-gradient-to-r ${feature.gradient} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <Icon className="w-6 h-6 text-black" />
-                    </div>
-                    {feature.status && (
-                      <span className={`text-xs font-mono px-2 py-1 rounded ${
-                        feature.status === 'NEW' ? 'bg-[#A6FF00] text-black' : 
-                        feature.status === 'LANÇAMENTO' ? 'bg-[#FFD700] text-black' :
-                        'bg-[#FF8C00] text-white'
-                      }`}>
-                        {feature.status}
-                      </span>
-                    )}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 border-2 border-electric bg-electric flex items-center justify-center group-hover:bg-neon group-hover:border-neon transition-colors">
+                    <Icon className="w-6 h-6 text-black" />
                   </div>
-                  <CardTitle className="text-[#F5F5F5] font-mono group-hover:text-[#00E0FF] transition-colors">
-                    {feature.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-[#AAAAAA] leading-relaxed">
-                    {feature.description}
-                  </CardDescription>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-4 w-full border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5]"
-                  >
-                    ACESSAR →
-                  </Button>
-                </CardContent>
-              </Card>
+                  {feature.status && (
+                    <div className={`px-2 py-1 text-xs font-mono-bold border-2 ${
+                      feature.status === 'NEW' ? 'border-neon bg-neon text-black' : 
+                      feature.status === 'LAUNCH' ? 'border-electric bg-electric text-black' :
+                      'border-glitch-red bg-glitch-red text-black'
+                    }`}>
+                      [{feature.status}]
+                    </div>
+                  )}
+                </div>
+                
+                <h3 className="font-display text-neon text-lg mb-3 group-hover:text-electric transition-colors glitch" data-text={feature.title}>
+                  {feature.title}
+                </h3>
+                
+                <p className="text-electric font-mono text-sm leading-relaxed mb-4">
+                  {feature.description}
+                </p>
+                
+                <div className="border-t-2 border-neon pt-4">
+                  <span className="text-neon font-mono-bold text-xs group-hover:text-electric transition-colors">
+                    [PRESS_TO_ACCESS] →
+                  </span>
+                </div>
+              </div>
             );
           })}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
-          {[
-            { label: "Exchanges Monitoradas", value: "50+", icon: "📊" },
-            { label: "Alertas por Dia", value: "1.2K+", icon: "🚨" },
-            { label: "Precisão de Sinais", value: "94%", icon: "🎯" },
-            { label: "Uptime Sistema", value: "99.9%", icon: "⚡" }
-          ].map((stat, index) => (
-            <Card key={index} className="bg-[#1C1C1E] border-[#2E2E2E] text-center">
-              <CardContent className="pt-6">
-                <div className="text-2xl mb-2">{stat.icon}</div>
-                <div className="text-2xl font-bold text-[#F5F5F5] font-mono">{stat.value}</div>
-                <div className="text-sm text-[#AAAAAA]">{stat.label}</div>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Stats Terminal */}
+        <div className="terminal mb-12 scanlines">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center border-2 border-neon p-4">
+                <div className="text-2xl mb-2">{stat.ascii}</div>
+                <div className="text-2xl font-mono-bold text-electric">{stat.value}</div>
+                <div className="text-sm font-mono text-neon">{stat.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center border-t border-[#2E2E2E] pt-8">
-          <p className="text-[#AAAAAA] text-sm">
-            © 2024 Crypto Intel. Plataforma de análise crypto em tempo real.
+        {/* ASCII Footer */}
+        <div className="text-center border-t-2 border-neon pt-8">
+          <div className="ascii-divider"></div>
+          <p className="text-electric font-mono text-sm">
+            © 2024 CRYPTO_INTEL // REAL-TIME CRYPTO ANALYSIS PLATFORM
           </p>
+          <div className="ascii-divider"></div>
         </div>
       </div>
     </div>
