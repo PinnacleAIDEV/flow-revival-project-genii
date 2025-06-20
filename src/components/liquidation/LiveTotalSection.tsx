@@ -16,10 +16,10 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
   longLiquidations,
   shortLiquidations
 }) => {
-  // Calcular totais em tempo real
-  const totalLongAmount = longLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
-  const totalShortAmount = shortLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
-  const grandTotal = totalLongAmount + totalShortAmount;
+  // Calcular valores atuais em tempo real
+  const currentLongAmount = longLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
+  const currentShortAmount = shortLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
+  const grandCurrent = currentLongAmount + currentShortAmount;
   
   // Calcular por market cap
   const longHighCap = longLiquidations.filter(liq => liq.marketCap === 'high');
@@ -33,8 +33,8 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
   const shortLowCapAmount = shortLowCap.reduce((sum, liq) => sum + liq.amount, 0);
 
   // Determinar tendência dominante
-  const dominantType = totalLongAmount > totalShortAmount ? 'long' : 'short';
-  const dominantPercentage = grandTotal > 0 ? ((dominantType === 'long' ? totalLongAmount : totalShortAmount) / grandTotal * 100) : 0;
+  const dominantType = currentLongAmount > currentShortAmount ? 'long' : 'short';
+  const dominantPercentage = grandCurrent > 0 ? ((dominantType === 'long' ? currentLongAmount : currentShortAmount) / grandCurrent * 100) : 0;
 
   const formatTimestamp = (timestamp: Date) => {
     try {
@@ -59,7 +59,7 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
               </div>
               <div>
                 <CardTitle className="flex items-center space-x-2 text-yellow-400 font-mono">
-                  <span>TOTAL LIQUIDATED (LIVE)</span>
+                  <span>LIVE LIQUIDATIONS</span>
                   <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
                     {longLiquidations.length + shortLiquidations.length} ativos
                   </Badge>
@@ -73,13 +73,13 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
         </CardHeader>
         
         <CardContent className="p-6 h-[calc(100%-7rem)]">
-          {/* Total Geral */}
+          {/* Valor Atual Geral */}
           <div className="mb-6 text-center">
             <div className="text-4xl font-bold text-yellow-400 mb-2">
-              {formatAmount(grandTotal)}
+              {formatAmount(grandCurrent)}
             </div>
             <div className="text-sm text-gray-400">
-              Total Liquidado Atual
+              Liquidação Atual
             </div>
             {dominantPercentage > 60 && (
               <div className="mt-2">
@@ -90,7 +90,7 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
             )}
           </div>
 
-          {/* Grid de Totais */}
+          {/* Grid de Valores Atuais */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Long Liquidations */}
             <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10">
@@ -101,8 +101,8 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
               
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-300 text-sm">Total:</span>
-                  <span className="text-2xl font-bold text-red-400">{formatAmount(totalLongAmount)}</span>
+                  <span className="text-gray-300 text-sm">Atual:</span>
+                  <span className="text-2xl font-bold text-red-400">{formatAmount(currentLongAmount)}</span>
                 </div>
                 
                 <div className="flex justify-between text-xs">
@@ -132,8 +132,8 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
               
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-300 text-sm">Total:</span>
-                  <span className="text-2xl font-bold text-green-400">{formatAmount(totalShortAmount)}</span>
+                  <span className="text-gray-300 text-sm">Atual:</span>
+                  <span className="text-2xl font-bold text-green-400">{formatAmount(currentShortAmount)}</span>
                 </div>
                 
                 <div className="flex justify-between text-xs">
