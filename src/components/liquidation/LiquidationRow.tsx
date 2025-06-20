@@ -119,8 +119,8 @@ export const LiquidationRow: React.FC<LiquidationRowProps> = ({
                       <span className="text-white font-mono">{formatTimestamp(liquidation.timestamp)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">💰 Valor Liquidado:</span>
-                      <span className="text-yellow-400 font-bold">{formatAmount(liquidation.totalLiquidated)}</span>
+                      <span className="text-gray-400">💰 Valor Atual:</span>
+                      <span className="text-yellow-400 font-bold">{formatAmount(liquidation.amount)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">💲 Preço Atual:</span>
@@ -150,6 +150,11 @@ export const LiquidationRow: React.FC<LiquidationRowProps> = ({
                         {liquidation.volume.toLocaleString()}
                       </span>
                     </div>
+                    <div className="border-t border-gray-700 pt-1 mt-2">
+                      <div className="text-xs text-cyan-400">
+                        💡 Ordenado por relevância atual, não acumulada
+                      </div>
+                    </div>
                   </div>
                   <div className="text-xs text-gray-500 border-t border-gray-700 pt-1 mt-2">
                     Clique para selecionar o ativo
@@ -169,7 +174,11 @@ export const LiquidationRow: React.FC<LiquidationRowProps> = ({
         </span>
       </TableCell>
       <TableCell className="font-mono text-xs font-bold">
-        {formatAmount(liquidation.totalLiquidated)}
+        {/* MUDANÇA: Mostrar amount (liquidação atual) em vez de totalLiquidated */}
+        <div className="flex flex-col">
+          <span className="text-yellow-600">{formatAmount(liquidation.amount)}</span>
+          <span className="text-xs text-gray-500">atual</span>
+        </div>
       </TableCell>
       <TableCell>
         <span className={`px-2 py-1 rounded text-xs font-medium ${

@@ -3,13 +3,16 @@ import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useTrading } from '../contexts/TradingContext';
 import { useLiquidationData } from '../hooks/useLiquidationData';
+import { use24hLiquidationData } from '../hooks/use24hLiquidationData';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
 import { LiquidationTable } from './liquidation/LiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
+import { DailyTotalSection } from './liquidation/DailyTotalSection';
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { setSelectedAsset } = useTrading();
   const { longLiquidations, shortLiquidations } = useLiquidationData();
+  const { dailyTotals, stats: dailyStats, timeUntilReset, lastUpdateTime } = use24hLiquidationData();
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
@@ -44,6 +47,15 @@ export const LiquidationBubbleMap: React.FC = () => {
       <LiquidationStats
         longLiquidations={longLiquidations}
         shortLiquidations={shortLiquidations}
+      />
+
+      {/* NOVA SEÇÃO: Totais 24h */}
+      <DailyTotalSection
+        dailyTotals={dailyTotals}
+        stats={dailyStats}
+        timeUntilReset={timeUntilReset}
+        lastUpdateTime={lastUpdateTime}
+        onAssetClick={handleAssetClick}
       />
     </div>
   );
