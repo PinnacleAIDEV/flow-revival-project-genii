@@ -1,37 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
-
-interface LiquidationBubble {
-  id: string;
-  asset: string;
-  type: 'long' | 'short';
-  amount: number;
-  price: number;
-  marketCap: 'high' | 'low';
-  timestamp: Date;
-  intensity: number;
-  change24h: number;
-  volume: number;
-  lastUpdateTime: Date;
-  totalLiquidated: number;
-}
-
-interface TrendReversal {
-  asset: string;
-  previousType: 'long' | 'short';
-  currentType: 'long' | 'short';
-  previousVolume: number;
-  currentVolume: number;
-  reversalRatio: number;
-  timestamp: Date;
-  intensity: number;
-  price: number;
-  marketCap: 'high' | 'low';
-}
+import { LiquidationBubble, TrendReversal } from '../../types/liquidation';
+import { formatAmount } from '../../utils/liquidationUtils';
 
 interface TrendReversalSectionProps {
   longLiquidations: LiquidationBubble[];
@@ -192,8 +165,8 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
   };
 
   return (
-    <div className="mt-6">
-      <Card className="bg-gray-900/90 backdrop-blur-sm border-purple-500">
+    <div className="h-full">
+      <Card className="bg-gray-900/90 backdrop-blur-sm border-purple-500 h-full">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -215,9 +188,9 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
           </div>
         </CardHeader>
         
-        <CardContent className="p-0">
+        <CardContent className="p-0 h-[calc(100%-120px)]">
           {trendReversals.length > 0 ? (
-            <ScrollArea className="h-[400px]">
+            <ScrollArea className="h-full">
               <div className="space-y-3 p-4">
                 {trendReversals.map((reversal, index) => (
                   <div
@@ -310,7 +283,7 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
               </div>
             </ScrollArea>
           ) : (
-            <div className="h-[400px] flex items-center justify-center text-center p-8">
+            <div className="h-full flex items-center justify-center text-center p-8">
               <div className="space-y-4">
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto">
                   <RefreshCw className="w-8 h-8 text-purple-500" />
