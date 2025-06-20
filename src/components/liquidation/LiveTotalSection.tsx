@@ -3,6 +3,7 @@ import React from 'react';
 import { Calculator, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
 import { LiquidationBubble } from '../../types/liquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
 
@@ -35,6 +36,18 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
   const dominantType = totalLongAmount > totalShortAmount ? 'long' : 'short';
   const dominantPercentage = grandTotal > 0 ? ((dominantType === 'long' ? totalLongAmount : totalShortAmount) / grandTotal * 100) : 0;
 
+  const formatTimestamp = (timestamp: Date) => {
+    try {
+      return new Intl.DateTimeFormat('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).format(timestamp);
+    } catch (error) {
+      return '--:--:--';
+    }
+  };
+
   return (
     <div className="h-full">
       <Card className="bg-gray-900/90 backdrop-blur-sm border-yellow-500 h-full">
@@ -59,7 +72,7 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
           </div>
         </CardHeader>
         
-        <CardContent className="p-6">
+        <CardContent className="p-6 h-[calc(100%-7rem)]">
           {/* Total Geral */}
           <div className="mb-6 text-center">
             <div className="text-4xl font-bold text-yellow-400 mb-2">
@@ -142,47 +155,46 @@ export const LiveTotalSection: React.FC<LiveTotalSectionProps> = ({
             </div>
           </div>
 
-          {/* Indicadores de Balance */}
-          <div className="bg-gray-800/50 rounded-lg p-4">
+          {/* Lista de Ativos Liquidados */}
+          <div className="bg-gray-800/50 rounded-lg p-4 h-[300px]">
             <div className="flex items-center space-x-2 mb-3">
               <Zap className="w-4 h-4 text-yellow-400" />
-              <h4 className="font-bold text-yellow-400 text-sm">INDICADORES DE MERCADO</h4>
+              <h4 className="font-bold text-yellow-400 text-sm">ATIVOS LIQUIDADOS</h4>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Long vs Short:</span>
-                  <span className="text-white font-mono">
-                    {((totalLongAmount / (grandTotal || 1)) * 100).toFixed(1)}% : {((totalShortAmount / (grandTotal || 1)) * 100).toFixed(1)}%
-                  </span>
-                </div>
+            <ScrollArea className="h-[250px]">
+              <div className="space-y-2">
+                {/* Long Liquidations */}
+                {longLiquidations.slice(0, 10).map((liq, index) => (
+                  <div key={`long-${liq.id}`} className="flex items-center justify-between p-2 rounded bg-red-500/10 border border-red-500/20">
+                    <div className="flex items-center space-x-2">
+                      <TrendingDown className="w-3 h-3 text-red-400" />
+                      <span className="text-red-300 font-mono text-xs font-bold">{liq.asset}</span>
+                      <Badge className="bg-red-500/20 text-red-300 text-xs">LONG</Badge>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-red-400 font-mono text-xs">{formatAmount(liq.amount)}</div>
+                      <div className="text-gray-500 text-xs">{formatTimestamp(liq.timestamp)}</div>
+                    </div>
+                  </div>
+                ))}
                 
-                <div className="flex justify-between">
-                  <span className="text-gray-400">High Cap Total:</span>
-                  <span className="text-blue-300 font-mono">
-                    {formatAmount(longHighCapAmount + shortHighCapAmount)}
-                  </span>
-                </div>
+                {/* Short Liquidations */}
+                {shortLiquidations.slice(0, 10).map((liq, index) => (
+                  <div key={`short-${liq.id}`} className="flex items-center justify-between p-2 rounded bg-green-500/10 border border-green-500/20">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="w-3 h-3 text-green-400" />
+                      <span className="text-green-300 font-mono text-xs font-bold">{liq.asset}</span>
+                      <Badge className="bg-green-500/20 text-green-300 text-xs">SHORT</Badge>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-green-400 font-mono text-xs">{formatAmount(liq.amount)}</div>
+                      <div className="text-gray-500 text-xs">{formatTimestamp(liq.timestamp)}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Intensidade Média:</span>
-                  <span className="text-white font-mono">
-                    {(([...longLiquidations, ...shortLiquidations].reduce((sum, liq) => sum + liq.intensity, 0)) / 
-                      (longLiquidations.length + shortLiquidations.length) || 0).toFixed(1)}/5
-                  </span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Low Cap Total:</span>
-                  <span className="text-gray-300 font-mono">
-                    {formatAmount(longLowCapAmount + shortLowCapAmount)}
-                  </span>
-                </div>
-              </div>
-            </div>
+            </ScrollArea>
           </div>
         </CardContent>
       </Card>

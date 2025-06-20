@@ -152,7 +152,7 @@ export const LiquidationRow: React.FC<LiquidationRowProps> = ({
                     </div>
                     <div className="border-t border-gray-700 pt-1 mt-2">
                       <div className="text-xs text-cyan-400">
-                        💡 Ordenado por relevância atual, não acumulada
+                        💡 Valor de liquidação atual detectada
                       </div>
                     </div>
                   </div>
@@ -174,10 +174,9 @@ export const LiquidationRow: React.FC<LiquidationRowProps> = ({
         </span>
       </TableCell>
       <TableCell className="font-mono text-xs font-bold">
-        {/* MUDANÇA: Mostrar amount (liquidação atual) em vez de totalLiquidated */}
         <div className="flex flex-col">
           <span className="text-yellow-600">{formatAmount(liquidation.amount)}</span>
-          <span className="text-xs text-gray-500">atual</span>
+          <span className="text-xs text-gray-500">liquidação</span>
         </div>
       </TableCell>
       <TableCell>
