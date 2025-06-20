@@ -1,4 +1,3 @@
-
 // Helper function to safely create dates
 export const safeCreateDate = (timestamp: any): Date => {
   if (!timestamp) return new Date();
@@ -158,12 +157,17 @@ export const detectLiquidations = (
   logLongLiquidationDetection(ticker, volumeValue, priceChange, longThreshold, longDetected);
   logShortLiquidationDetection(ticker, volumeValue, priceChange, shortThreshold, shortDetected);
   
-  // CRUCIAL: Garantir que não detectamos ambos ao mesmo tempo
+  // CRUCIAL: NUNCA retornar ambos - priorizar pelo tipo mais forte
   if (longDetected && shortDetected) {
-    console.warn(`⚠️ CONFLITO: ${ticker} detectou LONG e SHORT simultaneamente. Priorizando por magnitude.`);
+    console.warn(`⚠️ CONFLITO DETECTADO: ${ticker} - Priorizando por distância do threshold.`);
     
-    // Priorizar pelo que tem maior magnitude
-    if (Math.abs(priceChange - longThreshold.priceChange) < Math.abs(priceChange - shortThreshold.priceChange)) {
+    // Calcular distância dos thresholds para decidir qual é mais forte
+    const longDistance = Math.abs(priceChange - longThreshold.priceChange);
+    const shortDistance = Math.abs(priceChange - shortThreshold.priceChange);
+    
+    if (longDistance < shortDistance) {
+      // Long é mais forte (está mais próximo do threshold)
+      console.log(`📍 PRIORIDADE LONG: ${ticker} - Distance=${longDistance.toFixed(2)} vs ${shortDistance.toFixed(2)}`);
       return {
         longLiquidation: {
           type: 'long' as const,
@@ -173,6 +177,8 @@ export const detectLiquidations = (
         shortLiquidation: null
       };
     } else {
+      // Short é mais forte (está mais próximo do threshold)
+      console.log(`📍 PRIORIDADE SHORT: ${ticker} - Distance=${shortDistance.toFixed(2)} vs ${longDistance.toFixed(2)}`);
       return {
         longLiquidation: null,
         shortLiquidation: {
@@ -184,6 +190,7 @@ export const detectLiquidations = (
     }
   }
   
+  // Casos normais (apenas um tipo detectado)
   return {
     longLiquidation: longDetected ? {
       type: 'long' as const,
