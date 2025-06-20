@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Database, RefreshCw, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -5,6 +6,8 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
+import { useRealFlowData } from '../hooks/useRealFlowData';
+import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 
 interface VolumeData {
   id: string;
@@ -15,54 +18,113 @@ interface VolumeData {
   change24h: number;
   exchange: string;
   timestamp: string;
+  ticker: string;
+  trades_count: number;
 }
 
 const UnusualVolume: React.FC = () => {
   const navigate = useNavigate();
+  const { flowData } = useRealFlowData();
+  const { liquidations, coinTrends } = useSupabaseStorage();
+  
   const [spotVolume, setSpotVolume] = useState<VolumeData[]>([]);
   const [futuresVolume, setFuturesVolume] = useState<VolumeData[]>([]);
   const [microcaps, setMicrocaps] = useState<VolumeData[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
 
-  // Simulate data generation
-  const generateVolumeData = (type: 'spot' | 'futures' | 'microcap', count: number): VolumeData[] => {
-    const symbols = type === 'microcap' 
-      ? ['PEPE', 'SHIB', 'DOGE', 'WIF', 'BONK', 'FLOKI', 'MEME', 'WOJAK', 'TURBO', 'LADYS']
-      : ['BTC', 'ETH', 'BNB', 'XRP', 'ADA', 'SOL', 'AVAX', 'DOT', 'MATIC', 'UNI', 'LINK', 'LTC', 'BCH', 'XLM', 'VET'];
-    
-    return Array.from({ length: count }, (_, i) => ({
-      id: `${type}-${i}`,
-      symbol: symbols[i % symbols.length] + (type === 'futures' ? '-PERP' : ''),
-      volume: Math.random() * 1000000000,
-      volumeSpike: 3 + Math.random() * 20,
-      price: type === 'microcap' ? Math.random() * 1 : Math.random() * 100000,
-      change24h: (Math.random() - 0.5) * 30,
-      exchange: Math.random() > 0.5 ? 'Binance' : 'OKX',
-      timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString() // Último 1 hora
-    })).sort((a, b) => b.volumeSpike - a.volumeSpike);
-  };
+  // High market cap assets for classification
+  const highMarketCapAssets = [
+    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'DOTUSDT', 
+    'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT',
+    'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEOUSDT', 'ALGOUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT',
+    'APEUSDT', 'CHZUSDT', 'GALAUSDT', 'ENJUSDT', 'NEARUSDT', 'QNTUSDT', 'FLOWUSDT', 'ICPUSDT',
+    'THETAUSDT', 'XTZUSDT', 'MKRUSDT', 'FTMUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT', 'COMPUSDT',
+    'UNIUSDT', 'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT'
+  ];
 
-  const fetchData = async () => {
+  // Microcap assets for classification
+  const microcapAssets = [
+    'PEPEUSDT', 'SHIBUSDT', 'WIFUSDT', 'BONKUSDT', 'FLOKIUSDT', 'MEMEUSDT', 'TURBOUSDT',
+    '1000RATSUSDT', 'ORDIUSDT', '1000SATSUSDT', 'BOMEUSDT', 'JUPUSDT', 'WUSDT'
+  ];
+
+  const processRealData = () => {
+    if (!flowData || flowData.length === 0) return;
+
     setLoading(true);
+    const now = new Date();
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Process flow data for unusual volume detection
+    const processedData: VolumeData[] = flowData
+      .filter(data => {
+        const volumeValue = data.volume * data.price;
+        const priceChange = Math.abs(data.change_24h || 0);
+        
+        // Enhanced volume spike detection
+        const baseVolumeThreshold = highMarketCapAssets.includes(data.ticker) ? 50000 : 15000;
+        const volumeSpike = volumeValue / baseVolumeThreshold;
+        
+        return volumeSpike >= 3.0 && priceChange >= 0.5; // 3x volume spike + 0.5% price movement
+      })
+      .map(data => {
+        const volumeValue = data.volume * data.price;
+        const baseVolumeThreshold = highMarketCapAssets.includes(data.ticker) ? 50000 : 15000;
+        const volumeSpike = volumeValue / baseVolumeThreshold;
+        
+        return {
+          id: `${data.ticker}-${data.timestamp || Date.now()}`,
+          symbol: data.ticker.replace('USDT', ''),
+          volume: volumeValue,
+          volumeSpike: volumeSpike,
+          price: data.price,
+          change24h: data.change_24h || 0,
+          exchange: 'Binance',
+          timestamp: new Date(data.timestamp || Date.now()).toISOString(),
+          ticker: data.ticker,
+          trades_count: data.trades_count || 0
+        };
+      })
+      .sort((a, b) => b.volumeSpike - a.volumeSpike);
+
+    // Categorize data
+    const futures = processedData.filter(item => 
+      !microcapAssets.includes(item.ticker) && 
+      (item.volumeSpike >= 4.0 || item.volume >= 100000)
+    ).slice(0, 20);
     
-    setSpotVolume(generateVolumeData('spot', 20));
-    setFuturesVolume(generateVolumeData('futures', 20));
-    setMicrocaps(generateVolumeData('microcap', 20));
-    setLastUpdate(new Date());
+    const spot = processedData.filter(item => 
+      highMarketCapAssets.includes(item.ticker) && 
+      item.volumeSpike >= 3.0
+    ).slice(0, 20);
+    
+    const microcap = processedData.filter(item => 
+      microcapAssets.includes(item.ticker) || 
+      (!highMarketCapAssets.includes(item.ticker) && item.volume < 100000)
+    ).slice(0, 20);
+
+    setFuturesVolume(futures);
+    setSpotVolume(spot);
+    setMicrocaps(microcap);
+    setLastUpdate(now);
     setLoading(false);
+
+    console.log(`📊 Unusual Volume Updated: Spot=${spot.length}, Futures=${futures.length}, Microcaps=${microcap.length}`);
   };
 
+  // Process real data when flowData changes
   useEffect(() => {
-    fetchData();
+    processRealData();
+  }, [flowData]);
+
+  // Auto-refresh every 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      processRealData();
+    }, 2 * 60 * 1000);
     
-    // Auto-refresh every 3 minutes
-    const interval = setInterval(fetchData, 3 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [flowData]);
 
   const formatVolume = (volume: number) => {
     if (volume >= 1e9) return `$${(volume / 1e9).toFixed(2)}B`;
@@ -104,16 +166,14 @@ const UnusualVolume: React.FC = () => {
   };
 
   const getVolumeDirection = (item: VolumeData): { direction: string; emoji: string; color: string } => {
-    // Analisa direção baseada em múltiplos fatores
     const priceMovement = item.change24h;
     const volumeSpike = item.volumeSpike;
     
-    // Lógica para determinar se é volume comprador ou vendedor
-    if (priceMovement > 1 && volumeSpike > 4) {
+    if (priceMovement > 1 && volumeSpike > 5) {
       return { direction: 'Volume Comprador Forte', emoji: '🟢', color: 'text-[#A6FF00]' };
     } else if (priceMovement > 0.5) {
       return { direction: 'Volume Comprador', emoji: '🔵', color: 'text-[#00E0FF]' };
-    } else if (priceMovement < -1 && volumeSpike > 4) {
+    } else if (priceMovement < -1 && volumeSpike > 5) {
       return { direction: 'Volume Vendedor Forte', emoji: '🔴', color: 'text-[#FF4D4D]' };
     } else if (priceMovement < -0.5) {
       return { direction: 'Volume Vendedor', emoji: '🟠', color: 'text-[#FF8C00]' };
@@ -128,6 +188,9 @@ const UnusualVolume: React.FC = () => {
         <CardTitle className="flex items-center space-x-2 text-[#F5F5F5] font-mono">
           <TrendingUp className="w-5 h-5 text-[#00E0FF]" />
           <span>{title}</span>
+          <Badge className="bg-[#00E0FF]/20 text-[#00E0FF] border-[#00E0FF]/30">
+            {data.length} assets
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -144,7 +207,7 @@ const UnusualVolume: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2E2E2E]">
-              {data.map((item) => {
+              {data.length > 0 ? data.map((item) => {
                 const { time, date } = formatDateTime(item.timestamp);
                 const timeAgo = getTimeAgo(item.timestamp);
                 const volumeInfo = getVolumeDirection(item);
@@ -194,6 +257,7 @@ const UnusualVolume: React.FC = () => {
                             <div>⏱️ <span className="text-[#A6FF00]">{timeAgo}</span></div>
                             <div>📈 Volume: <span className="text-[#F5F5F5] font-mono">{formatVolume(item.volume)}</span></div>
                             <div>🚀 Spike: <span className="text-[#FF4D4D] font-mono">{item.volumeSpike.toFixed(1)}x normal</span></div>
+                            <div>📊 Trades: <span className="text-[#F5F5F5] font-mono">{item.trades_count.toLocaleString()}</span></div>
                             <div className="flex items-center space-x-2 pt-1 border-t border-[#2E2E2E]">
                               <span>{volumeInfo.emoji}</span>
                               <span className={`font-mono text-xs ${volumeInfo.color}`}>{volumeInfo.direction}</span>
@@ -204,7 +268,17 @@ const UnusualVolume: React.FC = () => {
                     </Tooltip>
                   </TooltipProvider>
                 );
-              })}
+              }) : (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-[#AAAAAA]">
+                    <div className="flex flex-col items-center space-y-2">
+                      <TrendingUp className="w-8 h-8 text-[#00E0FF]/50" />
+                      <span>Monitorando volume anormal...</span>
+                      <span className="text-xs">Aguardando spikes de 3x+</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -235,15 +309,18 @@ const UnusualVolume: React.FC = () => {
                 <div>
                   <h2 className="text-xl font-bold text-[#F5F5F5] font-mono">UNUSUAL VOLUME MONITOR 💥</h2>
                   <div className="flex items-center space-x-4 text-sm text-[#AAAAAA]">
-                    <span>Rastreando spikes de volume 3x+ • Auto-refresh a cada 3 minutos</span>
+                    <span>Rastreando spikes de volume 3x+ em tempo real</span>
                     <span>Última atualização: {lastUpdate.toLocaleTimeString()}</span>
+                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                      LIVE DATA
+                    </Badge>
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <Button
-                onClick={fetchData}
+                onClick={processRealData}
                 disabled={loading}
                 variant="outline"
                 className="flex items-center space-x-2 border-[#2E2E2E] text-[#AAAAAA] hover:bg-[#2E2E2E] hover:border-[#00E0FF] hover:text-[#F5F5F5]"
