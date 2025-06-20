@@ -1,14 +1,6 @@
 
 import { useEffect, useState } from 'react';
-
-interface FlowData {
-  ticker: string;
-  volume: number;
-  price: number;
-  change_24h: number;
-  timestamp: string;
-  trades_count: number;
-}
+import { FlowData } from '../../services/BinanceWebSocketService';
 
 interface VolumeData {
   id: string;
@@ -78,14 +70,14 @@ export const VolumeDataProcessor: React.FC<VolumeDataProcessorProps> = ({
         const volumeSpike = volumeValue / baseVolumeThreshold;
         
         return {
-          id: `${data.ticker}-${data.timestamp || Date.now()}`,
+          id: `${data.ticker}-${data.timestamp}`,
           symbol: data.ticker.replace('USDT', ''),
           volume: volumeValue,
           volumeSpike: volumeSpike,
           price: data.price,
           change24h: data.change_24h || 0,
           exchange: 'Binance',
-          timestamp: new Date(data.timestamp || Date.now()).toISOString(),
+          timestamp: new Date(data.timestamp).toISOString(), // Convert number to string
           ticker: data.ticker,
           trades_count: data.trades_count || 0
         };
