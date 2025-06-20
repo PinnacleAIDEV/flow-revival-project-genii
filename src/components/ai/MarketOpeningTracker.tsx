@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Clock, Globe, TrendingUp, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -86,8 +85,20 @@ export const MarketOpeningTracker: React.FC = () => {
 
   // Simular análise VWAP (em produção conectaria com dados reais)
   const generateVWAPAnalysis = (market: MarketSession) => {
+    const directions: ('bullish' | 'bearish' | 'neutral')[] = ['bullish', 'bearish', 'neutral'];
+    const randomValue = Math.random();
+    let direction: 'bullish' | 'bearish' | 'neutral';
+    
+    if (randomValue > 0.6) {
+      direction = 'bullish';
+    } else if (randomValue > 0.3) {
+      direction = 'bearish';
+    } else {
+      direction = 'neutral';
+    }
+
     const mockAnalysis = {
-      direction: Math.random() > 0.6 ? 'bullish' : Math.random() > 0.3 ? 'bearish' : 'neutral' as const,
+      direction,
       strength: Math.floor(Math.random() * 10) + 1,
       volume: Math.floor(Math.random() * 1000000) + 500000,
       keyLevels: [
@@ -121,12 +132,13 @@ export const MarketOpeningTracker: React.FC = () => {
       const activeMarkets = updatedMarkets.filter(m => m.isActive);
       if (activeMarkets.length > 0 && Math.random() > 0.8) {
         const randomMarket = activeMarkets[Math.floor(Math.random() * activeMarkets.length)];
+        const signals: ('above' | 'below' | 'cross_up' | 'cross_down')[] = ['above', 'below', 'cross_up', 'cross_down'];
         const mockSignal: VWAPSignal = {
           market: randomMarket.name,
           timestamp: new Date(),
           price: 48000 + Math.random() * 4000,
           vwap: 47800 + Math.random() * 3000,
-          signal: ['above', 'below', 'cross_up', 'cross_down'][Math.floor(Math.random() * 4)] as any,
+          signal: signals[Math.floor(Math.random() * signals.length)],
           volume: Math.floor(Math.random() * 500000) + 100000,
           strength: Math.floor(Math.random() * 10) + 1
         };
