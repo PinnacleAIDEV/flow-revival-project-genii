@@ -2,22 +2,22 @@
 import React from 'react';
 import { useUnifiedLiquidations } from '../hooks/useUnifiedLiquidations';
 import { useTrading } from '../contexts/TradingContext';
-import { EnhancedTrendReversalSection } from './liquidation/EnhancedTrendReversalSection';
+import { AITrendReversalSection } from './liquidation/AITrendReversalSection';
 
 export const TrendReversalDetector: React.FC = () => {
-  const { trendReversals } = useUnifiedLiquidations();
+  const { unifiedAssets } = useUnifiedLiquidations();
   const { setSelectedAsset } = useTrading();
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
     setSelectedAsset(fullTicker);
-    console.log(`🔄 Trend Reversal selecionado: ${fullTicker}`);
+    console.log(`🔄 AI Trend Reversal selecionado: ${fullTicker}`);
   };
 
   return (
-    <div className="h-[500px] scanlines">
-      <EnhancedTrendReversalSection 
-        trendReversals={trendReversals}
+    <div className="h-[600px] scanlines">
+      <AITrendReversalSection 
+        unifiedAssets={unifiedAssets}
         onAssetClick={handleAssetClick}
       />
     </div>
