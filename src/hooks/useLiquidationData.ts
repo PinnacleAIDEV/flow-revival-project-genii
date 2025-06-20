@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { LiquidationBubble, getMarketCapCategory, LiquidationStats } from '../types/liquidation';
-import { safeCreateDate, calculateDynamicThreshold, calculateIntensity, shouldDetectLiquidation, logLiquidationDetection } from '../utils/liquidationUtils';
+import { safeCreateDate, formatAmount, detectLiquidations } from '../utils/liquidationUtils';
 import { useRealFlowData } from './useRealFlowData';
 import { useSupabaseStorage } from './useSupabaseStorage';
 import { usePersistedData } from './usePersistedData';
@@ -153,42 +153,27 @@ export const useLiquidationData = () => {
         const marketCap = getMarketCapCategory(data.ticker);
         const isHighMarketCap = marketCap === 'high';
         
-        // NOVA LÓGICA: Thresholds dinâmicos e equalizados
-        const threshold = calculateDynamicThreshold(data.ticker, isHighMarketCap, volumeValue);
-        const shouldDetect = shouldDetectLiquidation(volumeValue, priceChange, threshold);
+        // NOVA LÓGICA: Detecção espelhada usando funções específicas
+        const detection = detectLiquidations(data.ticker, volumeValue, priceChange, isHighMarketCap);
         
-        // Detectar tipo de liquidação (CORRIGIDO)
-        let liquidationType: 'long' | 'short';
-        if (priceChange < 0) {
-          // Preço caindo = LONGs sendo liquidados
-          liquidationType = 'long';
-        } else {
-          // Preço subindo = SHORTs sendo liquidados  
-          liquidationType = 'short';
-        }
-        
-        // Log detalhado da decisão
-        logLiquidationDetection(data.ticker, liquidationType, volumeValue, priceChange, threshold, shouldDetect);
-        
-        if (shouldDetect) {
-          const intensity = calculateIntensity(volumeValue, priceChange, threshold);
-          
+        // Processar Long Liquidation se detectada
+        if (detection.longLiquidation) {
           const liquidation: LiquidationBubble = {
-            id: `${data.ticker}-${now.getTime()}`,
+            id: `${data.ticker}-long-${now.getTime()}`,
             asset: data.ticker.replace('USDT', ''),
-            type: liquidationType,
+            type: 'long',
             amount: volumeValue,
             price: data.price,
             marketCap,
             timestamp: safeCreateDate(data.timestamp),
-            intensity,
+            intensity: detection.longLiquidation.intensity,
             change24h: priceChange,
             volume: data.volume,
             lastUpdateTime: now,
             totalLiquidated: volumeValue
           };
           
-          console.log(`💥 LIQUIDAÇÃO EQUALIZADA: ${liquidation.asset} (${marketCap.toUpperCase()}) - ${liquidation.type.toUpperCase()} - Change: ${priceChange.toFixed(2)}% - ${(liquidation.totalLiquidated / 1000).toFixed(0)}K`);
+          console.log(`🔴 LONG LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Fall: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.totalLiquidated)}`);
           
           // Salvar no Supabase
           saveLiquidation({
@@ -205,12 +190,48 @@ export const useLiquidationData = () => {
             volume_spike: 1
           });
           
-          if (liquidation.type === 'long') {
-            newLongLiquidations.push(liquidation);
-          } else {
-            newShortLiquidations.push(liquidation);
-          }
+          newLongLiquidations.push(liquidation);
+        }
+        
+        // Processar Short Liquidation se detectada
+        if (detection.shortLiquidation) {
+          const liquidation: LiquidationBubble = {
+            id: `${data.ticker}-short-${now.getTime()}`,
+            asset: data.ticker.replace('USDT', ''),
+            type: 'short',
+            amount: volumeValue,
+            price: data.price,
+            marketCap,
+            timestamp: safeCreateDate(data.timestamp),
+            intensity: detection.shortLiquidation.intensity,
+            change24h: priceChange,
+            volume: data.volume,
+            lastUpdateTime: now,
+            totalLiquidated: volumeValue
+          };
+          
+          console.log(`🟢 SHORT LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Rise: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.totalLiquidated)}`);
+          
+          // Salvar no Supabase
+          saveLiquidation({
+            asset: liquidation.asset,
+            ticker: data.ticker,
+            type: liquidation.type,
+            amount: liquidation.amount,
+            price: liquidation.price,
+            market_cap: liquidation.marketCap,
+            intensity: liquidation.intensity,
+            change_24h: liquidation.change24h,
+            volume: liquidation.volume,
+            total_liquidated: liquidation.totalLiquidated,
+            volume_spike: 1
+          });
+          
+          newShortLiquidations.push(liquidation);
+        }
 
+        // Marcar como processado se alguma liquidação foi detectada
+        if (detection.longLiquidation || detection.shortLiquidation) {
           setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
         }
       } catch (error) {
