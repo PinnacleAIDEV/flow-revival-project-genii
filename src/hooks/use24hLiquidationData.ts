@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDailyReset } from './useDailyReset';
 import { LiquidationBubble } from '../types/liquidation';
 import { formatAmount } from '../utils/liquidationUtils';
@@ -19,12 +19,12 @@ export const use24hLiquidationData = () => {
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
 
   // Usar reset diário para limpar dados às 00:00 UTC
-  const { timeUntilReset } = useDailyReset(() => {
+  const { timeUntilReset } = useDailyReset(useCallback(() => {
     console.log('🔄 Resetando totais 24h de liquidações...');
     setDailyTotals([]);
     localStorage.removeItem('dailyLiquidationTotals');
     setLastUpdateTime(new Date());
-  });
+  }, []));
 
   // Carregar dados persistidos na inicialização
   useEffect(() => {
@@ -51,8 +51,8 @@ export const use24hLiquidationData = () => {
     }
   }, [dailyTotals]);
 
-  // Função para adicionar liquidação ao total 24h
-  const addLiquidationToDaily = (liquidation: LiquidationBubble) => {
+  // Função para adicionar liquidação ao total 24h - usando useCallback para evitar re-renders
+  const addLiquidationToDaily = useCallback((liquidation: LiquidationBubble) => {
     setDailyTotals(prev => {
       const existing = prev.find(item => item.asset === liquidation.asset);
       const now = new Date();
@@ -94,14 +94,14 @@ export const use24hLiquidationData = () => {
     });
     
     setLastUpdateTime(new Date());
-  };
+  }, []);
 
   // Obter top ativos por categoria
-  const getTopByCategory = (category: 'high' | 'low', limit: number = 10) => {
+  const getTopByCategory = useCallback((category: 'high' | 'low', limit: number = 10) => {
     return dailyTotals
       .filter(item => item.marketCap === category)
       .slice(0, limit);
-  };
+  }, [dailyTotals]);
 
   // Estatísticas gerais
   const stats = {

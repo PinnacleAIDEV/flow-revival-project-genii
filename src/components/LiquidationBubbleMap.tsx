@@ -11,8 +11,12 @@ import { DailyTotalSection } from './liquidation/DailyTotalSection';
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { setSelectedAsset } = useTrading();
-  const { longLiquidations, shortLiquidations } = useLiquidationData();
-  const { dailyTotals, stats: dailyStats, timeUntilReset, lastUpdateTime } = use24hLiquidationData();
+  
+  // Primeiro inicializar o hook 24h
+  const { dailyTotals, stats: dailyStats, timeUntilReset, lastUpdateTime, addLiquidationToDaily } = use24hLiquidationData();
+  
+  // Depois usar o hook principal com callback
+  const { longLiquidations, shortLiquidations } = useLiquidationData({ addLiquidationToDaily });
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;

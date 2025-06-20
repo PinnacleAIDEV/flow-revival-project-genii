@@ -5,12 +5,15 @@ import { safeCreateDate, formatAmount, detectLiquidations } from '../utils/liqui
 import { useRealFlowData } from './useRealFlowData';
 import { useSupabaseStorage } from './useSupabaseStorage';
 import { usePersistedData } from './usePersistedData';
-import { use24hLiquidationData } from './use24hLiquidationData';
 
-export const useLiquidationData = () => {
+// Interface para callback de dados 24h
+interface Use24hLiquidationCallback {
+  addLiquidationToDaily: (liquidation: LiquidationBubble) => void;
+}
+
+export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) => {
   const { flowData } = useRealFlowData();
   const { saveLiquidation } = useSupabaseStorage();
-  const { addLiquidationToDaily } = use24hLiquidationData();
   
   // Usar dados persistidos
   const { 
@@ -224,8 +227,10 @@ export const useLiquidationData = () => {
             volume_spike: 1
           });
           
-          // Adicionar aos totais 24h
-          addLiquidationToDaily(liquidation);
+          // Adicionar aos totais 24h se callback disponível
+          if (dailyCallback?.addLiquidationToDaily) {
+            dailyCallback.addLiquidationToDaily(liquidation);
+          }
           
           newLongLiquidations.push(liquidation);
         }
@@ -264,8 +269,10 @@ export const useLiquidationData = () => {
             volume_spike: 1
           });
           
-          // Adicionar aos totais 24h
-          addLiquidationToDaily(liquidation);
+          // Adicionar aos totais 24h se callback disponível
+          if (dailyCallback?.addLiquidationToDaily) {
+            dailyCallback.addLiquidationToDaily(liquidation);
+          }
           
           newShortLiquidations.push(liquidation);
         }
@@ -329,7 +336,7 @@ export const useLiquidationData = () => {
         return filtered;
       });
     }
-  }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations, addLiquidationToDaily]);
+  }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations, dailyCallback]);
 
   // Atualizar stats quando liquidações mudarem
   useEffect(() => {
