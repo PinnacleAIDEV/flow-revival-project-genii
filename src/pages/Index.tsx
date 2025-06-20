@@ -58,7 +58,7 @@ const Index = () => {
       status: "NEW"
     },
     {
-      title: "DASHBOARD_CENTRAL",
+      title: "DASHBOARD",
       description: "&gt;&gt; PAINEL DE CONTROLE E DADOS CADASTRAIS DO USUÁRIO",
       icon: LayoutDashboard,
       route: "/dashboard",
@@ -94,13 +94,6 @@ const Index = () => {
       description: "Tracking de abertura de mercados globais",
       prompt: "Monitora abertura de mercados globais e impacto no crypto"
     }
-  ];
-
-  const stats = [
-    { label: "EXCHANGES_MONITORED", value: "50+", ascii: "📊" },
-    { label: "ALERTS_PER_DAY", value: "1.2K+", ascii: "🚨" },
-    { label: "AI_ACCURACY", value: "94%", ascii: "🧠" },
-    { label: "SYSTEM_UPTIME", value: "99.9%", ascii: "⚡" }
   ];
 
   return (
@@ -178,12 +171,13 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="ml-84 container mx-auto px-4 py-8">
-        {/* ASCII Header */}
-        <div className="text-center mb-12">
-          <div className="ascii-divider"></div>
-          <pre className="text-neon text-xs mb-4 font-mono leading-none">
+      {/* Main Content - Fixed margin to prevent overlap */}
+      <div className="ml-84 min-h-screen">
+        <div className="container mx-auto px-6 py-8">
+          {/* ASCII Header */}
+          <div className="text-center mb-12">
+            <div className="ascii-divider"></div>
+            <pre className="text-neon text-xs mb-4 font-mono leading-none">
 {`
 ██████╗ ██╗███╗   ██╗███╗   ██╗ █████╗  ██████╗██╗     ███████╗    ███╗   ███╗ █████╗ ██████╗ ██╗  ██╗███████╗████████╗    ██╗███╗   ██╗████████╗███████╗██╗     
 ██╔══██╗██║████╗  ██║████╗  ██║██╔══██╗██╔════╝██║     ██╔════╝    ████╗ ████║██╔══██╗██╔══██╗██║ ██╔╝██╔════╝╚══██╔══╝    ██║████╗  ██║╚══██╔══╝██╔════╝██║     
@@ -192,141 +186,129 @@ const Index = () => {
 ██║     ██║██║ ╚████║██║ ╚████║██║  ██║╚██████╗███████╗███████╗    ██║ ╚═╝ ██║██║  ██║██║  ██║██║  ██╗███████╗   ██║       ██║██║ ╚████║   ██║   ███████╗███████╗
 ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚══════╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝       ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝
 `}
-          </pre>
-          <div className="ascii-divider"></div>
-          
-          <div className="terminal p-6 mb-8 scanlines">
-            <p className="text-electric font-mono-bold text-lg mb-4">
-              &gt;&gt; PLATAFORMA COMPLETA DE INTELIGÊNCIA CRYPTO
-            </p>
-            <p className="text-neon font-mono text-sm leading-relaxed">
-              ANÁLISE EM TEMPO REAL // TRACKING DE LIQUIDAÇÕES // INTELIGÊNCIA ARTIFICIAL
-            </p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="brutal-btn px-8 py-4 text-lg font-display glitch"
-              data-text="&gt;&gt; DASHBOARD"
-            >
-              &gt;&gt; DASHBOARD
-            </button>
-            <button
-              onClick={() => navigate('/aipinnacle')}
-              className="brutal-btn px-8 py-4 text-lg font-display glitch bg-electric text-black border-electric hover:bg-neon hover:border-neon"
-              data-text="★ AI PINNACLE PRO"
-            >
-              ★ AI PINNACLE PRO
-            </button>
-          </div>
-        </div>
-
-        {/* AI/ML Section */}
-        <div className="mb-16">
-          <div className="ascii-divider mb-6"></div>
-          <div className="brutal-card p-8 scanlines">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 border-2 border-neon bg-neon mx-auto mb-4 flex items-center justify-center">
-                <Brain className="w-8 h-8 text-black" />
-              </div>
-              <h2 className="font-display text-neon text-3xl mb-4 glitch" data-text="AI_INTELLIGENCE_SUITE">
-                AI_INTELLIGENCE_SUITE
-              </h2>
-              <p className="text-electric font-mono text-lg mb-6">
-                &gt;&gt; INTELIGÊNCIA ARTIFICIAL PARA ANÁLISE DE MERCADO AVANÇADA
+            </pre>
+            <div className="ascii-divider"></div>
+            
+            <div className="terminal p-6 mb-8 scanlines">
+              <p className="text-electric font-mono-bold text-lg mb-4">
+                &gt;&gt; PLATAFORMA COMPLETA DE INTELIGÊNCIA CRYPTO
               </p>
-              <button
-                onClick={() => navigate('/ai-analytics')}
-                className="brutal-btn px-6 py-3 font-display"
-              >
-                ACESSAR_AI_SUITE →
-              </button>
+              <p className="text-neon font-mono text-sm leading-relaxed">
+                ANÁLISE EM TEMPO REAL // TRACKING DE LIQUIDAÇÕES // INTELIGÊNCIA ARTIFICIAL
+              </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {aiFeatures.map((feature, index) => (
-                <div key={index} className="border-2 border-electric p-4 bg-black">
-                  <h3 className="font-display text-electric text-sm mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-neon font-mono text-xs mb-3">
-                    {feature.description}
-                  </p>
-                  <div className="border-t-2 border-neon pt-2">
-                    <p className="text-electric font-mono text-xs">
-                      PROMPT: {feature.prompt}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="brutal-btn px-8 py-4 text-lg font-display glitch"
+                data-text="&gt;&gt; DASHBOARD"
+              >
+                &gt;&gt; DASHBOARD
+              </button>
+              <button
+                onClick={() => navigate('/aipinnacle')}
+                className="brutal-btn px-8 py-4 text-lg font-display glitch bg-electric text-black border-electric hover:bg-neon hover:border-neon"
+                data-text="★ AI PINNACLE PRO"
+              >
+                ★ AI PINNACLE PRO
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Stats Terminal */}
-        <div className="terminal mb-12 scanlines">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center border-2 border-neon p-4">
-                <div className="text-2xl mb-2">{stat.ascii}</div>
-                <div className="text-2xl font-mono-bold text-electric">{stat.value}</div>
-                <div className="text-sm font-mono text-neon">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Tools Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {tools.slice(0, 6).map((tool, index) => {
-            const Icon = tool.icon;
-            return (
-              <div
-                key={index}
-                className="brutal-card p-6 cursor-pointer group scanlines"
-                onClick={() => navigate(tool.route)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 border-2 border-electric bg-electric flex items-center justify-center group-hover:bg-neon group-hover:border-neon transition-colors">
-                    <Icon className="w-6 h-6 text-black" />
-                  </div>
-                  {tool.status && (
-                    <div className={`px-2 py-1 text-xs font-mono-bold border-2 ${
-                      tool.status === 'NEW' ? 'border-neon bg-neon text-black' : 
-                      tool.status === 'LAUNCH' ? 'border-electric bg-electric text-black' :
-                      tool.status === 'BETA' ? 'border-glitch-red bg-glitch-red text-black' :
-                      'border-neon bg-neon text-black'
-                    }`}>
-                      [{tool.status}]
-                    </div>
-                  )}
+          {/* AI/ML Section */}
+          <div className="mb-16">
+            <div className="ascii-divider mb-6"></div>
+            <div className="brutal-card p-8 scanlines">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 border-2 border-neon bg-neon mx-auto mb-4 flex items-center justify-center">
+                  <Brain className="w-8 h-8 text-black" />
                 </div>
-                
-                <h3 className="font-display text-neon text-lg mb-3 group-hover:text-electric transition-colors glitch" data-text={tool.title}>
-                  {tool.title}
-                </h3>
-                
-                <p className="text-electric font-mono text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: tool.description }}>
+                <h2 className="font-display text-neon text-3xl mb-4 glitch" data-text="AI_INTELLIGENCE_SUITE">
+                  AI_INTELLIGENCE_SUITE
+                </h2>
+                <p className="text-electric font-mono text-lg mb-6">
+                  &gt;&gt; INTELIGÊNCIA ARTIFICIAL PARA ANÁLISE DE MERCADO AVANÇADA
                 </p>
-                
-                <div className="border-t-2 border-neon pt-4">
-                  <span className="text-neon font-mono-bold text-xs group-hover:text-electric transition-colors">
-                    [PRESS_TO_ACCESS] →
-                  </span>
-                </div>
+                <button
+                  onClick={() => navigate('/ai-analytics')}
+                  className="brutal-btn px-6 py-3 font-display"
+                >
+                  ACESSAR_AI_SUITE →
+                </button>
               </div>
-            );
-          })}
-        </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {aiFeatures.map((feature, index) => (
+                  <div key={index} className="border-2 border-electric p-4 bg-black">
+                    <h3 className="font-display text-electric text-sm mb-2">
+                      {feature.title}
+                    </h3>
+                    <p className="text-neon font-mono text-xs mb-3">
+                      {feature.description}
+                    </p>
+                    <div className="border-t-2 border-neon pt-2">
+                      <p className="text-electric font-mono text-xs">
+                        PROMPT: {feature.prompt}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-        {/* ASCII Footer */}
-        <div className="text-center border-t-2 border-neon pt-8">
-          <div className="ascii-divider"></div>
-          <p className="text-electric font-mono text-sm">
-            © 2024 PINNACLE_MARKET_INTEL // PLATAFORMA DE ANÁLISE CRYPTO EM TEMPO REAL
-          </p>
-          <div className="ascii-divider"></div>
+          {/* Tools Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            {tools.slice(0, 6).map((tool, index) => {
+              const Icon = tool.icon;
+              return (
+                <div
+                  key={index}
+                  className="brutal-card p-6 cursor-pointer group scanlines"
+                  onClick={() => navigate(tool.route)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 border-2 border-electric bg-electric flex items-center justify-center group-hover:bg-neon group-hover:border-neon transition-colors">
+                      <Icon className="w-6 h-6 text-black" />
+                    </div>
+                    {tool.status && (
+                      <div className={`px-2 py-1 text-xs font-mono-bold border-2 ${
+                        tool.status === 'NEW' ? 'border-neon bg-neon text-black' : 
+                        tool.status === 'LAUNCH' ? 'border-electric bg-electric text-black' :
+                        tool.status === 'BETA' ? 'border-glitch-red bg-glitch-red text-black' :
+                        'border-neon bg-neon text-black'
+                      }`}>
+                        [{tool.status}]
+                      </div>
+                    )}
+                  </div>
+                  
+                  <h3 className="font-display text-neon text-lg mb-3 group-hover:text-electric transition-colors glitch" data-text={tool.title}>
+                    {tool.title}
+                  </h3>
+                  
+                  <p className="text-electric font-mono text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: tool.description }}>
+                  </p>
+                  
+                  <div className="border-t-2 border-neon pt-4">
+                    <span className="text-neon font-mono-bold text-xs group-hover:text-electric transition-colors">
+                      [PRESS_TO_ACCESS] →
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ASCII Footer */}
+          <div className="text-center border-t-2 border-neon pt-8">
+            <div className="ascii-divider"></div>
+            <p className="text-electric font-mono text-sm">
+              © 2024 PINNACLE_MARKET_INTEL // PLATAFORMA DE ANÁLISE CRYPTO EM TEMPO REAL
+            </p>
+            <div className="ascii-divider"></div>
+          </div>
         </div>
       </div>
     </div>
