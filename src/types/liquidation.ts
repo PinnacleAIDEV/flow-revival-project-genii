@@ -45,15 +45,28 @@ export const highMarketCapAssets = [
   'ONTUSDT', 'ZILUSDT', 'QTMUSDT', 'WAVESUSDT', 'ICXUSDT', 'SCUSDT',
   
   // DeFi e L2s importantes
-  'ARBUSDT', 'OPUSDT', 'LDO2USDT', 'RPLRUSDT', 'GMXUSDT', 'PEPEUSDT', 'INJUSDT',
-  'SUIUSDT', 'APTUSDT', 'STXUSDT', 'MINAUSDT', 'CFXUSDT', 'KASUSDT'
+  'ARBUSDT', 'OPUSDT', 'LDOUSDT', 'RPLRUSDT', 'GMXUSDT', 'PEPEUSDT', 'INJUSDT',
+  'SUIUSDT', 'APTUSDT', 'STXUSDT', 'MINAUSDT', 'CFXUSDT', 'KASUSDT',
+  
+  // Adicionais para maior cobertura
+  'TONUSDT', 'HBARUSDT', 'RENDERUSDT', 'IMXUSDT', 'FETUSDT', 'GRTUSDT', 'SANDUSDT',
+  'ROSEUSDT', 'DYDXUSDT', 'ENSUSDT', '1INCHUSDT', 'PERPUSDT', 'MASKUSDT', 'CTSIUSDT'
 ];
 
 // Assets considerados low market cap para contraste
 export const lowMarketCapAssets = [
   // Memecoins e tokens menores
   'FLOKIUSDT', 'BONKUSDT', 'WIFUSDT', 'MEMEUSDT', 'TURBOUSDT', 'BOMEUSDT',
-  '1000RATSUSDT', 'ORDIUSDT', '1000SATSUSDT', 'JUPUSDT', 'WUSDT', 'MYROUS
+  '1000RATSUSDT', 'ORDIUSDT', '1000SATSUSDT', 'JUPUSDT', 'WUSDT', 'MYRORUSDT',
+  
+  // Tokens emergentes e de menor market cap
+  'NKNUSDT', 'STORJUSDT', 'RAYUSDT', 'SPELLUSDT', 'JASMYUSDT', 'HIGHUSDT',
+  'PORTALUSDT', 'PIXELUSDT', 'STRKUSDT', 'WUSDT', 'ACEUSDT', 'NFPUSDT',
+  'AIUSDT', 'XAIUSDT', 'MANTAUSDT', 'ALTUSDT', 'PYTHUSDT', 'RONINUSDT',
+  
+  // Gaming e NFT tokens menores
+  'YGGUSDT', 'ALICEUSDT', 'TLMUSDT', 'DEGOUSDT', 'SUPERUSDT', 'GHSTUSDT',
+  'MCUSDT', 'PROSUSDT', 'FTTUSDT', 'LOOMUSDT', 'COMBOUSDT', 'MAVUSDT'
 ];
 
 export const getMarketCapCategory = (ticker: string): 'high' | 'low' => {
@@ -75,3 +88,18 @@ export interface LiquidationStats {
   lowCapLong: number;
   lowCapShort: number;
 }
+
+// Configurações para detecção balanceada
+export interface DetectionConfig {
+  minLiquidationsPerType: number;
+  maxLiquidationsPerType: number;
+  highCapRatio: number; // Percentual de high cap (0.5 = 50%)
+  lowCapRatio: number;  // Percentual de low cap (0.5 = 50%)
+}
+
+export const defaultDetectionConfig: DetectionConfig = {
+  minLiquidationsPerType: 5,
+  maxLiquidationsPerType: 15,
+  highCapRatio: 0.5,
+  lowCapRatio: 0.5
+};
