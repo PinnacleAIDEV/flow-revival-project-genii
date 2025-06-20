@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const Index = () => {
   const navigate = useNavigate();
+  const [isNavHovered, setIsNavHovered] = useState(false);
 
   const tools = [
     {
@@ -99,7 +100,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-black grid-overlay">
       {/* Vertical Header */}
-      <div className="fixed left-0 top-0 h-full w-20 bg-black border-r-2 border-neon z-50 flex flex-col items-center py-4 scanlines">
+      <div 
+        className={`fixed left-0 top-0 h-full bg-black border-r-2 border-neon z-50 flex flex-col items-center py-4 scanlines transition-all duration-300 ${
+          isNavHovered ? 'w-20' : 'w-16'
+        }`}
+        onMouseEnter={() => setIsNavHovered(true)}
+        onMouseLeave={() => setIsNavHovered(false)}
+      >
         <div className="w-12 h-12 border-2 border-electric bg-electric mb-6 flex items-center justify-center">
           <img src="/lovable-uploads/e928a4ae-7be9-44ed-82b2-a5faaf98584e.png" alt="Logo" className="w-8 h-8" />
         </div>
@@ -140,8 +147,14 @@ const Index = () => {
         </nav>
       </div>
 
-      {/* Tools Sidebar */}
-      <div className="fixed left-20 top-0 h-full w-64 bg-black border-r-2 border-electric z-40 scanlines overflow-y-auto">
+      {/* Tools Sidebar - Hidden by default, shows on hover */}
+      <div 
+        className={`fixed top-0 h-full bg-black border-r-2 border-electric z-40 scanlines overflow-y-auto transition-all duration-300 ${
+          isNavHovered ? 'left-20 w-64 opacity-100' : 'left-16 w-0 opacity-0'
+        }`}
+        onMouseEnter={() => setIsNavHovered(true)}
+        onMouseLeave={() => setIsNavHovered(false)}
+      >
         <div className="p-4 border-b-2 border-electric">
           <h2 className="font-display text-electric text-sm">FERRAMENTAS_SISTEMA</h2>
         </div>
@@ -171,8 +184,8 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Main Content - Fixed margin to prevent overlap */}
-      <div className="ml-84 min-h-screen">
+      {/* Main Content - Dynamic margin based on hover state */}
+      <div className={`min-h-screen transition-all duration-300 ${isNavHovered ? 'ml-84' : 'ml-16'}`}>
         <div className="container mx-auto px-6 py-8">
           {/* ASCII Header */}
           <div className="text-center mb-12">
