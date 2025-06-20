@@ -1,7 +1,15 @@
 
 import { useState, useEffect } from 'react';
 import { LiquidationBubble, getMarketCapCategory, LiquidationStats } from '../types/liquidation';
-import { safeCreateDate, formatAmount, detectLiquidations } from '../utils/liquidationUtils';
+import { 
+  safeCreateDate, 
+  formatAmount, 
+  detectLiquidations,
+  calculateRelevanceScore,
+  logFilteringDecision,
+  analyzeBalance,
+  updateLiquidationWithTimeLimit
+} from '../utils/liquidationUtils';
 import { useRealFlowData } from './useRealFlowData';
 import { useSupabaseStorage } from './useSupabaseStorage';
 import { usePersistedData } from './usePersistedData';
@@ -49,6 +57,43 @@ export const useLiquidationData = () => {
     setShortLiquidations(persistedShortLiquidations);
   }, [persistedLongLiquidations, persistedShortLiquidations]);
 
+  // NOVA: Função de priorização por relevância atual (substitui balanceLiquidations)
+  const prioritizeLiquidationsByRelevance = (liquidations: LiquidationBubble[]): LiquidationBubble[] => {
+    const highCap = liquidations.filter(liq => liq.marketCap === 'high');
+    const lowCap = liquidations.filter(liq => liq.marketCap === 'low');
+    
+    console.log(`🎯 PRIORIZANDO POR RELEVÂNCIA:`);
+    console.log(`- High Cap total: ${highCap.length} liquidações`);
+    console.log(`- Low Cap total: ${lowCap.length} liquidações`);
+    
+    // NOVA ORDENAÇÃO: Por relevância atual (não totalLiquidated)
+    const sortedHighCap = highCap
+      .map(liq => ({ liq, score: calculateRelevanceScore(liq) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 25);
+    
+    const sortedLowCap = lowCap
+      .map(liq => ({ liq, score: calculateRelevanceScore(liq) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 25);
+    
+    // Log decisões de filtro
+    [...sortedHighCap, ...sortedLowCap].forEach(({ liq, score }, index) => {
+      logFilteringDecision(liq, score, index < 50, index < 50 ? 'TOP_50' : 'FILTERED_OUT');
+    });
+    
+    // Mesclar e ordenar final por relevância
+    const finalResult = [...sortedHighCap.map(s => s.liq), ...sortedLowCap.map(s => s.liq)]
+      .sort((a, b) => calculateRelevanceScore(b) - calculateRelevanceScore(a))
+      .slice(0, 50);
+    
+    console.log(`🏆 RESULTADO FINAL: ${finalResult.length} liquidações selecionadas por relevância`);
+    console.log(`- High Cap selecionadas: ${finalResult.filter(l => l.marketCap === 'high').length}`);
+    console.log(`- Low Cap selecionadas: ${finalResult.filter(l => l.marketCap === 'low').length}`);
+    
+    return finalResult;
+  };
+
   // Limpeza automática a cada minuto
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
@@ -81,24 +126,6 @@ export const useLiquidationData = () => {
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // Função para balancear liquidações (50% high cap, 50% low cap)
-  const balanceLiquidations = (liquidations: LiquidationBubble[]): LiquidationBubble[] => {
-    const highCap = liquidations.filter(liq => liq.marketCap === 'high');
-    const lowCap = liquidations.filter(liq => liq.marketCap === 'low');
-    
-    // Ordenar por valor total liquidado
-    const sortedHighCap = highCap.sort((a, b) => b.totalLiquidated - a.totalLiquidated);
-    const sortedLowCap = lowCap.sort((a, b) => b.totalLiquidated - a.totalLiquidated);
-    
-    // Pegar até 25 de cada categoria para garantir equilíbrio
-    const balancedHighCap = sortedHighCap.slice(0, 25);
-    const balancedLowCap = sortedLowCap.slice(0, 25);
-    
-    return [...balancedHighCap, ...balancedLowCap]
-      .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
-      .slice(0, 50);
-  };
-
   // Calcular estatísticas
   const updateStats = (longs: LiquidationBubble[], shorts: LiquidationBubble[]) => {
     const newStats: LiquidationStats = {
@@ -114,6 +141,10 @@ export const useLiquidationData = () => {
     
     // Log estatísticas detalhadas
     console.log(`📈 STATS LIQUIDAÇÕES:`, newStats);
+    
+    // Análise de balanceamento por relevância atual
+    analyzeBalance(longs, shorts);
+    
     if (newStats.highCapLong === 0 || newStats.highCapShort === 0) {
       console.warn('⚠️ DESEQUILÍBRIO: Faltam liquidações HIGH CAP em algum tipo');
     }
@@ -162,7 +193,7 @@ export const useLiquidationData = () => {
             id: `${data.ticker}-long-${now.getTime()}`,
             asset: data.ticker.replace('USDT', ''),
             type: 'long',
-            amount: volumeValue,
+            amount: volumeValue, // VALOR ATUAL da liquidação
             price: data.price,
             marketCap,
             timestamp: safeCreateDate(data.timestamp),
@@ -170,10 +201,10 @@ export const useLiquidationData = () => {
             change24h: priceChange,
             volume: data.volume,
             lastUpdateTime: now,
-            totalLiquidated: volumeValue
+            totalLiquidated: volumeValue // Inicialmente igual ao amount
           };
           
-          console.log(`🔴 LONG LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Fall: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.totalLiquidated)}`);
+          console.log(`🔴 LONG LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Fall: ${priceChange.toFixed(2)}% - Current: ${formatAmount(liquidation.amount)} - Score: ${calculateRelevanceScore(liquidation).toFixed(1)}`);
           
           // Salvar no Supabase
           saveLiquidation({
@@ -199,7 +230,7 @@ export const useLiquidationData = () => {
             id: `${data.ticker}-short-${now.getTime()}`,
             asset: data.ticker.replace('USDT', ''),
             type: 'short',
-            amount: volumeValue,
+            amount: volumeValue, // VALOR ATUAL da liquidação
             price: data.price,
             marketCap,
             timestamp: safeCreateDate(data.timestamp),
@@ -207,10 +238,10 @@ export const useLiquidationData = () => {
             change24h: priceChange,
             volume: data.volume,
             lastUpdateTime: now,
-            totalLiquidated: volumeValue
+            totalLiquidated: volumeValue // Inicialmente igual ao amount
           };
           
-          console.log(`🟢 SHORT LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Rise: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.totalLiquidated)}`);
+          console.log(`🟢 SHORT LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Rise: ${priceChange.toFixed(2)}% - Current: ${formatAmount(liquidation.amount)} - Score: ${calculateRelevanceScore(liquidation).toFixed(1)}`);
           
           // Salvar no Supabase
           saveLiquidation({
@@ -239,7 +270,7 @@ export const useLiquidationData = () => {
       }
     });
 
-    // Atualizar liquidações com balanceamento
+    // Atualizar liquidações com NOVA LÓGICA de relevância
     if (newLongLiquidations.length > 0) {
       setLongLiquidations(prev => {
         const updated = [...prev];
@@ -247,20 +278,18 @@ export const useLiquidationData = () => {
         newLongLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            updated[existingIndex] = { 
-              ...newLiq, 
-              totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
-              lastUpdateTime: now
-            };
+            // NOVA: Usar janela deslizante para acumulação
+            updated[existingIndex] = updateLiquidationWithTimeLimit(updated[existingIndex], newLiq.amount);
           } else {
             updated.push(newLiq);
           }
         });
         
-        const balanced = balanceLiquidations(updated);
+        // NOVA: Priorizar por relevância ao invés de totalLiquidated
+        const prioritized = prioritizeLiquidationsByRelevance(updated);
         addLongLiquidations(newLongLiquidations);
         
-        return balanced;
+        return prioritized;
       });
     }
     
@@ -271,20 +300,18 @@ export const useLiquidationData = () => {
         newShortLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            updated[existingIndex] = { 
-              ...newLiq, 
-              totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
-              lastUpdateTime: now
-            };
+            // NOVA: Usar janela deslizante para acumulação
+            updated[existingIndex] = updateLiquidationWithTimeLimit(updated[existingIndex], newLiq.amount);
           } else {
             updated.push(newLiq);
           }
         });
         
-        const balanced = balanceLiquidations(updated);
+        // NOVA: Priorizar por relevância ao invés de totalLiquidated
+        const prioritized = prioritizeLiquidationsByRelevance(updated);
         addShortLiquidations(newShortLiquidations);
         
-        return balanced;
+        return prioritized;
       });
     }
   }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations]);

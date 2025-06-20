@@ -1,4 +1,3 @@
-
 // Helper function to safely create dates
 export const safeCreateDate = (timestamp: any): Date => {
   if (!timestamp) return new Date();
@@ -165,3 +164,96 @@ export const detectLiquidations = (
     } : null
   };
 };
+
+// NOVA: Função para calcular score de relevância atual
+export const calculateRelevanceScore = (liquidation: LiquidationBubble): number => {
+  const now = new Date();
+  const minutesAgo = (now.getTime() - liquidation.lastUpdateTime.getTime()) / 60000;
+  
+  // Decay temporal: menos relevante com o tempo (0% relevância após 15min)
+  const timeDecay = Math.max(0, 1 - (minutesAgo / 15));
+  
+  // Score baseado em fatores ATUAIS
+  const intensityScore = liquidation.intensity * 20; // 20-100 pontos
+  const currentAmountScore = Math.log10(Math.max(liquidation.amount, 1)) * 10; // Log scale
+  const volatilityScore = Math.abs(liquidation.change24h) * 2; // Volatilidade atual
+  
+  const finalScore = (intensityScore + currentAmountScore + volatilityScore) * timeDecay;
+  
+  return Math.max(0, finalScore);
+};
+
+// NOVA: Logging detalhado para decisões de filtro
+export const logFilteringDecision = (
+  liquidation: LiquidationBubble, 
+  score: number, 
+  included: boolean,
+  reason: string = ''
+) => {
+  const status = included ? '✅ INCLUDED' : '❌ FILTERED';
+  const minutesAgo = Math.round((Date.now() - liquidation.lastUpdateTime.getTime()) / 60000);
+  
+  console.log(`${status} ${liquidation.asset}: Score=${score.toFixed(1)} ` +
+             `(Current=${formatAmount(liquidation.amount)}, ` +
+             `Intensity=${liquidation.intensity}, ` +
+             `Age=${minutesAgo}min, ` +
+             `Total=${formatAmount(liquidation.totalLiquidated)}) ${reason}`);
+};
+
+// NOVA: Análise de balanceamento
+export const analyzeBalance = (longLiquidations: LiquidationBubble[], shortLiquidations: LiquidationBubble[]) => {
+  const longHighCapCurrent = longLiquidations.filter(l => l.marketCap === 'high')
+    .reduce((sum, l) => sum + l.amount, 0);
+  const longLowCapCurrent = longLiquidations.filter(l => l.marketCap === 'low')
+    .reduce((sum, l) => sum + l.amount, 0);
+  
+  const shortHighCapCurrent = shortLiquidations.filter(l => l.marketCap === 'high')
+    .reduce((sum, l) => sum + l.amount, 0);
+  const shortLowCapCurrent = shortLiquidations.filter(l => l.marketCap === 'low')
+    .reduce((sum, l) => sum + l.amount, 0);
+  
+  console.log(`💰 BALANCE CHECK ATUAL:`);
+  console.log(`- Long: High Cap ${formatAmount(longHighCapCurrent)} | Low Cap ${formatAmount(longLowCapCurrent)}`);
+  console.log(`- Short: High Cap ${formatAmount(shortHighCapCurrent)} | Low Cap ${formatAmount(shortLowCapCurrent)}`);
+  
+  const totalCurrent = longHighCapCurrent + longLowCapCurrent + shortHighCapCurrent + shortLowCapCurrent;
+  console.log(`- Total liquidado atual: ${formatAmount(totalCurrent)}`);
+};
+
+// NOVA: Atualização com janela deslizante (30min máximo)
+export const updateLiquidationWithTimeLimit = (
+  existing: LiquidationBubble, 
+  newAmount: number
+): LiquidationBubble => {
+  const now = new Date();
+  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+  
+  // Reset acumulação se muito antiga
+  const shouldReset = existing.lastUpdateTime < thirtyMinutesAgo;
+  
+  if (shouldReset) {
+    console.log(`🔄 RESET ACUMULAÇÃO: ${existing.asset} (${Math.round((now.getTime() - existing.lastUpdateTime.getTime()) / 60000)}min antiga)`);
+  }
+  
+  return {
+    ...existing,
+    amount: newAmount, // SEMPRE o valor atual da liquidação
+    totalLiquidated: shouldReset ? newAmount : existing.totalLiquidated + newAmount,
+    lastUpdateTime: now
+  };
+};
+
+interface LiquidationBubble {
+  id: string;
+  asset: string;
+  type: 'long' | 'short';
+  amount: number;
+  price: number;
+  marketCap: 'high' | 'low';
+  timestamp: Date;
+  intensity: number;
+  change24h: number;
+  volume: number;
+  lastUpdateTime: Date;
+  totalLiquidated: number;
+}
