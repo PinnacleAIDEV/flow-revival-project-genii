@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { LiquidationBubble, highMarketCapAssets } from '../types/liquidation';
-import { safeCreateDate } from '../utils/liquidationUtils';
+import { LiquidationBubble, getMarketCapCategory, LiquidationStats } from '../types/liquidation';
+import { safeCreateDate, calculateDynamicThreshold, calculateIntensity, shouldDetectLiquidation, logLiquidationDetection } from '../utils/liquidationUtils';
 import { useRealFlowData } from './useRealFlowData';
 import { useSupabaseStorage } from './useSupabaseStorage';
 import { usePersistedData } from './usePersistedData';
@@ -30,6 +30,14 @@ export const useLiquidationData = () => {
   const [longLiquidations, setLongLiquidations] = useState<LiquidationBubble[]>([]);
   const [shortLiquidations, setShortLiquidations] = useState<LiquidationBubble[]>([]);
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
+  const [stats, setStats] = useState<LiquidationStats>({
+    totalLong: 0,
+    totalShort: 0,
+    highCapLong: 0,
+    highCapShort: 0,
+    lowCapLong: 0,
+    lowCapShort: 0
+  });
 
   // Inicializar com dados persistidos
   useEffect(() => {
@@ -67,12 +75,52 @@ export const useLiquidationData = () => {
         return filtered;
       });
 
-      // Limpar tickers processados também
       setProcessedTickers(new Set());
     }, 60000);
 
     return () => clearInterval(cleanupInterval);
   }, []);
+
+  // Função para balancear liquidações (50% high cap, 50% low cap)
+  const balanceLiquidations = (liquidations: LiquidationBubble[]): LiquidationBubble[] => {
+    const highCap = liquidations.filter(liq => liq.marketCap === 'high');
+    const lowCap = liquidations.filter(liq => liq.marketCap === 'low');
+    
+    // Ordenar por valor total liquidado
+    const sortedHighCap = highCap.sort((a, b) => b.totalLiquidated - a.totalLiquidated);
+    const sortedLowCap = lowCap.sort((a, b) => b.totalLiquidated - a.totalLiquidated);
+    
+    // Pegar até 25 de cada categoria para garantir equilíbrio
+    const balancedHighCap = sortedHighCap.slice(0, 25);
+    const balancedLowCap = sortedLowCap.slice(0, 25);
+    
+    return [...balancedHighCap, ...balancedLowCap]
+      .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
+      .slice(0, 50);
+  };
+
+  // Calcular estatísticas
+  const updateStats = (longs: LiquidationBubble[], shorts: LiquidationBubble[]) => {
+    const newStats: LiquidationStats = {
+      totalLong: longs.length,
+      totalShort: shorts.length,
+      highCapLong: longs.filter(l => l.marketCap === 'high').length,
+      highCapShort: shorts.filter(l => l.marketCap === 'high').length,
+      lowCapLong: longs.filter(l => l.marketCap === 'low').length,
+      lowCapShort: shorts.filter(l => l.marketCap === 'low').length
+    };
+    
+    setStats(newStats);
+    
+    // Log estatísticas detalhadas
+    console.log(`📈 STATS LIQUIDAÇÕES:`, newStats);
+    if (newStats.highCapLong === 0 || newStats.highCapShort === 0) {
+      console.warn('⚠️ DESEQUILÍBRIO: Faltam liquidações HIGH CAP em algum tipo');
+    }
+    if (newStats.lowCapLong === 0 || newStats.lowCapShort === 0) {
+      console.warn('⚠️ DESEQUILÍBRIO: Faltam liquidações LOW CAP em algum tipo');
+    }
+  };
 
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
@@ -92,39 +140,38 @@ export const useLiquidationData = () => {
         data.volume > 0 &&
         data.change_24h !== undefined &&
         !processedTickers.has(key) &&
-        index === self.findIndex(d => d.ticker === data.ticker) // Pegar apenas o mais recente de cada ticker
+        index === self.findIndex(d => d.ticker === data.ticker)
       );
     });
 
+    console.log(`🔍 Processando ${uniqueData.length} ativos únicos para liquidações...`);
+
     uniqueData.forEach(data => {
       try {
-        const priceChange = Math.abs(data.change_24h || 0);
+        const priceChange = data.change_24h || 0;
         const volumeValue = data.volume * data.price;
-        const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
+        const marketCap = getMarketCapCategory(data.ticker);
+        const isHighMarketCap = marketCap === 'high';
         
-        // LÓGICA CORRIGIDA: Melhor detecção de liquidações
-        const threshold = isHighMarketCap ? 
-          { volume: 50000, priceChange: 1.5 } :   // High cap: $50k + 1.5%
-          { volume: 15000, priceChange: 2.0 };     // Low cap: $15k + 2.0%
+        // NOVA LÓGICA: Thresholds dinâmicos e equalizados
+        const threshold = calculateDynamicThreshold(data.ticker, isHighMarketCap, volumeValue);
+        const shouldDetect = shouldDetectLiquidation(volumeValue, priceChange, threshold);
         
-        // Detectar liquidação com volume e volatilidade
-        if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
-          // LÓGICA CORRIGIDA: Inversão da lógica de long/short
-          // Se preço está CAINDO (change negativo), LONGS são liquidados
-          // Se preço está SUBINDO (change positivo), SHORTS são liquidados
-          const liquidationType: 'long' | 'short' = (data.change_24h || 0) < 0 ? 'long' : 'short';
-          
-          // Calcular intensidade baseada nos dados
-          const volumeRatio = volumeValue / threshold.volume;
-          const priceRatio = priceChange / threshold.priceChange;
-          const combinedRatio = (volumeRatio + priceRatio) / 2;
-          
-          let intensity = 1;
-          if (combinedRatio >= 10) intensity = 5;
-          else if (combinedRatio >= 6) intensity = 4;
-          else if (combinedRatio >= 3.5) intensity = 3;
-          else if (combinedRatio >= 2) intensity = 2;
-          else intensity = 1;
+        // Detectar tipo de liquidação (CORRIGIDO)
+        let liquidationType: 'long' | 'short';
+        if (priceChange < 0) {
+          // Preço caindo = LONGs sendo liquidados
+          liquidationType = 'long';
+        } else {
+          // Preço subindo = SHORTs sendo liquidados  
+          liquidationType = 'short';
+        }
+        
+        // Log detalhado da decisão
+        logLiquidationDetection(data.ticker, liquidationType, volumeValue, priceChange, threshold, shouldDetect);
+        
+        if (shouldDetect) {
+          const intensity = calculateIntensity(volumeValue, priceChange, threshold);
           
           const liquidation: LiquidationBubble = {
             id: `${data.ticker}-${now.getTime()}`,
@@ -132,16 +179,16 @@ export const useLiquidationData = () => {
             type: liquidationType,
             amount: volumeValue,
             price: data.price,
-            marketCap: isHighMarketCap ? 'high' : 'low',
+            marketCap,
             timestamp: safeCreateDate(data.timestamp),
             intensity,
-            change24h: data.change_24h || 0,
+            change24h: priceChange,
             volume: data.volume,
             lastUpdateTime: now,
             totalLiquidated: volumeValue
           };
           
-          console.log(`💥 LIQUIDAÇÃO CORRIGIDA: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - Change: ${data.change_24h?.toFixed(2)}% - ${(liquidation.totalLiquidated / 1000).toFixed(0)}K`);
+          console.log(`💥 LIQUIDAÇÃO EQUALIZADA: ${liquidation.asset} (${marketCap.toUpperCase()}) - ${liquidation.type.toUpperCase()} - Change: ${priceChange.toFixed(2)}% - ${(liquidation.totalLiquidated / 1000).toFixed(0)}K`);
           
           // Salvar no Supabase
           saveLiquidation({
@@ -164,7 +211,6 @@ export const useLiquidationData = () => {
             newShortLiquidations.push(liquidation);
           }
 
-          // Marcar como processado
           setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
         }
       } catch (error) {
@@ -172,7 +218,7 @@ export const useLiquidationData = () => {
       }
     });
 
-    // Atualizar liquidações acumulando valores e persistir
+    // Atualizar liquidações com balanceamento
     if (newLongLiquidations.length > 0) {
       setLongLiquidations(prev => {
         const updated = [...prev];
@@ -180,7 +226,6 @@ export const useLiquidationData = () => {
         newLongLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            // Acumular valor total
             updated[existingIndex] = { 
               ...newLiq, 
               totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
@@ -191,15 +236,10 @@ export const useLiquidationData = () => {
           }
         });
         
-        // Ordenar por maior valor liquidado total
-        const sorted = updated
-          .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
-          .slice(0, 50); // Limitar a 50 para performance
-        
-        // Persistir novos dados
+        const balanced = balanceLiquidations(updated);
         addLongLiquidations(newLongLiquidations);
         
-        return sorted;
+        return balanced;
       });
     }
     
@@ -210,7 +250,6 @@ export const useLiquidationData = () => {
         newShortLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            // Acumular valor total
             updated[existingIndex] = { 
               ...newLiq, 
               totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
@@ -221,21 +260,22 @@ export const useLiquidationData = () => {
           }
         });
         
-        // Ordenar por maior valor liquidado total
-        const sorted = updated
-          .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
-          .slice(0, 50); // Limitar a 50 para performance
-        
-        // Persistir novos dados
+        const balanced = balanceLiquidations(updated);
         addShortLiquidations(newShortLiquidations);
         
-        return sorted;
+        return balanced;
       });
     }
   }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations]);
 
+  // Atualizar stats quando liquidações mudarem
+  useEffect(() => {
+    updateStats(longLiquidations, shortLiquidations);
+  }, [longLiquidations, shortLiquidations]);
+
   return {
     longLiquidations,
-    shortLiquidations
+    shortLiquidations,
+    stats
   };
 };

@@ -27,11 +27,51 @@ export interface TrendReversal {
   marketCap: 'high' | 'low';
 }
 
-// Top 50 assets considerados high market cap
+// Lista expandida de ativos high market cap (Top 100+)
 export const highMarketCapAssets = [
-  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'DOTUSDT', 'LINKUSDT', 'MATICUSDT',
-  'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEOUSDT',
-  'ALGOUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 'CHZUSDT', 'GALAUSDT', 'ENJUSDT', 'NEARUSDT', 'QNTUSDT',
-  'FLOWUSDT', 'ICPUSDT', 'THETAUSDT', 'XTZUSDT', 'MKRUSDT', 'FTMUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT', 'COMPUSDT',
-  'UNIUSDT', 'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT', 'ALPHAUSDT', 'ZENUSDT'
+  // Top 20 principais
+  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'TRXUSDT', 
+  'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'DOTUSDT', 'SHIBUSDT', 'LTCUSDT', 'BCHUSDT', 
+  'UNIUSDT', 'WBTCUSDT', 'NEARUSDT', 'ATOMUSDT', 'XLMUSDT',
+  
+  // Top 21-50
+  'VETUSDT', 'FILUSDT', 'ETCUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 
+  'CHZUSDT', 'GALAUSDT', 'ENJUSDT', 'QNTUSDT', 'FLOWUSDT', 'ICPUSDT', 'THETAUSDT', 
+  'XTZUSDT', 'MKRUSDT', 'FTMUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT', 'COMPUSDT',
+  
+  // Top 51-80
+  'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT', 
+  'ALPHAUSDT', 'ZENUSDT', 'RUNEUSDT', 'OCEANUSDT', 'RSRUSDT', 'KAVAUSDT', 'IOTAUSDT',
+  'ONTUSDT', 'ZILUSDT', 'QTMUSDT', 'WAVESUSDT', 'ICXUSDT', 'SCUSDT',
+  
+  // DeFi e L2s importantes
+  'ARBUSDT', 'OPUSDT', 'LDO2USDT', 'RPLRUSDT', 'GMXUSDT', 'PEPEUSDT', 'INJUSDT',
+  'SUIUSDT', 'APTUSDT', 'STXUSDT', 'MINAUSDT', 'CFXUSDT', 'KASUSDT'
 ];
+
+// Assets considerados low market cap para contraste
+export const lowMarketCapAssets = [
+  // Memecoins e tokens menores
+  'FLOKIUSDT', 'BONKUSDT', 'WIFUSDT', 'MEMEUSDT', 'TURBOUSDT', 'BOMEUSDT',
+  '1000RATSUSDT', 'ORDIUSDT', '1000SATSUSDT', 'JUPUSDT', 'WUSDT', 'MYROUS
+];
+
+export const getMarketCapCategory = (ticker: string): 'high' | 'low' => {
+  if (highMarketCapAssets.includes(ticker)) return 'high';
+  if (lowMarketCapAssets.includes(ticker)) return 'low';
+  
+  // Classificação automática baseada no ticker
+  // Tokens com nomes muito específicos ou números tendem a ser low cap
+  if (ticker.includes('1000') || ticker.length > 8) return 'low';
+  
+  return 'high'; // Default para high cap se não identificado
+};
+
+export interface LiquidationStats {
+  totalLong: number;
+  totalShort: number;
+  highCapLong: number;
+  highCapShort: number;
+  lowCapLong: number;
+  lowCapShort: number;
+}
