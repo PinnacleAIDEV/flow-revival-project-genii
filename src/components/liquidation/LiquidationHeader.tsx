@@ -18,7 +18,7 @@ export const LiquidationHeader: React.FC = () => {
           <div>
             <h2 className="text-xl font-bold text-white font-mono">LIVE LIQUIDATIONS MONITOR 💥</h2>
             <div className="flex items-center space-x-4 text-sm text-gray-400">
-              <span>Ordenado por maior liquidação atual • Auto-remove após 15min sem atividade</span>
+              <span>Ordenado por maior liquidação total • Auto-remove após 15min sem atividade</span>
             </div>
           </div>
         </div>

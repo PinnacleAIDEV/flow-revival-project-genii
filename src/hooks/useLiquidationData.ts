@@ -6,12 +6,7 @@ import { useRealFlowData } from './useRealFlowData';
 import { useSupabaseStorage } from './useSupabaseStorage';
 import { usePersistedData } from './usePersistedData';
 
-// Interface para callback de dados 24h
-interface Use24hLiquidationCallback {
-  addLiquidationToDaily: (liquidation: LiquidationBubble) => void;
-}
-
-export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) => {
+export const useLiquidationData = () => {
   const { flowData } = useRealFlowData();
   const { saveLiquidation } = useSupabaseStorage();
   
@@ -44,31 +39,14 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
     lowCapShort: 0
   });
 
-  // Função para garantir que lastUpdateTime é um Date válido
-  const ensureDateObject = (liquidation: LiquidationBubble): LiquidationBubble => {
-    return {
-      ...liquidation,
-      lastUpdateTime: liquidation.lastUpdateTime instanceof Date 
-        ? liquidation.lastUpdateTime 
-        : safeCreateDate(liquidation.lastUpdateTime),
-      timestamp: liquidation.timestamp instanceof Date 
-        ? liquidation.timestamp 
-        : safeCreateDate(liquidation.timestamp)
-    };
-  };
-
-  // Inicializar com dados persistidos - GARANTINDO que são Date objects
+  // Inicializar com dados persistidos
   useEffect(() => {
     console.log(`📊 Inicializando liquidações com dados persistidos:`);
     console.log(`- Long liquidations: ${persistedLongLiquidations.length}`);
     console.log(`- Short liquidations: ${persistedShortLiquidations.length}`);
     
-    // Converter strings de data para Date objects
-    const longWithDates = persistedLongLiquidations.map(ensureDateObject);
-    const shortWithDates = persistedShortLiquidations.map(ensureDateObject);
-    
-    setLongLiquidations(longWithDates);
-    setShortLiquidations(shortWithDates);
+    setLongLiquidations(persistedLongLiquidations);
+    setShortLiquidations(persistedShortLiquidations);
   }, [persistedLongLiquidations, persistedShortLiquidations]);
 
   // Limpeza automática a cada minuto
@@ -80,12 +58,7 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
       console.log('🧹 Limpando liquidações antigas...');
       
       setLongLiquidations(prev => {
-        const filtered = prev.filter(liq => {
-          const updateTime = liq.lastUpdateTime instanceof Date 
-            ? liq.lastUpdateTime 
-            : safeCreateDate(liq.lastUpdateTime);
-          return updateTime > fifteenMinutesAgo;
-        });
+        const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
         const removed = prev.length - filtered.length;
         if (removed > 0) {
           console.log(`🗑️ Removidas ${removed} liquidações LONG antigas`);
@@ -94,12 +67,7 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
       });
       
       setShortLiquidations(prev => {
-        const filtered = prev.filter(liq => {
-          const updateTime = liq.lastUpdateTime instanceof Date 
-            ? liq.lastUpdateTime 
-            : safeCreateDate(liq.lastUpdateTime);
-          return updateTime > fifteenMinutesAgo;
-        });
+        const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
         const removed = prev.length - filtered.length;
         if (removed > 0) {
           console.log(`🗑️ Removidas ${removed} liquidações SHORT antigas`);
@@ -113,65 +81,22 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // NOVA FUNÇÃO: Calcular relevância atual (baseada em activity atual, não acumulada)
-  const calculateCurrentRelevance = (liquidation: LiquidationBubble): number => {
-    const now = new Date();
+  // Função para balancear liquidações (50% high cap, 50% low cap)
+  const balanceLiquidations = (liquidations: LiquidationBubble[]): LiquidationBubble[] => {
+    const highCap = liquidations.filter(liq => liq.marketCap === 'high');
+    const lowCap = liquidations.filter(liq => liq.marketCap === 'low');
     
-    // Garantir que lastUpdateTime é um Date object
-    const updateTime = liquidation.lastUpdateTime instanceof Date 
-      ? liquidation.lastUpdateTime 
-      : safeCreateDate(liquidation.lastUpdateTime);
+    // Ordenar por valor total liquidado
+    const sortedHighCap = highCap.sort((a, b) => b.totalLiquidated - a.totalLiquidated);
+    const sortedLowCap = lowCap.sort((a, b) => b.totalLiquidated - a.totalLiquidated);
     
-    const ageMinutes = (now.getTime() - updateTime.getTime()) / (1000 * 60);
+    // Pegar até 25 de cada categoria para garantir equilíbrio
+    const balancedHighCap = sortedHighCap.slice(0, 25);
+    const balancedLowCap = sortedLowCap.slice(0, 25);
     
-    // Decay temporal - liquidações mais recentes têm mais relevância
-    const timeDecay = Math.max(0, 1 - (ageMinutes / 15)); // Decay total em 15 minutos
-    
-    // Score baseado em intensidade atual + volume atual + recência
-    const intensityScore = liquidation.intensity * 20; // 0-100
-    const volumeScore = Math.min(liquidation.amount / 100000, 10) * 10; // Até 100
-    const recencyScore = timeDecay * 50; // Até 50
-    
-    return intensityScore + volumeScore + recencyScore;
-  };
-
-  // NOVA FUNÇÃO: Filtrar por relevância atual em vez de total acumulado
-  const filterByCurrentRelevance = (liquidations: LiquidationBubble[]): LiquidationBubble[] => {
-    // Calcular relevância e ordenar
-    const withRelevance = liquidations.map(liq => ({
-      ...liq,
-      currentRelevance: calculateCurrentRelevance(liq)
-    }));
-    
-    // Ordenar por: 1. Relevância atual, 2. Intensidade, 3. Recência
-    withRelevance.sort((a, b) => {
-      if (b.currentRelevance !== a.currentRelevance) {
-        return b.currentRelevance - a.currentRelevance;
-      }
-      if (b.intensity !== a.intensity) {
-        return b.intensity - a.intensity;
-      }
-      
-      // Garantir que são Date objects para comparação
-      const aTime = a.lastUpdateTime instanceof Date ? a.lastUpdateTime : safeCreateDate(a.lastUpdateTime);
-      const bTime = b.lastUpdateTime instanceof Date ? b.lastUpdateTime : safeCreateDate(b.lastUpdateTime);
-      
-      return bTime.getTime() - aTime.getTime();
-    });
-    
-    // Balanceamento: garantir mix entre high/low cap
-    const highCap = withRelevance.filter(liq => liq.marketCap === 'high').slice(0, 25);
-    const lowCap = withRelevance.filter(liq => liq.marketCap === 'low').slice(0, 25);
-    
-    const balanced = [...highCap, ...lowCap];
-    
-    // Re-ordenar o mix balanceado por relevância
-    balanced.sort((a, b) => b.currentRelevance - a.currentRelevance);
-    
-    console.log(`🔍 Filtro de relevância aplicado: ${liquidations.length} -> ${balanced.slice(0, 50).length}`);
-    console.log(`📊 Balance: ${highCap.length} high cap, ${lowCap.length} low cap`);
-    
-    return balanced.slice(0, 50);
+    return [...balancedHighCap, ...balancedLowCap]
+      .sort((a, b) => b.totalLiquidated - a.totalLiquidated)
+      .slice(0, 50);
   };
 
   // Calcular estatísticas
@@ -237,18 +162,18 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
             id: `${data.ticker}-long-${now.getTime()}`,
             asset: data.ticker.replace('USDT', ''),
             type: 'long',
-            amount: volumeValue, // MANTIDO: amount = liquidação atual
+            amount: volumeValue,
             price: data.price,
             marketCap,
             timestamp: safeCreateDate(data.timestamp),
             intensity: detection.longLiquidation.intensity,
             change24h: priceChange,
             volume: data.volume,
-            lastUpdateTime: now, // Garantir que é Date object
-            totalLiquidated: volumeValue // MANTIDO: para compatibilidade com componentes existentes
+            lastUpdateTime: now,
+            totalLiquidated: volumeValue
           };
           
-          console.log(`🔴 LONG LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Fall: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.amount)}`);
+          console.log(`🔴 LONG LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Fall: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.totalLiquidated)}`);
           
           // Salvar no Supabase
           saveLiquidation({
@@ -264,11 +189,6 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
             total_liquidated: liquidation.totalLiquidated,
             volume_spike: 1
           });
-          
-          // Adicionar aos totais 24h se callback disponível
-          if (dailyCallback?.addLiquidationToDaily) {
-            dailyCallback.addLiquidationToDaily(liquidation);
-          }
           
           newLongLiquidations.push(liquidation);
         }
@@ -279,18 +199,18 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
             id: `${data.ticker}-short-${now.getTime()}`,
             asset: data.ticker.replace('USDT', ''),
             type: 'short',
-            amount: volumeValue, // MANTIDO: amount = liquidação atual
+            amount: volumeValue,
             price: data.price,
             marketCap,
             timestamp: safeCreateDate(data.timestamp),
             intensity: detection.shortLiquidation.intensity,
             change24h: priceChange,
             volume: data.volume,
-            lastUpdateTime: now, // Garantir que é Date object
-            totalLiquidated: volumeValue // MANTIDO: para compatibilidade com componentes existentes
+            lastUpdateTime: now,
+            totalLiquidated: volumeValue
           };
           
-          console.log(`🟢 SHORT LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Rise: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.amount)}`);
+          console.log(`🟢 SHORT LIQUIDATION: ${liquidation.asset} (${marketCap.toUpperCase()}) - Rise: ${priceChange.toFixed(2)}% - ${formatAmount(liquidation.totalLiquidated)}`);
           
           // Salvar no Supabase
           saveLiquidation({
@@ -306,11 +226,6 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
             total_liquidated: liquidation.totalLiquidated,
             volume_spike: 1
           });
-          
-          // Adicionar aos totais 24h se callback disponível
-          if (dailyCallback?.addLiquidationToDaily) {
-            dailyCallback.addLiquidationToDaily(liquidation);
-          }
           
           newShortLiquidations.push(liquidation);
         }
@@ -324,7 +239,7 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
       }
     });
 
-    // Atualizar liquidações com NOVO SISTEMA DE FILTRO por relevância atual
+    // Atualizar liquidações com balanceamento
     if (newLongLiquidations.length > 0) {
       setLongLiquidations(prev => {
         const updated = [...prev];
@@ -332,9 +247,9 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
         newLongLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            // MUDANÇA: Não acumular mais no amount - manter amount atual
             updated[existingIndex] = { 
-              ...newLiq, // Substituir completamente com dados atuais
+              ...newLiq, 
+              totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
               lastUpdateTime: now
             };
           } else {
@@ -342,11 +257,10 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
           }
         });
         
-        // NOVO FILTRO: Usar relevância atual em vez de totalLiquidated
-        const filtered = filterByCurrentRelevance(updated);
+        const balanced = balanceLiquidations(updated);
         addLongLiquidations(newLongLiquidations);
         
-        return filtered;
+        return balanced;
       });
     }
     
@@ -357,9 +271,9 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
         newShortLiquidations.forEach(newLiq => {
           const existingIndex = updated.findIndex(liq => liq.asset === newLiq.asset);
           if (existingIndex >= 0) {
-            // MUDANÇA: Não acumular mais no amount - manter amount atual
             updated[existingIndex] = { 
-              ...newLiq, // Substituir completamente com dados atuais
+              ...newLiq, 
+              totalLiquidated: updated[existingIndex].totalLiquidated + newLiq.amount,
               lastUpdateTime: now
             };
           } else {
@@ -367,14 +281,13 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
           }
         });
         
-        // NOVO FILTRO: Usar relevância atual em vez de totalLiquidated
-        const filtered = filterByCurrentRelevance(updated);
+        const balanced = balanceLiquidations(updated);
         addShortLiquidations(newShortLiquidations);
         
-        return filtered;
+        return balanced;
       });
     }
-  }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations, dailyCallback]);
+  }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations]);
 
   // Atualizar stats quando liquidações mudarem
   useEffect(() => {
