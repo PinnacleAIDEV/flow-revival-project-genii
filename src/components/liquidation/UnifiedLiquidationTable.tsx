@@ -70,7 +70,7 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
         </div>
       </CardHeader>
       
-      <CardContent className="p-0 h-[calc(100%-120px)]">
+      <CardContent className="p-0 h-[calc(100vh-280px)]">
         {assets.length > 0 ? (
           <ScrollArea className="h-full">
             <div className="space-y-2 p-4">

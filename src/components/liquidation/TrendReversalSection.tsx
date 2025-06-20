@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -106,6 +107,7 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
             else if (reversalRatio >= 2) intensity = 3;
             else if (reversalRatio >= 1.5) intensity = 2;
             
+            // Adicionar propriedades que faltavam
             const reversal: TrendReversal = {
               asset,
               previousType: firstPeriodType,
@@ -116,7 +118,29 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
               timestamp: latestLiq.lastUpdateTime,
               intensity,
               price: latestLiq.price,
-              marketCap: latestLiq.marketCap
+              marketCap: latestLiq.marketCap,
+              // Novas propriedades obrigatórias
+              positionsCount: {
+                previousPeriod: {
+                  long: firstHalf.filter(h => h.type === 'long').length,
+                  short: firstHalf.filter(h => h.type === 'short').length
+                },
+                currentPeriod: {
+                  long: secondHalf.filter(h => h.type === 'long').length,
+                  short: secondHalf.filter(h => h.type === 'short').length
+                }
+              },
+              sentimentShift: {
+                description: `Mudança de ${firstPeriodType.toUpperCase()} para ${secondPeriodType.toUpperCase()} liquidations detectada`,
+                confidence: Math.min(95, Math.round(reversalRatio * 30)),
+                indicators: [
+                  `Volume ${secondPeriodType}: ${formatAmount(currentVolume)}`,
+                  `Ratio de reversão: ${reversalRatio.toFixed(2)}x`,
+                  `Posições ${firstPeriodType} anteriores: ${firstHalf.length}`,
+                  `Posições ${secondPeriodType} atuais: ${secondHalf.length}`
+                ]
+              },
+              timeframe: '30min'
             };
             
             reversals.push(reversal);

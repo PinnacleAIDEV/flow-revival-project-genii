@@ -18,10 +18,10 @@ export const LiquidationBubbleMap: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <LiquidationHeader />
 
-      <div className="flex-1 flex gap-4 p-4 min-h-0">
+      <div className="flex-1 flex gap-4 p-4 min-h-[800px]">
         <UnifiedLiquidationTable
           title="Long Liquidations"
           assets={longLiquidations}
