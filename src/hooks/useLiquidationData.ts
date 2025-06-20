@@ -103,7 +103,10 @@ export const useLiquidationData = () => {
       console.log('🧹 Limpando liquidações antigas...');
       
       setLongLiquidations(prev => {
-        const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
+        const filtered = prev.filter(liq => {
+          const lastUpdateTime = safeCreateDate(liq.lastUpdateTime); // FIX: Use safeCreateDate
+          return lastUpdateTime > fifteenMinutesAgo;
+        });
         const removed = prev.length - filtered.length;
         if (removed > 0) {
           console.log(`🗑️ Removidas ${removed} liquidações LONG antigas`);
@@ -112,7 +115,10 @@ export const useLiquidationData = () => {
       });
       
       setShortLiquidations(prev => {
-        const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
+        const filtered = prev.filter(liq => {
+          const lastUpdateTime = safeCreateDate(liq.lastUpdateTime); // FIX: Use safeCreateDate
+          return lastUpdateTime > fifteenMinutesAgo;
+        });
         const removed = prev.length - filtered.length;
         if (removed > 0) {
           console.log(`🗑️ Removidas ${removed} liquidações SHORT antigas`);

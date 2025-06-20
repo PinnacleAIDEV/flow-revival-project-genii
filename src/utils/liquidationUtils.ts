@@ -1,3 +1,4 @@
+
 // Helper function to safely create dates
 export const safeCreateDate = (timestamp: any): Date => {
   if (!timestamp) return new Date();
@@ -168,7 +169,8 @@ export const detectLiquidations = (
 // NOVA: Função para calcular score de relevância atual
 export const calculateRelevanceScore = (liquidation: LiquidationBubble): number => {
   const now = new Date();
-  const minutesAgo = (now.getTime() - liquidation.lastUpdateTime.getTime()) / 60000;
+  const lastUpdateTime = safeCreateDate(liquidation.lastUpdateTime); // FIX: Use safeCreateDate
+  const minutesAgo = (now.getTime() - lastUpdateTime.getTime()) / 60000;
   
   // Decay temporal: menos relevante com o tempo (0% relevância após 15min)
   const timeDecay = Math.max(0, 1 - (minutesAgo / 15));
@@ -191,7 +193,8 @@ export const logFilteringDecision = (
   reason: string = ''
 ) => {
   const status = included ? '✅ INCLUDED' : '❌ FILTERED';
-  const minutesAgo = Math.round((Date.now() - liquidation.lastUpdateTime.getTime()) / 60000);
+  const lastUpdateTime = safeCreateDate(liquidation.lastUpdateTime); // FIX: Use safeCreateDate
+  const minutesAgo = Math.round((Date.now() - lastUpdateTime.getTime()) / 60000);
   
   console.log(`${status} ${liquidation.asset}: Score=${score.toFixed(1)} ` +
              `(Current=${formatAmount(liquidation.amount)}, ` +
@@ -227,12 +230,14 @@ export const updateLiquidationWithTimeLimit = (
 ): LiquidationBubble => {
   const now = new Date();
   const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+  const lastUpdateTime = safeCreateDate(existing.lastUpdateTime); // FIX: Use safeCreateDate
   
   // Reset acumulação se muito antiga
-  const shouldReset = existing.lastUpdateTime < thirtyMinutesAgo;
+  const shouldReset = lastUpdateTime < thirtyMinutesAgo;
   
   if (shouldReset) {
-    console.log(`🔄 RESET ACUMULAÇÃO: ${existing.asset} (${Math.round((now.getTime() - existing.lastUpdateTime.getTime()) / 60000)}min antiga)`);
+    const minutesOld = Math.round((now.getTime() - lastUpdateTime.getTime()) / 60000);
+    console.log(`🔄 RESET ACUMULAÇÃO: ${existing.asset} (${minutesOld}min antiga)`);
   }
   
   return {
