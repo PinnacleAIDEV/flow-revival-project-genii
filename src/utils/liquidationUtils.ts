@@ -33,26 +33,26 @@ export const formatAmount = (amount: number) => {
   return `$${amount.toFixed(2)}`;
 };
 
-// NOVA LÓGICA: Thresholds específicos para cada tipo de liquidação
+// CORRIGIDO: Thresholds mais sensíveis e lógica mais clara
 export const calculateLongLiquidationThreshold = (
   ticker: string, 
   isHighMarketCap: boolean, 
   currentVolume: number
 ) => {
-  // Long liquidations: detectar QUEDAS bruscas
+  // Long liquidations: detectar QUEDAS (preços negativos)
   const baseThresholds = {
-    highCap: { volume: 50000, priceChange: -2.5 }, // Queda mínima de -2.5%
-    lowCap: { volume: 15000, priceChange: -4.0 }   // Queda mínima de -4.0%
+    highCap: { volume: 30000, priceChange: -1.5 }, // Reduzido para ser mais sensível
+    lowCap: { volume: 10000, priceChange: -2.5 }   // Reduzido para ser mais sensível
   };
   
   const threshold = isHighMarketCap ? baseThresholds.highCap : baseThresholds.lowCap;
   
-  // Ajustar threshold baseado no volume atual
-  const volumeMultiplier = Math.min(Math.max(currentVolume / 100000, 0.5), 2.0);
+  // Ajustar threshold baseado no volume atual (mais sensível)
+  const volumeMultiplier = Math.min(Math.max(currentVolume / 50000, 0.3), 1.5);
   
   return {
     volume: threshold.volume * volumeMultiplier,
-    priceChange: threshold.priceChange / volumeMultiplier // Quedas mais severas com mais volume
+    priceChange: threshold.priceChange * volumeMultiplier // Quedas proporcionais ao volume
   };
 };
 
@@ -61,20 +61,20 @@ export const calculateShortLiquidationThreshold = (
   isHighMarketCap: boolean, 
   currentVolume: number
 ) => {
-  // Short liquidations: detectar ALTAS bruscas
+  // Short liquidations: detectar ALTAS (preços positivos)  
   const baseThresholds = {
-    highCap: { volume: 50000, priceChange: 2.5 }, // Alta mínima de +2.5%
-    lowCap: { volume: 15000, priceChange: 4.0 }   // Alta mínima de +4.0%
+    highCap: { volume: 30000, priceChange: 1.5 }, // Reduzido para ser mais sensível
+    lowCap: { volume: 10000, priceChange: 2.5 }   // Reduzido para ser mais sensível
   };
   
   const threshold = isHighMarketCap ? baseThresholds.highCap : baseThresholds.lowCap;
   
-  // Ajustar threshold baseado no volume atual
-  const volumeMultiplier = Math.min(Math.max(currentVolume / 100000, 0.5), 2.0);
+  // Ajustar threshold baseado no volume atual (mais sensível)
+  const volumeMultiplier = Math.min(Math.max(currentVolume / 50000, 0.3), 1.5);
   
   return {
     volume: threshold.volume * volumeMultiplier,
-    priceChange: threshold.priceChange / volumeMultiplier // Altas mais severas com mais volume
+    priceChange: threshold.priceChange * volumeMultiplier // Altas proporcionais ao volume
   };
 };
 
@@ -87,32 +87,38 @@ export const calculateIntensity = (
   const priceRatio = Math.abs(priceChange) / Math.abs(threshold.priceChange);
   const combinedRatio = (volumeRatio + priceRatio) / 2;
   
-  if (combinedRatio >= 15) return 5;
-  if (combinedRatio >= 8) return 4;
-  if (combinedRatio >= 4) return 3;
-  if (combinedRatio >= 2) return 2;
+  if (combinedRatio >= 10) return 5;
+  if (combinedRatio >= 5) return 4;
+  if (combinedRatio >= 3) return 3;
+  if (combinedRatio >= 1.5) return 2;
   return 1;
 };
 
-// NOVA: Detecção específica para Long liquidations (quedas bruscas)
+// CORRIGIDO: Lógica clara - LONG liquidations em QUEDAS
 export const shouldDetectLongLiquidation = (
   volumeValue: number,
   priceChange: number,
   threshold: { volume: number; priceChange: number }
 ) => {
-  return volumeValue > threshold.volume && priceChange <= threshold.priceChange; // <= para quedas
+  const volumeOk = volumeValue > threshold.volume;
+  const priceOk = priceChange <= threshold.priceChange; // <= para quedas (negativos)
+  
+  return volumeOk && priceOk;
 };
 
-// NOVA: Detecção específica para Short liquidations (altas bruscas)
+// CORRIGIDO: Lógica clara - SHORT liquidations em ALTAS
 export const shouldDetectShortLiquidation = (
   volumeValue: number,
   priceChange: number,
   threshold: { volume: number; priceChange: number }
 ) => {
-  return volumeValue > threshold.volume && priceChange >= threshold.priceChange; // >= para altas
+  const volumeOk = volumeValue > threshold.volume;
+  const priceOk = priceChange >= threshold.priceChange; // >= para altas (positivos)
+  
+  return volumeOk && priceOk;
 };
 
-// Logging utilities para debugging com lógicas específicas
+// CORRIGIDO: Logging mais claro para debug
 export const logLongLiquidationDetection = (
   ticker: string,
   volumeValue: number,
@@ -120,8 +126,8 @@ export const logLongLiquidationDetection = (
   threshold: { volume: number; priceChange: number },
   detected: boolean
 ) => {
-  const status = detected ? '🔴 LONG DETECTED' : '❌ LONG SKIPPED';
-  console.log(`${status} ${ticker}: Vol=${(volumeValue/1000).toFixed(0)}K (>${(threshold.volume/1000).toFixed(0)}K), Fall=${priceChange.toFixed(2)}% (<=${threshold.priceChange.toFixed(1)}%)`);
+  const status = detected ? '🔴 LONG LIQUIDATION' : '❌ LONG SKIPPED';
+  console.log(`${status} ${ticker}: Vol=${(volumeValue/1000).toFixed(0)}K (needs >${(threshold.volume/1000).toFixed(0)}K), Price=${priceChange.toFixed(2)}% (needs <=${threshold.priceChange.toFixed(1)}%)`);
 };
 
 export const logShortLiquidationDetection = (
@@ -131,11 +137,11 @@ export const logShortLiquidationDetection = (
   threshold: { volume: number; priceChange: number },
   detected: boolean
 ) => {
-  const status = detected ? '🟢 SHORT DETECTED' : '❌ SHORT SKIPPED';
-  console.log(`${status} ${ticker}: Vol=${(volumeValue/1000).toFixed(0)}K (>${(threshold.volume/1000).toFixed(0)}K), Rise=${priceChange.toFixed(2)}% (>=${threshold.priceChange.toFixed(1)}%)`);
+  const status = detected ? '🟢 SHORT LIQUIDATION' : '❌ SHORT SKIPPED';
+  console.log(`${status} ${ticker}: Vol=${(volumeValue/1000).toFixed(0)}K (needs >${(threshold.volume/1000).toFixed(0)}K), Price=${priceChange.toFixed(2)}% (needs >=${threshold.priceChange.toFixed(1)}%)`);
 };
 
-// NOVA: Função para detectar ambos os tipos de liquidação de forma espelhada
+// PRINCIPAL: Função que detecta AMBOS os tipos corretamente
 export const detectLiquidations = (
   ticker: string,
   volumeValue: number,
@@ -148,9 +154,35 @@ export const detectLiquidations = (
   const longDetected = shouldDetectLongLiquidation(volumeValue, priceChange, longThreshold);
   const shortDetected = shouldDetectShortLiquidation(volumeValue, priceChange, shortThreshold);
   
-  // Log ambas as detecções
+  // Log TODAS as tentativas para debug
   logLongLiquidationDetection(ticker, volumeValue, priceChange, longThreshold, longDetected);
   logShortLiquidationDetection(ticker, volumeValue, priceChange, shortThreshold, shortDetected);
+  
+  // CRUCIAL: Garantir que não detectamos ambos ao mesmo tempo
+  if (longDetected && shortDetected) {
+    console.warn(`⚠️ CONFLITO: ${ticker} detectou LONG e SHORT simultaneamente. Priorizando por magnitude.`);
+    
+    // Priorizar pelo que tem maior magnitude
+    if (Math.abs(priceChange - longThreshold.priceChange) < Math.abs(priceChange - shortThreshold.priceChange)) {
+      return {
+        longLiquidation: {
+          type: 'long' as const,
+          threshold: longThreshold,
+          intensity: calculateIntensity(volumeValue, priceChange, longThreshold)
+        },
+        shortLiquidation: null
+      };
+    } else {
+      return {
+        longLiquidation: null,
+        shortLiquidation: {
+          type: 'short' as const,
+          threshold: shortThreshold,
+          intensity: calculateIntensity(volumeValue, priceChange, shortThreshold)
+        }
+      };
+    }
+  }
   
   return {
     longLiquidation: longDetected ? {

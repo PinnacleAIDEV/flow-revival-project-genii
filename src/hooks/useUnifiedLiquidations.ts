@@ -23,7 +23,7 @@ export const useUnifiedLiquidations = () => {
   const [trendReversals, setTrendReversals] = useState<TrendReversal[]>([]);
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
 
-  // Processar dados de flow para criar liquidações unificadas
+  // CORRIGIDO: Processar dados de flow com lógica mais clara
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
@@ -54,97 +54,107 @@ export const useUnifiedLiquidations = () => {
         const marketCap = getMarketCapCategory(data.ticker);
         const isHighMarketCap = marketCap === 'high';
         
-        // Detectar liquidações usando lógica existente
+        // CRUCIAL: Debug de cada ativo
+        console.log(`📊 ANALISANDO ${data.ticker}: Price=${priceChange.toFixed(2)}%, Vol=${(volumeValue/1000).toFixed(0)}K`);
+        
+        // Detectar liquidações usando lógica corrigida
         const detection = detectLiquidations(data.ticker, volumeValue, priceChange, isHighMarketCap);
         
-        // Processar liquidações detectadas
-        if (detection.longLiquidation || detection.shortLiquidation) {
+        // CORRIGIDO: Processar liquidações detectadas de forma independente
+        if (detection.longLiquidation) {
           const assetName = data.ticker.replace('USDT', '');
           
-          if (detection.longLiquidation) {
-            const liquidation = {
-              id: `${data.ticker}-long-${now.getTime()}`,
-              asset: assetName,
-              type: 'long' as const,
-              amount: volumeValue,
-              price: data.price,
-              marketCap,
-              timestamp: safeCreateDate(data.timestamp),
-              intensity: detection.longLiquidation.intensity,
-              change24h: priceChange,
-              volume: data.volume,
-              lastUpdateTime: now,
-              totalLiquidated: volumeValue
-            };
-            
-            const unifiedAsset = createOrUpdateUnifiedAsset(unifiedAssets, liquidation);
-            newUpdates.set(assetName, unifiedAsset);
-            
-            console.log(`🔴 LONG LIQUIDATION: ${assetName} (${marketCap.toUpperCase()}) - Posições: ${unifiedAsset.longPositions} - Total: ${(unifiedAsset.longLiquidated/1e6).toFixed(2)}M`);
-            
-            // Salvar no Supabase
-            saveLiquidation({
-              asset: liquidation.asset,
-              ticker: data.ticker,
-              type: liquidation.type,
-              amount: liquidation.amount,
-              price: liquidation.price,
-              market_cap: liquidation.marketCap,
-              intensity: liquidation.intensity,
-              change_24h: liquidation.change24h,
-              volume: liquidation.volume,
-              total_liquidated: liquidation.totalLiquidated,
-              volume_spike: 1
-            });
-          }
+          const liquidation = {
+            id: `${data.ticker}-long-${now.getTime()}`,
+            asset: assetName,
+            type: 'long' as const,
+            amount: volumeValue,
+            price: data.price,
+            marketCap,
+            timestamp: safeCreateDate(data.timestamp),
+            intensity: detection.longLiquidation.intensity,
+            change24h: priceChange,
+            volume: data.volume,
+            lastUpdateTime: now,
+            totalLiquidated: volumeValue
+          };
           
-          if (detection.shortLiquidation) {
-            const liquidation = {
-              id: `${data.ticker}-short-${now.getTime()}`,
-              asset: assetName,
-              type: 'short' as const,
-              amount: volumeValue,
-              price: data.price,
-              marketCap,
-              timestamp: safeCreateDate(data.timestamp),
-              intensity: detection.shortLiquidation.intensity,
-              change24h: priceChange,
-              volume: data.volume,
-              lastUpdateTime: now,
-              totalLiquidated: volumeValue
-            };
-            
-            const unifiedAsset = createOrUpdateUnifiedAsset(newUpdates.get(assetName) || unifiedAssets.get(assetName) || {} as any, liquidation);
-            newUpdates.set(assetName, unifiedAsset);
-            
-            console.log(`🟢 SHORT LIQUIDATION: ${assetName} (${marketCap.toUpperCase()}) - Posições: ${unifiedAsset.shortPositions} - Total: ${(unifiedAsset.shortLiquidated/1e6).toFixed(2)}M`);
-            
-            // Salvar no Supabase
-            saveLiquidation({
-              asset: liquidation.asset,
-              ticker: data.ticker,
-              type: liquidation.type,
-              amount: liquidation.amount,
-              price: liquidation.price,
-              market_cap: liquidation.marketCap,
-              intensity: liquidation.intensity,
-              change_24h: liquidation.change24h,
-              volume: liquidation.volume,
-              total_liquidated: liquidation.totalLiquidated,
-              volume_spike: 1
-            });
-          }
-
-          // Marcar como processado
-          setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
+          const unifiedAsset = createOrUpdateUnifiedAsset(unifiedAssets, liquidation);
+          newUpdates.set(assetName, unifiedAsset);
+          
+          console.log(`🔴 LONG LIQUIDATION CONFIRMADA: ${assetName} - ${(volumeValue/1e6).toFixed(2)}M - Preço caiu ${priceChange.toFixed(2)}%`);
+          
+          saveLiquidation({
+            asset: liquidation.asset,
+            ticker: data.ticker,
+            type: liquidation.type,
+            amount: liquidation.amount,
+            price: liquidation.price,
+            market_cap: liquidation.marketCap,
+            intensity: liquidation.intensity,
+            change_24h: liquidation.change24h,
+            volume: liquidation.volume,
+            total_liquidated: liquidation.totalLiquidated,
+            volume_spike: 1
+          });
         }
+        
+        if (detection.shortLiquidation) {
+          const assetName = data.ticker.replace('USDT', '');
+          
+          const liquidation = {
+            id: `${data.ticker}-short-${now.getTime()}`,
+            asset: assetName,
+            type: 'short' as const,
+            amount: volumeValue,
+            price: data.price,
+            marketCap,
+            timestamp: safeCreateDate(data.timestamp),
+            intensity: detection.shortLiquidation.intensity,
+            change24h: priceChange,
+            volume: data.volume,
+            lastUpdateTime: now,
+            totalLiquidated: volumeValue
+          };
+          
+          // IMPORTANTE: Usar o asset correto (pode já existir com LONG)
+          const existingAsset = newUpdates.get(assetName) || unifiedAssets.get(assetName);
+          const unifiedAsset = createOrUpdateUnifiedAsset(existingAsset || {} as any, liquidation);
+          newUpdates.set(assetName, unifiedAsset);
+          
+          console.log(`🟢 SHORT LIQUIDATION CONFIRMADA: ${assetName} - ${(volumeValue/1e6).toFixed(2)}M - Preço subiu ${priceChange.toFixed(2)}%`);
+          
+          saveLiquidation({
+            asset: liquidation.asset,
+            ticker: data.ticker,
+            type: liquidation.type,
+            amount: liquidation.amount,
+            price: liquidation.price,
+            market_cap: liquidation.marketCap,
+            intensity: liquidation.intensity,
+            change_24h: liquidation.change24h,
+            volume: liquidation.volume,
+            total_liquidated: liquidation.totalLiquidated,
+            volume_spike: 1
+          });
+        }
+
+        // Se não detectou nada, log para debug
+        if (!detection.longLiquidation && !detection.shortLiquidation) {
+          console.log(`⚪ SEM LIQUIDAÇÃO: ${data.ticker} - Price=${priceChange.toFixed(2)}%, Vol=${(volumeValue/1000).toFixed(0)}K`);
+        }
+
+        // Marcar como processado
+        setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
       } catch (error) {
-        console.error('Erro ao processar liquidação unificada:', error, data);
+        console.error('❌ Erro ao processar liquidação unificada:', error, data);
       }
     });
 
-    // Atualizar assets unificados
+    // CORRIGIDO: Atualizar assets unificados
     if (newUpdates.size > 0) {
+      console.log(`📈 ATUALIZANDO ${newUpdates.size} assets com novas liquidações`);
+      
       setUnifiedAssets(prev => {
         const updated = new Map(prev);
         newUpdates.forEach((asset, key) => {
