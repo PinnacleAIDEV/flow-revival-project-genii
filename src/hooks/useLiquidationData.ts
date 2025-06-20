@@ -44,14 +44,31 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
     lowCapShort: 0
   });
 
-  // Inicializar com dados persistidos
+  // Função para garantir que lastUpdateTime é um Date válido
+  const ensureDateObject = (liquidation: LiquidationBubble): LiquidationBubble => {
+    return {
+      ...liquidation,
+      lastUpdateTime: liquidation.lastUpdateTime instanceof Date 
+        ? liquidation.lastUpdateTime 
+        : safeCreateDate(liquidation.lastUpdateTime),
+      timestamp: liquidation.timestamp instanceof Date 
+        ? liquidation.timestamp 
+        : safeCreateDate(liquidation.timestamp)
+    };
+  };
+
+  // Inicializar com dados persistidos - GARANTINDO que são Date objects
   useEffect(() => {
     console.log(`📊 Inicializando liquidações com dados persistidos:`);
     console.log(`- Long liquidations: ${persistedLongLiquidations.length}`);
     console.log(`- Short liquidations: ${persistedShortLiquidations.length}`);
     
-    setLongLiquidations(persistedLongLiquidations);
-    setShortLiquidations(persistedShortLiquidations);
+    // Converter strings de data para Date objects
+    const longWithDates = persistedLongLiquidations.map(ensureDateObject);
+    const shortWithDates = persistedShortLiquidations.map(ensureDateObject);
+    
+    setLongLiquidations(longWithDates);
+    setShortLiquidations(shortWithDates);
   }, [persistedLongLiquidations, persistedShortLiquidations]);
 
   // Limpeza automática a cada minuto
@@ -63,7 +80,12 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
       console.log('🧹 Limpando liquidações antigas...');
       
       setLongLiquidations(prev => {
-        const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
+        const filtered = prev.filter(liq => {
+          const updateTime = liq.lastUpdateTime instanceof Date 
+            ? liq.lastUpdateTime 
+            : safeCreateDate(liq.lastUpdateTime);
+          return updateTime > fifteenMinutesAgo;
+        });
         const removed = prev.length - filtered.length;
         if (removed > 0) {
           console.log(`🗑️ Removidas ${removed} liquidações LONG antigas`);
@@ -72,7 +94,12 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
       });
       
       setShortLiquidations(prev => {
-        const filtered = prev.filter(liq => liq.lastUpdateTime > fifteenMinutesAgo);
+        const filtered = prev.filter(liq => {
+          const updateTime = liq.lastUpdateTime instanceof Date 
+            ? liq.lastUpdateTime 
+            : safeCreateDate(liq.lastUpdateTime);
+          return updateTime > fifteenMinutesAgo;
+        });
         const removed = prev.length - filtered.length;
         if (removed > 0) {
           console.log(`🗑️ Removidas ${removed} liquidações SHORT antigas`);
@@ -89,7 +116,13 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
   // NOVA FUNÇÃO: Calcular relevância atual (baseada em activity atual, não acumulada)
   const calculateCurrentRelevance = (liquidation: LiquidationBubble): number => {
     const now = new Date();
-    const ageMinutes = (now.getTime() - liquidation.lastUpdateTime.getTime()) / (1000 * 60);
+    
+    // Garantir que lastUpdateTime é um Date object
+    const updateTime = liquidation.lastUpdateTime instanceof Date 
+      ? liquidation.lastUpdateTime 
+      : safeCreateDate(liquidation.lastUpdateTime);
+    
+    const ageMinutes = (now.getTime() - updateTime.getTime()) / (1000 * 60);
     
     // Decay temporal - liquidações mais recentes têm mais relevância
     const timeDecay = Math.max(0, 1 - (ageMinutes / 15)); // Decay total em 15 minutos
@@ -118,7 +151,12 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
       if (b.intensity !== a.intensity) {
         return b.intensity - a.intensity;
       }
-      return b.lastUpdateTime.getTime() - a.lastUpdateTime.getTime();
+      
+      // Garantir que são Date objects para comparação
+      const aTime = a.lastUpdateTime instanceof Date ? a.lastUpdateTime : safeCreateDate(a.lastUpdateTime);
+      const bTime = b.lastUpdateTime instanceof Date ? b.lastUpdateTime : safeCreateDate(b.lastUpdateTime);
+      
+      return bTime.getTime() - aTime.getTime();
     });
     
     // Balanceamento: garantir mix entre high/low cap
@@ -206,7 +244,7 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
             intensity: detection.longLiquidation.intensity,
             change24h: priceChange,
             volume: data.volume,
-            lastUpdateTime: now,
+            lastUpdateTime: now, // Garantir que é Date object
             totalLiquidated: volumeValue // MANTIDO: para compatibilidade com componentes existentes
           };
           
@@ -248,7 +286,7 @@ export const useLiquidationData = (dailyCallback?: Use24hLiquidationCallback) =>
             intensity: detection.shortLiquidation.intensity,
             change24h: priceChange,
             volume: data.volume,
-            lastUpdateTime: now,
+            lastUpdateTime: now, // Garantir que é Date object
             totalLiquidated: volumeValue // MANTIDO: para compatibilidade com componentes existentes
           };
           
