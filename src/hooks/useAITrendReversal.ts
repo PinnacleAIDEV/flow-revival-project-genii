@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { UnifiedLiquidationAsset } from '../types/liquidation';
 import { supabase } from '@/integrations/supabase/client';
@@ -122,7 +121,7 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
           detectedPatterns: [],
           marketSummary: {
             dominantPattern: "ERROR",
-            overallRisk: "UNKNOWN",
+            overallRisk: "LOW",
             recommendation: `Erro na análise: ${errorMessage}`
           }
         });
