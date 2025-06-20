@@ -30,7 +30,7 @@ export const TradingDashboard: React.FC = () => {
                   </div>
                   <div>
                     <h1 className="font-display text-neon text-2xl">LIQUIDATION_MONITOR</h1>
-                    <p className="text-electric font-mono text-sm">REAL-TIME TRACKING // MICRO-CAP DETECTION</p>
+                    <p className="text-electric font-mono text-sm">REAL-TIME TRACKING // TREND REVERSAL DETECTION</p>
                   </div>
                 </div>
               </div>
@@ -48,7 +48,7 @@ export const TradingDashboard: React.FC = () => {
           <div className="ascii-divider mb-6"></div>
 
           {/* Liquidation Bubble Map */}
-          <div className="brutal-card mb-8 h-[500px] scanlines">
+          <div className="brutal-card mb-8 scanlines" style={{ height: '700px' }}>
             <div className="p-4 border-b-2 border-neon">
               <h2 className="font-display text-electric text-lg glitch" data-text="LIQUIDATION_BUBBLE_MAP">
                 LIQUIDATION_BUBBLE_MAP

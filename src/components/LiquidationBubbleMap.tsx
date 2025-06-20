@@ -8,6 +8,7 @@ import { usePersistedData } from '../hooks/usePersistedData';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
 import { LiquidationTable } from './liquidation/LiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
+import { TrendReversalSection } from './liquidation/TrendReversalSection';
 
 interface LiquidationBubble {
   id: string;
@@ -156,13 +157,18 @@ export const LiquidationBubbleMap: React.FC = () => {
         const volumeValue = data.volume * data.price;
         const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
         
-        // Filtros ajustados para detectar liquidações
+        // LÓGICA CORRIGIDA: Melhor detecção de liquidações
         const threshold = isHighMarketCap ? 
-          { volume: 25000, priceChange: 0.8 } :   // High cap: $25k + 0.8%
-          { volume: 8000, priceChange: 1.2 };     // Low cap: $8k + 1.2%
+          { volume: 50000, priceChange: 1.5 } :   // High cap: $50k + 1.5%
+          { volume: 15000, priceChange: 2.0 };     // Low cap: $15k + 2.0%
         
-        // Detectar liquidação
+        // Detectar liquidação com volume e volatilidade
         if (volumeValue > threshold.volume && priceChange > threshold.priceChange) {
+          // LÓGICA CORRIGIDA: Inversão da lógica de long/short
+          // Se preço está CAINDO (change negativo), LONGS são liquidados
+          // Se preço está SUBINDO (change positivo), SHORTS são liquidados
+          const liquidationType: 'long' | 'short' = (data.change_24h || 0) < 0 ? 'long' : 'short';
+          
           // Calcular intensidade baseada nos dados
           const volumeRatio = volumeValue / threshold.volume;
           const priceRatio = priceChange / threshold.priceChange;
@@ -178,7 +184,7 @@ export const LiquidationBubbleMap: React.FC = () => {
           const liquidation: LiquidationBubble = {
             id: `${data.ticker}-${now.getTime()}`,
             asset: data.ticker.replace('USDT', ''),
-            type: (data.change_24h || 0) < 0 ? 'long' : 'short',
+            type: liquidationType,
             amount: volumeValue,
             price: data.price,
             marketCap: isHighMarketCap ? 'high' : 'low',
@@ -190,7 +196,7 @@ export const LiquidationBubbleMap: React.FC = () => {
             totalLiquidated: volumeValue
           };
           
-          console.log(`💥 Nova liquidação detectada: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - ${formatAmount(liquidation.totalLiquidated)}`);
+          console.log(`💥 LIQUIDAÇÃO CORRIGIDA: ${liquidation.asset} - ${liquidation.type.toUpperCase()} - Change: ${data.change_24h?.toFixed(2)}% - ${formatAmount(liquidation.totalLiquidated)}`);
           
           // Salvar no Supabase
           saveLiquidation({
@@ -324,6 +330,13 @@ export const LiquidationBubbleMap: React.FC = () => {
       <LiquidationStats
         longLiquidations={longLiquidations}
         shortLiquidations={shortLiquidations}
+      />
+
+      {/* Nova seção Trend Reversal */}
+      <TrendReversalSection 
+        longLiquidations={longLiquidations}
+        shortLiquidations={shortLiquidations}
+        onAssetClick={handleAssetClick}
       />
     </div>
   );
