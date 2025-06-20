@@ -1,11 +1,12 @@
 
-import React from 'react';
-import { RotateCcw, TrendingUp, TrendingDown, Zap, Clock } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { RotateCcw, TrendingUp, TrendingDown, Zap, Clock, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
 import { LiquidationBubble } from '../../types/liquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
+import { useTrendReversalHistory } from '../../hooks/useTrendReversalHistory';
 
 interface TrendReversalSectionProps {
   longLiquidations: LiquidationBubble[];
@@ -18,48 +19,14 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
   shortLiquidations,
   onAssetClick
 }) => {
-  // Detectar reversões de tendência baseado em mudanças de volume
-  const detectTrendReversals = () => {
-    const reversals: Array<{
-      asset: string;
-      type: 'bullish' | 'bearish';
-      strength: number;
-      reason: string;
-      liquidation: LiquidationBubble;
-    }> = [];
+  const { detectedReversals, processLiquidation, assetHistorySize } = useTrendReversalHistory();
 
-    // Analisar liquidações long para reversões bullish (muitas liquidações long = possível alta)
-    longLiquidations.forEach(liq => {
-      if (liq.intensity >= 3 && Math.abs(liq.change24h) > 5) {
-        const strength = (liq.intensity * 20) + Math.abs(liq.change24h);
-        reversals.push({
-          asset: liq.asset,
-          type: 'bullish',
-          strength,
-          reason: `Liquidações LONG intensas (${liq.intensity}/5) com queda de ${Math.abs(liq.change24h).toFixed(1)}%`,
-          liquidation: liq
-        });
-      }
+  // Processar novas liquidações
+  useEffect(() => {
+    [...longLiquidations, ...shortLiquidations].forEach(liquidation => {
+      processLiquidation(liquidation);
     });
-
-    // Analisar liquidações short para reversões bearish (muitas liquidações short = possível queda)
-    shortLiquidations.forEach(liq => {
-      if (liq.intensity >= 3 && Math.abs(liq.change24h) > 5) {
-        const strength = (liq.intensity * 20) + Math.abs(liq.change24h);
-        reversals.push({
-          asset: liq.asset,
-          type: 'bearish',
-          strength,
-          reason: `Liquidações SHORT intensas (${liq.intensity}/5) com alta de ${liq.change24h.toFixed(1)}%`,
-          liquidation: liq
-        });
-      }
-    });
-
-    return reversals.sort((a, b) => b.strength - a.strength).slice(0, 20);
-  };
-
-  const trendReversals = detectTrendReversals();
+  }, [longLiquidations, shortLiquidations, processLiquidation]);
 
   const formatTimestamp = (timestamp: Date) => {
     try {
@@ -73,6 +40,28 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
     }
   };
 
+  const getReversalIcon = (fromType: 'long' | 'short', toType: 'long' | 'short') => {
+    if (fromType === 'long' && toType === 'short') {
+      return <div className="flex items-center space-x-1">
+        <TrendingDown className="w-4 h-4 text-red-400" />
+        <ArrowRight className="w-3 h-3 text-gray-400" />
+        <TrendingUp className="w-4 h-4 text-green-400" />
+      </div>;
+    }
+    return <div className="flex items-center space-x-1">
+      <TrendingUp className="w-4 h-4 text-green-400" />
+      <ArrowRight className="w-3 h-3 text-gray-400" />
+      <TrendingDown className="w-4 h-4 text-red-400" />
+    </div>;
+  };
+
+  const getStrengthColor = (strength: number) => {
+    if (strength >= 80) return 'text-red-400';
+    if (strength >= 60) return 'text-orange-400';
+    if (strength >= 40) return 'text-yellow-400';
+    return 'text-green-400';
+  };
+
   return (
     <div className="h-full">
       <Card className="bg-gray-900/90 backdrop-blur-sm border-purple-500 h-full">
@@ -84,13 +73,13 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
               </div>
               <div>
                 <CardTitle className="flex items-center space-x-2 text-purple-400 font-mono">
-                  <span>TREND REVERSAL DETECTOR</span>
+                  <span>TREND REVERSAL DETECTOR v2.0</span>
                   <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
-                    {trendReversals.length} sinais
+                    {detectedReversals.length} reversões
                   </Badge>
                 </CardTitle>
                 <p className="text-sm text-gray-400 font-mono">
-                  Detecção de possíveis reversões baseada em liquidações intensas
+                  Sistema temporal inteligente • {assetHistorySize} ativos rastreados
                 </p>
               </div>
             </div>
@@ -98,42 +87,38 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
         </CardHeader>
         
         <CardContent className="p-0 h-[calc(100%-7rem)]">
-          {trendReversals.length > 0 ? (
+          {detectedReversals.length > 0 ? (
             <ScrollArea className="h-full px-6 pb-6">
               <div className="space-y-3">
-                {trendReversals.map((reversal, index) => (
+                {detectedReversals.map((reversal, index) => (
                   <div 
-                    key={`${reversal.asset}-${index}`}
+                    key={`${reversal.asset}-${reversal.lastProcessed.getTime()}`}
                     className={`p-4 rounded-lg border-l-4 cursor-pointer hover:bg-gray-800/50 transition-colors ${
-                      reversal.type === 'bullish' 
+                      reversal.toType === 'short' 
                         ? 'bg-green-500/10 border-green-500' 
                         : 'bg-red-500/10 border-red-500'
                     }`}
                     onClick={() => onAssetClick(reversal.asset)}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        {reversal.type === 'bullish' ? (
-                          <TrendingUp className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4 text-red-400" />
-                        )}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        {getReversalIcon(reversal.fromType, reversal.toType)}
                         <span className="font-bold text-white text-sm">{reversal.asset}</span>
                         <Badge className={`text-xs ${
-                          reversal.type === 'bullish' 
+                          reversal.toType === 'short' 
                             ? 'bg-green-500/20 text-green-300' 
                             : 'bg-red-500/20 text-red-300'
                         }`}>
-                          {reversal.type === 'bullish' ? 'BULLISH' : 'BEARISH'}
+                          {reversal.fromType.toUpperCase()}→{reversal.toType.toUpperCase()}
                         </Badge>
                       </div>
                       
                       <div className="flex items-center space-x-2">
-                        <Badge className="bg-purple-500/20 text-purple-300 text-xs">
-                          Força: {reversal.strength.toFixed(0)}
+                        <Badge className={`text-xs font-bold ${getStrengthColor(reversal.strength)}`}>
+                          ⚡ {reversal.strength.toFixed(0)}
                         </Badge>
                         <span className="text-xs text-gray-400 font-mono">
-                          {formatTimestamp(reversal.liquidation.timestamp)}
+                          {formatTimestamp(reversal.lastProcessed)}
                         </span>
                       </div>
                     </div>
@@ -144,34 +129,49 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div className="space-y-1">
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Preço:</span>
-                            <span className="text-white font-mono">
-                              ${reversal.liquidation.price.toFixed(4)}
+                            <span className="text-gray-400">⚡ Volume Ratio:</span>
+                            <span className="text-yellow-400 font-bold">
+                              {reversal.volumeRatio.toFixed(1)}x
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Liquidação:</span>
-                            <span className="text-yellow-400 font-mono">
-                              {formatAmount(reversal.liquidation.amount)}
+                            <span className="text-gray-400">📊 Intensidade Δ:</span>
+                            <span className="text-orange-400 font-bold">
+                              +{reversal.intensityDelta.toFixed(1)}
                             </span>
                           </div>
                         </div>
                         
                         <div className="space-y-1">
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Variação 24h:</span>
-                            <span className={`font-mono ${
-                              reversal.liquidation.change24h >= 0 ? 'text-green-400' : 'text-red-400'
-                            }`}>
-                              {reversal.liquidation.change24h >= 0 ? '+' : ''}{reversal.liquidation.change24h.toFixed(2)}%
+                            <span className="text-gray-400">⏱️ Timeframe:</span>
+                            <span className="text-cyan-400 font-mono">
+                              {reversal.timeFrame.toFixed(1)}min
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Market Cap:</span>
+                            <span className="text-gray-400">💰 Valor Atual:</span>
+                            <span className="text-white font-mono">
+                              {formatAmount(reversal.currentLiquidation.amount)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-gray-700 pt-2 mt-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="w-3 h-3 text-gray-400" />
+                            <span className="text-gray-400">
+                              Preço: ${reversal.currentLiquidation.price.toFixed(4)}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-gray-400">24h:</span>
                             <span className={`font-mono ${
-                              reversal.liquidation.marketCap === 'high' ? 'text-blue-400' : 'text-gray-300'
+                              reversal.currentLiquidation.change24h >= 0 ? 'text-green-400' : 'text-red-400'
                             }`}>
-                              {reversal.liquidation.marketCap.toUpperCase()}
+                              {reversal.currentLiquidation.change24h >= 0 ? '+' : ''}{reversal.currentLiquidation.change24h.toFixed(2)}%
                             </span>
                           </div>
                         </div>
@@ -184,12 +184,13 @@ export const TrendReversalSection: React.FC<TrendReversalSectionProps> = ({
           ) : (
             <div className="h-full flex items-center justify-center text-center">
               <div className="space-y-3">
-                <Zap className="w-12 h-12 text-gray-500 mx-auto" />
-                <h4 className="text-lg font-medium text-gray-400 font-mono">AGUARDANDO SINAIS</h4>
-                <p className="text-gray-500 text-sm">Nenhuma reversão detectada no momento</p>
+                <RotateCcw className="w-12 h-12 text-gray-500 mx-auto animate-spin" />
+                <h4 className="text-lg font-medium text-gray-400 font-mono">ANALISANDO PADRÕES</h4>
+                <p className="text-gray-500 text-sm">Sistema temporal inteligente ativo</p>
                 <div className="text-xs text-gray-600 space-y-1">
-                  <p>🔍 Procurando por liquidações intensas (≥3/5)</p>
-                  <p>📊 Variações significativas (≥5%)</p>
+                  <p>🔍 Rastreando {assetHistorySize} ativos</p>
+                  <p>⏱️ Janela temporal: 5 minutos</p>
+                  <p>🎯 Detectando mudanças Long↔Short</p>
                 </div>
               </div>
             </div>

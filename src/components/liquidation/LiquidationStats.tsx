@@ -13,9 +13,9 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
   longLiquidations,
   shortLiquidations
 }) => {
-  // Calcular totais
-  const totalLongAmount = longLiquidations.reduce((sum, liq) => sum + liq.totalLiquidated, 0);
-  const totalShortAmount = shortLiquidations.reduce((sum, liq) => sum + liq.totalLiquidated, 0);
+  // Calcular valores atuais (não acumulados)
+  const totalLongAmount = longLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
+  const totalShortAmount = shortLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
   
   // Calcular por market cap
   const longHighCap = longLiquidations.filter(liq => liq.marketCap === 'high');
@@ -23,10 +23,10 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
   const shortHighCap = shortLiquidations.filter(liq => liq.marketCap === 'high');
   const shortLowCap = shortLiquidations.filter(liq => liq.marketCap === 'low');
 
-  const longHighCapAmount = longHighCap.reduce((sum, liq) => sum + liq.totalLiquidated, 0);
-  const longLowCapAmount = longLowCap.reduce((sum, liq) => sum + liq.totalLiquidated, 0);
-  const shortHighCapAmount = shortHighCap.reduce((sum, liq) => sum + liq.totalLiquidated, 0);
-  const shortLowCapAmount = shortLowCap.reduce((sum, liq) => sum + liq.totalLiquidated, 0);
+  const longHighCapAmount = longHighCap.reduce((sum, liq) => sum + liq.amount, 0);
+  const longLowCapAmount = longLowCap.reduce((sum, liq) => sum + liq.amount, 0);
+  const shortHighCapAmount = shortHighCap.reduce((sum, liq) => sum + liq.amount, 0);
+  const shortLowCapAmount = shortLowCap.reduce((sum, liq) => sum + liq.amount, 0);
 
   const StatCard = ({ 
     title, 
@@ -129,7 +129,7 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
           
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-600">Total Liquidado:</span>
+              <span className="text-gray-600">Liquidação Atual:</span>
               <span className="font-mono font-bold">{formatAmount(totalLongAmount + totalShortAmount)}</span>
             </div>
             

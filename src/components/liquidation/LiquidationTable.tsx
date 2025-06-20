@@ -59,7 +59,7 @@ export const LiquidationTable: React.FC<LiquidationTableProps> = ({
                   <TableHead className="w-20 font-bold text-cyan-400 font-mono">ASSET</TableHead>
                   <TableHead className="w-24 font-bold text-cyan-400 font-mono">PRICE</TableHead>
                   <TableHead className="w-20 font-bold text-cyan-400 font-mono">24h %</TableHead>
-                  <TableHead className="w-28 font-bold text-cyan-400 font-mono">TOTAL LIQ</TableHead>
+                  <TableHead className="w-28 font-bold text-cyan-400 font-mono">CURRENT LIQ</TableHead>
                   <TableHead className="w-20 font-bold text-cyan-400 font-mono">CAP</TableHead>
                   <TableHead className="w-16 font-bold text-cyan-400 font-mono">RISK</TableHead>
                 </TableRow>
