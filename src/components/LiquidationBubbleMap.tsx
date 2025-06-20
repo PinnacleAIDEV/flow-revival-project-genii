@@ -2,14 +2,14 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useTrading } from '../contexts/TradingContext';
-import { useLiquidationData } from '../hooks/useLiquidationData';
+import { useUnifiedLiquidations } from '../hooks/useUnifiedLiquidations';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
-import { LiquidationTable } from './liquidation/LiquidationTable';
+import { UnifiedLiquidationTable } from './liquidation/UnifiedLiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { setSelectedAsset } = useTrading();
-  const { longLiquidations, shortLiquidations } = useLiquidationData();
+  const { longLiquidations, shortLiquidations } = useUnifiedLiquidations();
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
@@ -22,18 +22,20 @@ export const LiquidationBubbleMap: React.FC = () => {
       <LiquidationHeader />
 
       <div className="flex-1 flex gap-4 p-4 min-h-0">
-        <LiquidationTable
+        <UnifiedLiquidationTable
           title="Long Liquidations"
-          liquidations={longLiquidations}
+          assets={longLiquidations}
+          type="long"
           icon={TrendingDown}
           bgColor="bg-red-600"
           textColor="text-red-700"
           onAssetClick={handleAssetClick}
         />
         
-        <LiquidationTable
+        <UnifiedLiquidationTable
           title="Short Liquidations"
-          liquidations={shortLiquidations}
+          assets={shortLiquidations}
+          type="short"
           icon={TrendingUp}
           bgColor="bg-green-600"
           textColor="text-green-700"
