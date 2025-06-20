@@ -32,11 +32,12 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lastAnalysis, setLastAnalysis] = useState<number>(0);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
-  // Análise automática a cada 30 segundos se houver mudanças
+  // Análise automática a cada 15 segundos para ser mais responsiva
   useEffect(() => {
     const now = Date.now();
-    const shouldAnalyze = unifiedAssets.size > 0 && (now - lastAnalysis > 30000); // 30 segundos
+    const shouldAnalyze = unifiedAssets.size > 0 && (now - lastAnalysis > 15000); // 15 segundos
     
     if (shouldAnalyze && !isAnalyzing) {
       analyzePatterns();
@@ -44,46 +45,67 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
   }, [unifiedAssets, lastAnalysis, isAnalyzing]);
 
   const analyzePatterns = async () => {
-    if (unifiedAssets.size === 0) return;
+    if (unifiedAssets.size === 0) {
+      console.log('🤖 Nenhum asset para análise de IA');
+      return;
+    }
 
     setIsAnalyzing(true);
+    setAnalysisError(null);
+    
     try {
       console.log('🤖 Iniciando análise de IA para padrões de liquidação...');
       
       // Converter Map para Array
       const assetsArray = Array.from(unifiedAssets.values());
       
-      // Filtrar apenas assets com atividade recente (últimos 10 min)
+      // Filtrar apenas assets com atividade recente (últimos 5 min para ser mais responsivo)
       const now = new Date();
-      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
-      const activeAssets = assetsArray.filter(asset => 
-        new Date(asset.lastUpdateTime) > tenMinutesAgo &&
-        asset.liquidationHistory.length >= 2 // Mínimo de histórico
-      );
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      const activeAssets = assetsArray.filter(asset => {
+        const lastUpdate = new Date(asset.lastUpdateTime);
+        const hasRecentActivity = lastUpdate > fiveMinutesAgo;
+        const hasMinimumHistory = asset.liquidationHistory.length >= 2;
+        
+        return hasRecentActivity && hasMinimumHistory;
+      });
 
       if (activeAssets.length === 0) {
-        console.log('📊 Nenhum ativo com atividade suficiente para análise');
+        console.log('📊 Nenhum ativo com atividade recente suficiente para análise');
+        setAiAnalysis({
+          detectedPatterns: [],
+          marketSummary: {
+            dominantPattern: "NO_ACTIVITY",
+            overallRisk: "LOW",
+            recommendation: "Aguardando atividade de liquidação para análise"
+          }
+        });
+        setLastAnalysis(Date.now());
         return;
       }
 
-      console.log(`🔍 Analisando ${activeAssets.length} ativos ativos...`);
+      console.log(`🔍 Analisando ${activeAssets.length} ativos ativos para padrões de IA...`);
 
       const { data, error } = await supabase.functions.invoke('analyze-liquidation-patterns', {
         body: {
           unifiedAssets: activeAssets,
-          timeWindowMinutes: 10
+          timeWindowMinutes: 5 // Janela menor para detecção mais rápida
         }
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(`Supabase function error: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Nenhum dado retornado da função de análise');
       }
 
       const analysis: AIAnalysis = data;
       
       console.log(`✨ IA detectou ${analysis.detectedPatterns.length} padrões:`);
       analysis.detectedPatterns.forEach(pattern => {
-        console.log(`   🎯 ${pattern.asset}: ${pattern.pattern} (${pattern.confidence}% confiança)`);
+        console.log(`   🎯 ${pattern.asset}: ${pattern.pattern} (${pattern.confidence}% confiança) - ${pattern.severity}`);
       });
 
       setAiAnalysis(analysis);
@@ -91,7 +113,20 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
 
     } catch (error) {
       console.error('❌ Erro na análise de IA:', error);
-      // Manter análise anterior em caso de erro
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setAnalysisError(errorMessage);
+      
+      // Manter análise anterior em caso de erro, mas registrar o problema
+      if (!aiAnalysis) {
+        setAiAnalysis({
+          detectedPatterns: [],
+          marketSummary: {
+            dominantPattern: "ERROR",
+            overallRisk: "UNKNOWN",
+            recommendation: `Erro na análise: ${errorMessage}`
+          }
+        });
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -99,6 +134,7 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
 
   // Função para forçar nova análise
   const forceAnalysis = () => {
+    console.log('🔄 Forçando nova análise de IA...');
     setLastAnalysis(0);
     analyzePatterns();
   };
@@ -112,7 +148,8 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
   const getLiquidationFlips = () => {
     return aiAnalysis?.detectedPatterns.filter(p => 
       p.pattern.toLowerCase().includes('flip') || 
-      p.pattern.toLowerCase().includes('reversal')
+      p.pattern.toLowerCase().includes('reversal') ||
+      p.pattern.toLowerCase().includes('iceberg')
     ) || [];
   };
 
@@ -126,7 +163,8 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
       avgLiquidationVelocity: patterns.reduce((sum, p) => sum + p.metrics.liquidationVelocity, 0) / patterns.length,
       avgCascadeProbability: patterns.reduce((sum, p) => sum + p.metrics.cascadeProbability, 0) / patterns.length,
       highSeverityCount: patterns.filter(p => p.severity === 'HIGH' || p.severity === 'CRITICAL').length,
-      dominantDirection: getMostCommonDirection(patterns)
+      dominantDirection: getMostCommonDirection(patterns),
+      totalPatterns: patterns.length
     };
   };
 
@@ -143,10 +181,12 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
   return {
     aiAnalysis,
     isAnalyzing,
+    analysisError,
     analyzePatterns: forceAnalysis,
     getPatternsBySeverity,
     getLiquidationFlips,
     getAggregatedMetrics,
-    lastAnalyzed: new Date(lastAnalysis)
+    lastAnalyzed: new Date(lastAnalysis),
+    hasData: (aiAnalysis?.detectedPatterns.length || 0) > 0
   };
 };

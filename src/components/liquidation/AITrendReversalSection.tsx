@@ -1,13 +1,12 @@
 
 import React from 'react';
-import { Brain, Zap, TrendingUp, TrendingDown, AlertTriangle, Activity, Target, Clock } from 'lucide-react';
+import { Brain, Zap, TrendingUp, TrendingDown, AlertTriangle, Activity, Target, Clock, RefreshCw, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
 import { Button } from '../ui/button';
 import { useAITrendReversal } from '../../hooks/useAITrendReversal';
 import { UnifiedLiquidationAsset } from '../../types/liquidation';
-import { formatAmount } from '../../utils/liquidationUtils';
 
 interface AITrendReversalSectionProps {
   unifiedAssets: Map<string, UnifiedLiquidationAsset>;
@@ -21,14 +20,17 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
   const {
     aiAnalysis,
     isAnalyzing,
+    analysisError,
     analyzePatterns,
     getPatternsBySeverity,
     getLiquidationFlips,
-    getAggregatedMetrics
+    getAggregatedMetrics,
+    hasData,
+    lastAnalyzed
   } = useAITrendReversal(unifiedAssets);
 
   const getPatternIcon = (pattern: string) => {
-    if (pattern.toLowerCase().includes('flip') || pattern.toLowerCase().includes('reversal')) {
+    if (pattern.toLowerCase().includes('flip') || pattern.toLowerCase().includes('reversal') || pattern.toLowerCase().includes('iceberg')) {
       return <Zap className="w-4 h-4" />;
     }
     if (pattern.toLowerCase().includes('cascade')) {
@@ -76,10 +78,10 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
               <div>
                 <CardTitle className="flex items-center space-x-2 text-purple-200 font-mono">
                   <span>AI TREND REVERSAL DETECTOR</span>
-                  {isAnalyzing && <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />}
+                  {isAnalyzing && <RefreshCw className="w-4 h-4 animate-spin text-yellow-400" />}
                 </CardTitle>
                 <p className="text-sm text-purple-300 font-mono">
-                  Detecta 8 padrões avançados de liquidação com IA
+                  Detecta Liquidation Flips e 7 outros padrões avançados
                 </p>
               </div>
             </div>
@@ -97,40 +99,25 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
             </div>
           </div>
 
-          {/* Métricas Agregadas */}
-          {metrics && (
-            <div className="grid grid-cols-4 gap-3 mt-4">
-              <div className="bg-purple-800/30 rounded-lg p-3 text-center">
-                <div className="text-purple-200 text-xs font-medium">Confiança Média</div>
-                <div className="text-purple-100 text-lg font-bold">{metrics.avgConfidence.toFixed(0)}%</div>
-              </div>
-              <div className="bg-indigo-800/30 rounded-lg p-3 text-center">
-                <div className="text-indigo-200 text-xs font-medium">Velocidade Liq.</div>
-                <div className="text-indigo-100 text-lg font-bold">{metrics.avgLiquidationVelocity.toFixed(1)}</div>
-              </div>
-              <div className="bg-pink-800/30 rounded-lg p-3 text-center">
-                <div className="text-pink-200 text-xs font-medium">Prob. Cascade</div>
-                <div className="text-pink-100 text-lg font-bold">{(metrics.avgCascadeProbability * 100).toFixed(0)}%</div>
-              </div>
-              <div className="bg-cyan-800/30 rounded-lg p-3 text-center">
-                <div className="text-cyan-200 text-xs font-medium">Alta Severidade</div>
-                <div className="text-cyan-100 text-lg font-bold">{metrics.highSeverityCount}</div>
-              </div>
-            </div>
-          )}
-
           {/* Status da IA */}
           <div className="flex items-center justify-between mt-3 text-sm">
             <div className="flex items-center space-x-2">
-              {aiAnalysis ? (
+              {analysisError ? (
+                <>
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <span className="text-red-300">Erro: {analysisError}</span>
+                </>
+              ) : hasData ? (
                 <>
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  <span className="text-green-300">IA Online - {aiAnalysis.detectedPatterns.length} padrões detectados</span>
+                  <span className="text-green-300">
+                    IA Online - {aiAnalysis?.detectedPatterns.length} padrões detectados, última análise: {lastAnalyzed.toLocaleTimeString()}
+                  </span>
                 </>
               ) : (
                 <>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full" />
-                  <span className="text-gray-300">Aguardando dados...</span>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                  <span className="text-yellow-300">Aguardando liquidações para análise...</span>
                 </>
               )}
             </div>
@@ -141,9 +128,31 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
               </Badge>
             )}
           </div>
+
+          {/* Métricas Agregadas */}
+          {metrics && (
+            <div className="grid grid-cols-4 gap-3 mt-4">
+              <div className="bg-purple-800/30 rounded-lg p-3 text-center">
+                <div className="text-purple-200 text-xs font-medium">Confiança Média</div>
+                <div className="text-purple-100 text-lg font-bold">{metrics.avgConfidence.toFixed(0)}%</div>
+              </div>
+              <div className="bg-indigo-800/30 rounded-lg p-3 text-center">
+                <div className="text-indigo-200 text-xs font-medium">Padrões Detectados</div>
+                <div className="text-indigo-100 text-lg font-bold">{metrics.totalPatterns}</div>
+              </div>
+              <div className="bg-pink-800/30 rounded-lg p-3 text-center">
+                <div className="text-pink-200 text-xs font-medium">Alta Severidade</div>
+                <div className="text-pink-100 text-lg font-bold">{metrics.highSeverityCount}</div>
+              </div>
+              <div className="bg-cyan-800/30 rounded-lg p-3 text-center">
+                <div className="text-cyan-200 text-xs font-medium">Liquidation Flips</div>
+                <div className="text-cyan-100 text-lg font-bold">{liquidationFlips.length}</div>
+              </div>
+            </div>
+          )}
         </CardHeader>
         
-        <CardContent className="p-0 h-[calc(100%-200px)]">
+        <CardContent className="p-0 h-[calc(100%-250px)]">
           {aiAnalysis?.detectedPatterns.length ? (
             <ScrollArea className="h-full">
               <div className="space-y-4 p-4">
@@ -152,14 +161,14 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
                   <div className="mb-6">
                     <div className="flex items-center space-x-2 mb-3">
                       <Zap className="w-5 h-5 text-yellow-400" />
-                      <h3 className="text-yellow-300 font-bold">LIQUIDATION FLIPS DETECTADOS</h3>
+                      <h3 className="text-yellow-300 font-bold">🧊 LIQUIDATION FLIPS DETECTADOS (ICEBERG)</h3>
                       <Badge className="bg-yellow-400/20 text-yellow-300">{liquidationFlips.length}</Badge>
                     </div>
                     
                     {liquidationFlips.map((pattern, index) => (
                       <div
                         key={`flip-${index}`}
-                        className="p-4 rounded-lg border-l-4 border-yellow-400 bg-gradient-to-r from-yellow-900/30 to-orange-900/20 hover:from-yellow-900/40 hover:to-orange-900/30 transition-all cursor-pointer"
+                        className="p-4 rounded-lg border-l-4 border-yellow-400 bg-gradient-to-r from-yellow-900/40 to-orange-900/30 hover:from-yellow-900/50 hover:to-orange-900/40 transition-all cursor-pointer"
                         onClick={() => onAssetClick(pattern.asset)}
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -275,7 +284,7 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
                   <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/30">
                     <div className="flex items-center space-x-2 mb-3">
                       <AlertTriangle className="w-5 h-5 text-indigo-400" />
-                      <h3 className="text-indigo-200 font-bold">RESUMO DO MERCADO</h3>
+                      <h3 className="text-indigo-200 font-bold">RESUMO DO MERCADO IA</h3>
                     </div>
                     
                     <div className="space-y-2">
@@ -291,7 +300,7 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
                       </div>
                       <div className="pt-2 border-t border-indigo-500/30">
                         <p className="text-indigo-100 text-sm">
-                          💡 <strong>Recomendação:</strong> {aiAnalysis.marketSummary.recommendation}
+                          💡 <strong>Recomendação IA:</strong> {aiAnalysis.marketSummary.recommendation}
                         </p>
                       </div>
                     </div>
@@ -303,18 +312,34 @@ export const AITrendReversalSection: React.FC<AITrendReversalSectionProps> = ({
             <div className="h-full flex items-center justify-center text-center p-8">
               <div className="space-y-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-600/20 to-indigo-600/20 rounded-full flex items-center justify-center mx-auto">
-                  <Brain className="w-8 h-8 text-purple-400" />
+                  {analysisError ? (
+                    <AlertCircle className="w-8 h-8 text-red-400" />
+                  ) : (
+                    <Brain className="w-8 h-8 text-purple-400" />
+                  )}
                 </div>
                 <div>
                   <h4 className="text-lg font-medium text-purple-200 mb-2">
-                    {isAnalyzing ? 'IA Analisando Padrões...' : 'IA Pronta para Análise'}
+                    {analysisError ? 'Erro na Análise de IA' : 
+                     isAnalyzing ? 'IA Analisando Padrões...' : 
+                     'IA Pronta para Análise'}
                   </h4>
                   <p className="text-purple-300 text-sm max-w-xs mx-auto">
-                    {isAnalyzing 
-                      ? 'Detectando liquidation flips, cascades e outros padrões avançados...'
-                      : 'Aguardando dados de liquidação para análise com inteligência artificial'
-                    }
+                    {analysisError ? `Erro: ${analysisError}` :
+                     isAnalyzing ? 'Detectando liquidation flips, cascades e outros padrões avançados...' :
+                     'Aguardando dados de liquidação para análise com inteligência artificial'}
                   </p>
+                  
+                  {analysisError && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={analyzePatterns}
+                      className="mt-4 border-purple-400 text-purple-200 hover:bg-purple-800/50"
+                    >
+                      Tentar Novamente
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

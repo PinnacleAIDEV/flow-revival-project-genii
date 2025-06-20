@@ -4,10 +4,19 @@ import { safeCreateDate, formatAmount } from './liquidationUtils';
 
 // Criar ou atualizar asset unificado
 export const createOrUpdateUnifiedAsset = (
-  existingAssets: Map<string, UnifiedLiquidationAsset>,
+  existingAssets: Map<string, UnifiedLiquidationAsset> | UnifiedLiquidationAsset,
   liquidation: LiquidationBubble
 ): UnifiedLiquidationAsset => {
-  const existing = existingAssets.get(liquidation.asset);
+  // Se existingAssets não é um Map, significa que é um asset individual sendo atualizado
+  let existing: UnifiedLiquidationAsset | undefined;
+  
+  if (existingAssets instanceof Map) {
+    existing = existingAssets.get(liquidation.asset);
+  } else {
+    // É um asset individual sendo passado para atualização
+    existing = existingAssets.asset === liquidation.asset ? existingAssets : undefined;
+  }
+  
   const now = new Date();
   
   if (existing) {

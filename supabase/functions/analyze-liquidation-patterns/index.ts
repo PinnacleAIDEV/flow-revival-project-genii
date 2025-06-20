@@ -37,33 +37,69 @@ serve(async (req) => {
   try {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY não configurado');
+      console.error('❌ OPENAI_API_KEY não configurado');
+      return new Response(
+        JSON.stringify({ 
+          error: 'OPENAI_API_KEY não configurado no Supabase',
+          detectedPatterns: [],
+          marketSummary: { 
+            dominantPattern: "CONFIG_ERROR", 
+            overallRisk: "UNKNOWN", 
+            recommendation: "Configure a API Key do OpenAI no Supabase Edge Function Secrets" 
+          }
+        }), 
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
-    const { unifiedAssets, timeWindowMinutes = 10 }: AnalysisRequest = await req.json();
+    const { unifiedAssets, timeWindowMinutes = 5 }: AnalysisRequest = await req.json();
+    
+    if (!unifiedAssets || unifiedAssets.length === 0) {
+      console.log('⚠️ Nenhum asset recebido para análise');
+      return new Response(JSON.stringify({
+        detectedPatterns: [],
+        marketSummary: { 
+          dominantPattern: "NO_DATA", 
+          overallRisk: "LOW", 
+          recommendation: "Aguardando dados de liquidação" 
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     console.log(`🤖 Analisando ${unifiedAssets.length} ativos para padrões de liquidação...`);
 
     // Preparar dados para análise da IA
     const analysisData = prepareAnalysisData(unifiedAssets, timeWindowMinutes);
     
-    const systemPrompt = `Você é um especialista em análise de liquidações de criptomoedas. Analise os dados fornecidos e identifique padrões específicos:
+    const systemPrompt = `Você é um especialista em análise de liquidações de criptomoedas com foco em TREND REVERSAL DETECTION.
+    
+PADRÕES PARA DETECTAR (por ordem de prioridade):
 
-PADRÕES PARA DETECTAR:
-1. Liquidation Cascade - Liquidações em cadeia na mesma direção com velocidade crescente
-2. Liquidation Flip (ICEBERG) - Heavy liquidations de um lado → Parada súbita → Sudden liquidations do lado oposto
-3. Squeeze Pattern - Liquidações simultâneas LONG + SHORT (alta volatilidade)
-4. Hunt & Liquidate - Movimento pequeno → Trigger stops → Liquidação grande → Reversão
-5. Stairway Liquidation - Liquidações em níveis específicos (escada de preços)
-6. Liquidation Vacuum - Liquidações pesadas → Sem resistência → Preço dispara
-7. Pendulum Liquidation - Oscilação LONG → SHORT → LONG em timeframe maior
-8. Whale Liquidation - Uma liquidação gigante → Choque → Cascade segue
+1. **Liquidation Flip (ICEBERG)** - MAIS IMPORTANTE
+   - Heavy liquidations de um lado → Parada súbita → Sudden liquidations do lado oposto
+   - Exemplo: Muitas LONG liquidations param → Começam SHORT liquidations intensas
+   - Indicador principal: Mudança abrupta de direção em < 3 minutos
 
-MÉTRICAS QUE VOCÊ DEVE CALCULAR:
+2. **Liquidation Cascade** - Liquidações em cadeia na mesma direção com velocidade crescente
+3. **Hunt & Liquidate** - Movimento pequeno → Trigger stops → Liquidação grande → Reversão  
+4. **Squeeze Pattern** - Liquidações simultâneas LONG + SHORT (alta volatilidade)
+5. **Stairway Liquidation** - Liquidações em níveis específicos (escada de preços)
+6. **Liquidation Vacuum** - Liquidações pesadas → Sem resistência → Preço dispara
+7. **Pendulum Liquidation** - Oscilação LONG → SHORT → LONG em timeframe maior
+8. **Whale Liquidation** - Uma liquidação gigante → Choque → Cascade segue
+
+MÉTRICAS CRÍTICAS:
 - Liquidation Velocity = volume_liquidação / intervalo_tempo
 - L/S Ratio = long_liquidations / short_liquidations  
 - Cascade Probability = (liquidações_atuais / média_liquidações) × índice_volatilidade
 - Sudden Stop Detection = Mudança > 80% no volume em < 2 minutos
+
+FOQUE EM LIQUIDATION FLIPS - são o padrão mais valioso para trading.
 
 RESPONDA EM JSON com esta estrutura EXATA:
 {
@@ -72,22 +108,22 @@ RESPONDA EM JSON com esta estrutura EXATA:
       "asset": "BTC",
       "pattern": "Liquidation Flip",
       "confidence": 85,
-      "description": "Descrição detalhada do padrão detectado",
+      "description": "Heavy LONG liquidations ($2.5M) pararam subitamente há 90s, seguidas por início intenso de SHORT liquidations ($1.8M). Indica possível reversão bullish.",
       "metrics": {
         "liquidationVelocity": 1.5,
         "lsRatio": 0.3,
         "cascadeProbability": 0.75
       },
-      "timeframe": "5min",
+      "timeframe": "3min",
       "severity": "HIGH",
       "nextProbableDirection": "SHORT_LIQUIDATIONS",
-      "reasoning": "Explicação técnica do por que este padrão foi identificado"
+      "reasoning": "Padrão clássico de exaustão de longs seguido por pressure nos shorts - mercado pode estar revertendo para cima"
     }
   ],
   "marketSummary": {
     "dominantPattern": "Liquidation Flip",
     "overallRisk": "MEDIUM",
-    "recommendation": "Recomendação estratégica"
+    "recommendation": "Monitorar continuação das SHORT liquidations - se persistirem por >5min, reversão confirmada"
   }
 }`;
 
@@ -101,21 +137,43 @@ RESPONDA EM JSON com esta estrutura EXATA:
         model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Analise estes dados de liquidação:\n${JSON.stringify(analysisData, null, 2)}` }
+          { role: 'user', content: `Analise estes dados de liquidação focando em TREND REVERSALS:\n${JSON.stringify(analysisData, null, 2)}` }
         ],
-        temperature: 0.3,
+        temperature: 0.2,
         max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const aiAnalysis = JSON.parse(data.choices[0].message.content);
     
-    console.log(`✨ IA detectou ${aiAnalysis.detectedPatterns.length} padrões`);
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Resposta inválida da OpenAI API');
+    }
+    
+    let aiAnalysis;
+    try {
+      aiAnalysis = JSON.parse(data.choices[0].message.content);
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse da resposta da IA:', parseError);
+      console.log('Resposta bruta:', data.choices[0].message.content);
+      
+      // Fallback response
+      aiAnalysis = {
+        detectedPatterns: [],
+        marketSummary: { 
+          dominantPattern: "PARSE_ERROR", 
+          overallRisk: "UNKNOWN", 
+          recommendation: "Erro ao processar análise da IA" 
+        }
+      };
+    }
+    
+    console.log(`✨ IA detectou ${aiAnalysis.detectedPatterns?.length || 0} padrões`);
     
     return new Response(JSON.stringify(aiAnalysis), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -123,11 +181,17 @@ RESPONDA EM JSON com esta estrutura EXATA:
 
   } catch (error) {
     console.error('❌ Erro na análise de IA:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: errorMessage,
         detectedPatterns: [],
-        marketSummary: { dominantPattern: "ERROR", overallRisk: "UNKNOWN", recommendation: "Erro na análise" }
+        marketSummary: { 
+          dominantPattern: "ERROR", 
+          overallRisk: "UNKNOWN", 
+          recommendation: `Erro na análise: ${errorMessage}` 
+        }
       }), 
       {
         status: 500,
