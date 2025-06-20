@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { UnifiedLiquidationAsset } from '../types/liquidation';
-import { useSupabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AIPattern {
   asset: string;
@@ -32,7 +32,6 @@ export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidation
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lastAnalysis, setLastAnalysis] = useState<number>(0);
-  const supabase = useSupabase();
 
   // Análise automática a cada 30 segundos se houver mudanças
   useEffect(() => {
