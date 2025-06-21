@@ -8,40 +8,20 @@ export const useRealShortLiquidations = () => {
   const { shortLiquidations } = useRealLiquidationData();
   const [shortAssets, setShortAssets] = useState<Map<string, ShortLiquidationAsset>>(new Map());
 
-  // FILTROS MAIS MODERADOS - Foco em controlar repetições
-  const MINIMUM_LIQUIDATION_AMOUNT = 5000; // Reduzido de $15K para $5K
-  const MINIMUM_POSITIONS_COUNT = 1; // Reduzido de 3 para 1
-  const MINIMUM_INTENSITY = 1; // Reduzido de 2 para 1
-  const HIGH_CAP_MINIMUM = 8000; // Reduzido de $25K para $8K
-  const LOW_CAP_MINIMUM = 3000; // Reduzido de $8K para $3K
-
   useEffect(() => {
     if (!shortLiquidations || shortLiquidations.length === 0) return;
 
     const now = new Date();
     const updatedAssets = new Map(shortAssets);
 
-    console.log(`🟢 PROCESSING ${shortLiquidations.length} REAL SHORT liquidations with MODERATE FILTERS...`);
+    console.log(`🟢 Processing ${shortLiquidations.length} REAL SHORT liquidations...`);
 
     shortLiquidations.forEach(liquidation => {
       try {
-        // FILTRO MODERADO: Valor mínimo baseado no market cap
-        const minAmount = liquidation.marketCap === 'high' ? HIGH_CAP_MINIMUM : LOW_CAP_MINIMUM;
-        if (liquidation.amount < minAmount) {
-          return;
-        }
-
         const assetName = liquidation.asset;
         
         const existing = updatedAssets.get(assetName);
         if (existing) {
-          // CONTROLE DE REPETIÇÕES: Limitar updates muito frequentes do mesmo ativo
-          const timeSinceLastUpdate = now.getTime() - safeCreateDate(existing.lastUpdateTime).getTime();
-          if (timeSinceLastUpdate < 30000) { // 30 segundos entre updates do mesmo ativo
-            console.log(`⏰ THROTTLED: ${assetName} - Last update too recent (${Math.floor(timeSinceLastUpdate/1000)}s ago)`);
-            return;
-          }
-
           const updated: ShortLiquidationAsset = {
             ...existing,
             price: liquidation.price,
@@ -51,7 +31,7 @@ export const useRealShortLiquidations = () => {
             intensity: Math.max(existing.intensity, liquidation.intensity),
             volatility: 0,
             liquidationHistory: [
-              ...existing.liquidationHistory.slice(-29), // Aumentado de 19 para 29
+              ...existing.liquidationHistory.slice(-49),
               {
                 type: 'short',
                 amount: liquidation.amount,
@@ -62,7 +42,7 @@ export const useRealShortLiquidations = () => {
           };
           
           updatedAssets.set(assetName, updated);
-          console.log(`🟢 UPDATED SHORT: ${assetName} - $${(liquidation.amount/1000).toFixed(1)}K (Total: $${(updated.shortLiquidated/1000).toFixed(1)}K, Positions: ${updated.shortPositions})`);
+          console.log(`🟢 UPDATED SHORT: ${assetName} - $${(liquidation.amount/1000).toFixed(1)}K (Total: $${(updated.shortLiquidated/1000).toFixed(1)}K)`);
         } else {
           const newAsset: ShortLiquidationAsset = {
             asset: assetName,
@@ -86,41 +66,35 @@ export const useRealShortLiquidations = () => {
           console.log(`🟢 NEW SHORT: ${assetName} - $${(liquidation.amount/1000).toFixed(1)}K`);
         }
       } catch (error) {
-        console.error('❌ Error processing REAL SHORT liquidation:', error, liquidation);
+        console.error('❌ Error processing SHORT liquidation:', error, liquidation);
       }
     });
 
     setShortAssets(updatedAssets);
   }, [shortLiquidations]);
 
-  // Auto cleanup - menos agressivo
+  // Cleanup simples - apenas remove ativos muito antigos
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
-      console.log('🧹 Cleaning old REAL SHORT assets with MODERATE filters...');
-      
       setShortAssets(prev => {
         const now = new Date();
-        const cutoffTime = new Date(now.getTime() - 45 * 60 * 1000); // Aumentado para 45 minutos
+        const cutoffTime = new Date(now.getTime() - 60 * 60 * 1000); // 1 hora
         const cleaned = new Map<string, ShortLiquidationAsset>();
         
         prev.forEach((asset, key) => {
           const lastUpdate = safeCreateDate(asset.lastUpdateTime);
-          
-          // FILTRO TEMPORAL MODERADO
-          if (lastUpdate > cutoffTime && 
-              asset.shortLiquidated >= MINIMUM_LIQUIDATION_AMOUNT &&
-              asset.shortPositions >= MINIMUM_POSITIONS_COUNT) {
+          if (lastUpdate > cutoffTime) {
             cleaned.set(key, asset);
           }
         });
         
         const removed = prev.size - cleaned.size;
         if (removed > 0) {
-          console.log(`🗑️ Removed ${removed} old REAL SHORT assets`);
+          console.log(`🗑️ Removed ${removed} old SHORT assets`);
         }
         return cleaned;
       });
-    }, 60000); // Cleanup menos frequente - 60s
+    }, 120000); // Cleanup a cada 2 minutos
 
     return () => clearInterval(cleanupInterval);
   }, []);
@@ -128,20 +102,14 @@ export const useRealShortLiquidations = () => {
   const filteredShortAssets = useMemo(() => {
     const assetsArray = Array.from(shortAssets.values());
     
-    // FILTRO FINAL MODERADO
-    const filtered = assetsArray.filter(asset => {
-      return asset.shortLiquidated >= MINIMUM_LIQUIDATION_AMOUNT &&
-             asset.shortPositions >= MINIMUM_POSITIONS_COUNT &&
-             asset.intensity >= MINIMUM_INTENSITY;
-    });
-    
-    const sorted = filtered.sort((a, b) => {
+    // Ordenar apenas por valor total liquidado
+    const sorted = assetsArray.sort((a, b) => {
       return b.shortLiquidated - a.shortLiquidated;
     });
     
-    console.log(`🟢 MODERATE FILTERED SHORT ASSETS: ${sorted.length} (from ${assetsArray.length} total)`);
+    console.log(`🟢 SHORT ASSETS: ${sorted.length}`);
     
-    return sorted.slice(0, 50); // Aumentado de 25 para 50
+    return sorted.slice(0, 100);
   }, [shortAssets]);
 
   return {
