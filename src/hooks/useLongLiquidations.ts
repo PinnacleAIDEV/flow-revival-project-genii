@@ -1,155 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
-import { LongLiquidationAsset } from '../types/separatedLiquidation';
-import { safeCreateDate } from '../utils/liquidationUtils';
-import { useLiquidationDataDistributor } from './useLiquidationDataDistributor';
-import { useSupabaseStorage } from './useSupabaseStorage';
+
+// DEPRECATED: Use useRealLongLiquidations instead
+// This hook now redirects to REAL data for backward compatibility
+
+import { useRealLongLiquidations } from './useRealLongLiquidations';
 
 export const useLongLiquidations = () => {
-  const { longFlowData } = useLiquidationDataDistributor();
-  const { saveLiquidation } = useSupabaseStorage();
+  console.warn('⚠️ useLongLiquidations is DEPRECATED. Use useRealLongLiquidations for REAL Force Order data.');
   
-  const [longAssets, setLongAssets] = useState<Map<string, LongLiquidationAsset>>(new Map());
-  const [processedLongTickers, setProcessedLongTickers] = useState<Set<string>>(new Set());
-
-  // Processar EXCLUSIVAMENTE dados LONG
-  useEffect(() => {
-    if (!longFlowData || longFlowData.length === 0) return;
-
-    const now = new Date();
-    const updatedAssets = new Map(longAssets);
-
-    console.log(`🔴 PROCESSANDO ${longFlowData.length} LONG liquidations EXCLUSIVOS...`);
-
-    longFlowData.forEach(data => {
-      try {
-        const key = `long-${data.ticker}-${data.timestamp}`;
-        
-        if (processedLongTickers.has(key)) return;
-
-        const assetName = data.ticker.replace('USDT', '');
-        const minVolume = data.marketCap === 'high' ? 50000 : 15000;
-        const volumeRatio = data.volumeValue / minVolume;
-        let intensity = Math.min(5, Math.max(1, Math.floor(volumeRatio / 2)));
-        
-        console.log(`🔴 LONG LIQUIDATION: ${data.ticker} - Vol: $${(data.volumeValue/1000).toFixed(0)}K`);
-        
-        const existing = updatedAssets.get(assetName);
-        if (existing) {
-          const updated: LongLiquidationAsset = {
-            ...existing,
-            price: data.price,
-            longPositions: existing.longPositions + 1,
-            longLiquidated: existing.longLiquidated + data.volumeValue,
-            lastUpdateTime: now,
-            intensity: Math.max(existing.intensity, intensity),
-            volatility: Math.abs(data.change_24h),
-            liquidationHistory: [
-              ...existing.liquidationHistory.slice(-19),
-              {
-                type: 'long',
-                amount: data.volumeValue,
-                timestamp: now,
-                change24h: data.change_24h
-              }
-            ]
-          };
-          updatedAssets.set(assetName, updated);
-        } else {
-          const newAsset: LongLiquidationAsset = {
-            asset: assetName,
-            ticker: data.ticker,
-            price: data.price,
-            marketCap: data.marketCap,
-            longPositions: 1,
-            longLiquidated: data.volumeValue,
-            lastUpdateTime: now,
-            firstDetectionTime: now,
-            volatility: Math.abs(data.change_24h),
-            intensity,
-            liquidationHistory: [{
-              type: 'long',
-              amount: data.volumeValue,
-              timestamp: now,
-              change24h: data.change_24h
-            }]
-          };
-          updatedAssets.set(assetName, newAsset);
-        }
-        
-        saveLiquidation({
-          asset: assetName,
-          ticker: data.ticker,
-          type: 'long',
-          amount: data.volumeValue,
-          price: data.price,
-          market_cap: data.marketCap,
-          intensity,
-          change_24h: data.change_24h,
-          volume: data.volume,
-          total_liquidated: data.volumeValue,
-          volume_spike: 1
-        });
-
-        setProcessedLongTickers(prev => new Set([...prev, key]));
-      } catch (error) {
-        console.error('❌ Erro ao processar LONG liquidação:', error, data);
-      }
-    });
-
-    setLongAssets(updatedAssets);
-  }, [longFlowData, saveLiquidation]);
-
-  // Limpeza automática
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      console.log('🧹 Limpando LONG assets antigos...');
-      
-      setLongAssets(prev => {
-        const now = new Date();
-        const cutoffTime = new Date(now.getTime() - 15 * 60 * 1000);
-        const cleaned = new Map<string, LongLiquidationAsset>();
-        
-        prev.forEach((asset, key) => {
-          const lastUpdate = safeCreateDate(asset.lastUpdateTime);
-          if (lastUpdate > cutoffTime) {
-            cleaned.set(key, asset);
-          }
-        });
-        
-        const removed = prev.size - cleaned.size;
-        if (removed > 0) {
-          console.log(`🗑️ Removidos ${removed} LONG assets antigos`);
-        }
-        return cleaned;
-      });
-
-      setProcessedLongTickers(new Set());
-    }, 60000);
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
-
-  // Filtrar e ordenar assets LONG
-  const filteredLongAssets = useMemo(() => {
-    const assetsArray = Array.from(longAssets.values());
-    
-    const sorted = assetsArray.sort((a, b) => {
-      if (a.longLiquidated !== b.longLiquidated) {
-        return b.longLiquidated - a.longLiquidated;
-      }
-      return b.longPositions - a.longPositions;
-    });
-    
-    console.log(`🔴 LONG ASSETS FINAIS: ${sorted.length}`);
-    sorted.forEach(asset => {
-      console.log(`🔴 ${asset.asset}: $${(asset.longLiquidated/1000).toFixed(0)}K (${asset.longPositions} pos LONG)`);
-    });
-    
-    return sorted.slice(0, 50);
-  }, [longAssets]);
-
+  // Redirect to REAL data
+  const realData = useRealLongLiquidations();
+  
   return {
-    longLiquidations: filteredLongAssets,
-    longAssets
+    ...realData,
+    // Add compatibility warning
+    isDeprecated: true,
+    useRealDataInstead: 'useRealLongLiquidations'
   };
 };
