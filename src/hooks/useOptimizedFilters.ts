@@ -11,10 +11,10 @@ export interface OptimizedFilters {
 }
 
 const DEFAULT_FILTERS: OptimizedFilters = {
-  minVolume: 10000, // Reduzido de 50000 para 10000 - muito menos restritivo
+  minVolume: 2000, // Reduzido drasticamente de 10000 para 2000
   marketCap: 'all',
-  minPriceChange: 0.5, // Reduzido de 2% para 0.5% - muito menos restritivo
-  onlySignificant: false, // Mudado para false - aceitar mais liquidações
+  minPriceChange: 0.1, // Reduzido de 0.5% para 0.1% - super permissivo
+  onlySignificant: false, // Desabilitado para aceitar mais dados
   excludeStablecoins: true
 };
 
@@ -23,14 +23,14 @@ const STABLECOINS = ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'USDP', 'FDUSD'];
 export const useOptimizedFilters = () => {
   const [filters, setFilters] = useState<OptimizedFilters>(DEFAULT_FILTERS);
 
-  // Filtro MUITO MENOS restritivo para permitir mais dados
+  // Filtros SUPER permissivos para recuperar dados
   const applyOptimizedFilters = useMemo(() => {
     return (data: LiquidationFlowData[]): LiquidationFlowData[] => {
       return data.filter(item => {
-        // 1. Filtro de Volume Mínimo (MUITO mais permissivo)
+        // 1. Filtro de Volume Mínimo (MUITO permissivo)
         const volumeThreshold = filters.marketCap === 'high' ? 
-          Math.max(filters.minVolume, 15000) : // High cap: min $15k (era $100k)
-          Math.max(filters.minVolume, 5000);   // Low cap: min $5k (era $25k)
+          Math.max(filters.minVolume, 3000) : // High cap: min $3k (era $15k)
+          Math.max(filters.minVolume, 1000);  // Low cap: min $1k (era $5k)
         
         if (item.volumeValue < volumeThreshold) return false;
 
@@ -39,16 +39,16 @@ export const useOptimizedFilters = () => {
           return false;
         }
 
-        // 3. Filtro de Mudança de Preço (MUITO mais permissivo)
+        // 3. Filtro de Mudança de Preço (SUPER permissivo)
         if (Math.abs(item.change_24h) < filters.minPriceChange) {
           return false;
         }
 
-        // 4. Apenas liquidações significativas (MUITO mais permissivo)
+        // 4. Apenas liquidações significativas (MUITO permissivo)
         if (filters.onlySignificant) {
           const isSignificant = item.marketCap === 'high' ? 
-            item.volumeValue > 25000 : // High cap: $25k+ (era $200k)
-            item.volumeValue > 8000;   // Low cap: $8k+ (era $50k)
+            item.volumeValue > 5000 : // High cap: $5k+ (era $25k)
+            item.volumeValue > 2000;  // Low cap: $2k+ (era $8k)
           
           if (!isSignificant) return false;
         }
