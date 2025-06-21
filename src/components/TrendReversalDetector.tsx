@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { useUnifiedLiquidations } from '../hooks/useUnifiedLiquidations';
+import { useSeparatedLiquidations } from '../hooks/useSeparatedLiquidations';
 import { useTrading } from '../contexts/TradingContext';
 import { AITrendReversalSection } from './liquidation/AITrendReversalSection';
 
 export const TrendReversalDetector: React.FC = () => {
-  const { unifiedAssets } = useUnifiedLiquidations();
+  const { longLiquidations, shortLiquidations } = useSeparatedLiquidations();
   const { setSelectedAsset } = useTrading();
 
   const handleAssetClick = (asset: string) => {
@@ -14,10 +14,13 @@ export const TrendReversalDetector: React.FC = () => {
     console.log(`🔄 AI Trend Reversal selecionado: ${fullTicker}`);
   };
 
+  // Create a combined array for the AI section that expects unifiedAssets
+  const combinedAssets = [...longLiquidations, ...shortLiquidations];
+
   return (
     <div className="h-[600px] scanlines">
       <AITrendReversalSection 
-        unifiedAssets={unifiedAssets}
+        unifiedAssets={combinedAssets}
         onAssetClick={handleAssetClick}
       />
     </div>
