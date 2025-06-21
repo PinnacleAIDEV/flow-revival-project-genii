@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Target, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -168,18 +167,4 @@ export const LiquidationStats: React.FC = () => {
       </div>
     </div>
   );
-
-  function getDominanceColor(ratio: number) {
-    if (ratio >= 3) return 'text-red-600';
-    if (ratio >= 2) return 'text-orange-600';
-    if (ratio >= 1.5) return 'text-yellow-600';
-    return 'text-gray-600';
-  }
-
-  function getDominanceIntensity(ratio: number) {
-    if (ratio >= 3) return 'EXTREMA';
-    if (ratio >= 2) return 'ALTA';
-    if (ratio >= 1.5) return 'MODERADA';
-    return 'EQUILIBRADA';
-  }
 };
