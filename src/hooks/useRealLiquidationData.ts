@@ -26,25 +26,15 @@ export const useRealLiquidationData = () => {
     'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'LTCUSDT', 'BCHUSDT'
   ];
 
-  // FILTROS SIMPLES - Apenas valor mínimo
-  const MINIMUM_LIQUIDATION_THRESHOLD = {
-    HIGH_CAP: 30000,  // $30K para high cap
-    LOW_CAP: 15000,   // $15K para low cap
-  };
-
   const handleRealLiquidation = useCallback((data: FlowData) => {
-    // Apenas dados REAIS do Force Order
     if (data.isLiquidation && data.liquidationType && data.liquidationAmount) {
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
       
       // FILTRO SIMPLES: Apenas valor mínimo
-      const minThreshold = isHighMarketCap ? 
-        MINIMUM_LIQUIDATION_THRESHOLD.HIGH_CAP : 
-        MINIMUM_LIQUIDATION_THRESHOLD.LOW_CAP;
+      const minThreshold = isHighMarketCap ? 30000 : 15000; // $30K high cap, $15K low cap
       
       if (data.liquidationAmount < minThreshold) {
-        console.log(`🚫 FILTERED: ${data.ticker} - $${(data.liquidationAmount/1000).toFixed(1)}K (below ${minThreshold/1000}K)`);
-        return;
+        return; // Silently reject
       }
       
       const realLiquidation: RealLiquidationData = {
@@ -60,12 +50,9 @@ export const useRealLiquidationData = () => {
         source: 'FORCE_ORDER'
       };
 
-      console.log(`🔥 LIQUIDATION APPROVED: ${realLiquidation.asset} ${realLiquidation.type.toUpperCase()} $${(realLiquidation.amount/1000).toFixed(1)}K`);
+      console.log(`🔥 LIQUIDATION: ${realLiquidation.asset} ${realLiquidation.type.toUpperCase()} $${(realLiquidation.amount/1000).toFixed(1)}K`);
       
-      setRealLiquidations(prev => {
-        const newLiquidations = [realLiquidation, ...prev.slice(0, 499)];
-        return newLiquidations;
-      });
+      setRealLiquidations(prev => [realLiquidation, ...prev.slice(0, 199)]);
     }
   }, []);
 
@@ -82,7 +69,7 @@ export const useRealLiquidationData = () => {
       
       binanceWebSocketService.onMessage(handleRealLiquidation);
       
-      console.log('✅ Connected to REAL liquidation data with SIMPLE filters');
+      console.log('✅ Connected to REAL liquidation data');
       
     } catch (error) {
       console.error('❌ Failed to connect:', error);
@@ -116,7 +103,6 @@ export const useRealLiquidationData = () => {
     };
   }, [connectToRealData, disconnect]);
 
-  // Separar liquidações por tipo
   const longLiquidations = realLiquidations.filter(l => l.type === 'long');
   const shortLiquidations = realLiquidations.filter(l => l.type === 'short');
 
