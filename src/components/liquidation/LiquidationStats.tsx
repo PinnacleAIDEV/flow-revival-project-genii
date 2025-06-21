@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Target, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
