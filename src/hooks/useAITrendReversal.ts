@@ -1,6 +1,31 @@
+
 import { useState, useEffect } from 'react';
-import { UnifiedLiquidationAsset } from '../types/liquidation';
 import { supabase } from '@/integrations/supabase/client';
+
+// Interface para trend reversal (dados combinados)
+interface TrendReversalAsset {
+  asset: string;
+  ticker: string;
+  price: number;
+  marketCap: 'high' | 'low';
+  longPositions: number;
+  longLiquidated: number;
+  shortPositions: number;
+  shortLiquidated: number;
+  totalPositions: number;
+  combinedTotal: number;
+  dominantType: 'long' | 'short';
+  lastUpdateTime: Date;
+  firstDetectionTime: Date;
+  volatility: number;
+  intensity: number;
+  liquidationHistory: Array<{
+    type: 'long' | 'short';
+    amount: number;
+    timestamp: Date;
+    change24h: number;
+  }>;
+}
 
 interface AIPattern {
   asset: string;
@@ -27,7 +52,7 @@ interface AIAnalysis {
   };
 }
 
-export const useAITrendReversal = (unifiedAssets: Map<string, UnifiedLiquidationAsset>) => {
+export const useAITrendReversal = (unifiedAssets: Map<string, TrendReversalAsset>) => {
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lastAnalysis, setLastAnalysis] = useState<number>(0);

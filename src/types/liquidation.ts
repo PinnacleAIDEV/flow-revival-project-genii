@@ -14,41 +14,6 @@ export interface LiquidationBubble {
   totalLiquidated: number;
 }
 
-// NOVA: Interface unificada para agrupar liquidações por asset
-export interface UnifiedLiquidationAsset {
-  asset: string;
-  ticker: string;
-  price: number;
-  marketCap: 'high' | 'low';
-  
-  // Contadores de posições
-  longPositions: number;
-  shortPositions: number;
-  totalPositions: number;
-  
-  // Totais liquidados
-  longLiquidated: number;
-  shortLiquidated: number;
-  combinedTotal: number;
-  
-  // Dados temporais
-  lastUpdateTime: Date;
-  firstDetectionTime: Date;
-  
-  // Métricas de análise
-  dominantType: 'long' | 'short' | 'balanced';
-  volatility: number;
-  intensity: number;
-  
-  // Histórico para trend reversal
-  liquidationHistory: Array<{
-    type: 'long' | 'short';
-    amount: number;
-    timestamp: Date;
-    change24h: number;
-  }>;
-}
-
 export interface TrendReversal {
   asset: string;
   previousType: 'long' | 'short';
