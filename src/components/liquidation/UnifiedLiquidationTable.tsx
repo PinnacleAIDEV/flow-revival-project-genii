@@ -29,10 +29,12 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
   const highCapCount = assets.filter(a => a.marketCap === 'high').length;
   const lowCapCount = assets.filter(a => a.marketCap === 'low').length;
   
+  // CORRIGIDO: Contar apenas posições do tipo específico
   const totalPositions = assets.reduce((sum, asset) => 
     sum + (type === 'long' ? asset.longPositions : asset.shortPositions), 0
   );
   
+  // CORRIGIDO: Somar apenas liquidações do tipo específico
   const totalLiquidated = assets.reduce((sum, asset) => 
     sum + (type === 'long' ? asset.longLiquidated : asset.shortLiquidated), 0
   );
@@ -53,7 +55,7 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
                 </Badge>
               </CardTitle>
               <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <span>{totalPositions} posições</span>
+                <span>{totalPositions} posições {type}</span>
                 <span>${(totalLiquidated / 1e6).toFixed(1)}M liquidado</span>
               </div>
             </div>
