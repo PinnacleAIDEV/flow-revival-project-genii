@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useLongLiquidations } from '../hooks/useLongLiquidations';
 import { useShortLiquidations } from '../hooks/useShortLiquidations';
 import { useTrading } from '../contexts/TradingContext';
-import { AITrendReversalSection } from './liquidation/AITrendReversalSection';
-import { LongLiquidationAsset, ShortLiquidationAsset } from '../types/separatedLiquidation';
+import { useHybridTrendReversal } from '../hooks/useHybridTrendReversal';
+import { HybridTrendReversalSection } from './liquidation/HybridTrendReversalSection';
 
 // Interface específica para análise de reversão de tendência
 interface TrendReversalAsset {
@@ -43,11 +43,12 @@ export const TrendReversalDetector: React.FC = () => {
   const { longLiquidations } = useLongLiquidations();
   const { shortLiquidations } = useShortLiquidations();
   const { setSelectedAsset } = useTrading();
+  const [cardHeight, setCardHeight] = useState<1 | 2 | 3 | 4 | 5>(3); // Default 3x height
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
     setSelectedAsset(fullTicker);
-    console.log(`🔄 AI Trend Reversal selecionado: ${fullTicker}`);
+    console.log(`🔄 Hybrid Trend Reversal selecionado: ${fullTicker}`);
   };
 
   // Criar Map unificado mantendo dados separados por tipo
@@ -121,11 +122,62 @@ export const TrendReversalDetector: React.FC = () => {
     }
   });
 
+  // Usar o novo hook híbrido
+  const {
+    hybridAnalysis,
+    isAnalyzing,
+    analysisError,
+    performanceStats,
+    getIcebergAlerts,
+    getCascadeAlerts,
+    getSqueezeAlerts,
+    getCriticalAlerts,
+    hasData
+  } = useHybridTrendReversal(unifiedAssetsMap);
+
+  // Controles de altura do card
+  const getCardHeight = () => {
+    switch (cardHeight) {
+      case 1: return 'h-[300px]';
+      case 2: return 'h-[600px]';
+      case 3: return 'h-[900px]';
+      case 4: return 'h-[1200px]';
+      case 5: return 'h-[1500px]';
+      default: return 'h-[900px]';
+    }
+  };
+
   return (
-    <div className="h-[600px] scanlines">
-      <AITrendReversalSection 
+    <div className={`${getCardHeight()} scanlines relative`}>
+      {/* Controles de altura */}
+      <div className="absolute top-2 right-2 z-10 flex space-x-1">
+        {[1, 2, 3, 4, 5].map((size) => (
+          <button
+            key={size}
+            onClick={() => setCardHeight(size as 1 | 2 | 3 | 4 | 5)}
+            className={`w-6 h-6 text-xs rounded border ${
+              cardHeight === size
+                ? 'bg-purple-600 text-white border-purple-500'
+                : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
+            }`}
+          >
+            {size}x
+          </button>
+        ))}
+      </div>
+
+      <HybridTrendReversalSection 
+        hybridAnalysis={hybridAnalysis}
+        isAnalyzing={isAnalyzing}
+        analysisError={analysisError}
+        performanceStats={performanceStats}
         unifiedAssets={unifiedAssetsMap}
         onAssetClick={handleAssetClick}
+        getIcebergAlerts={getIcebergAlerts}
+        getCascadeAlerts={getCascadeAlerts}
+        getSqueezeAlerts={getSqueezeAlerts}
+        getCriticalAlerts={getCriticalAlerts}
+        hasData={hasData}
       />
     </div>
   );
