@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { useLongLiquidations } from '../hooks/useLongLiquidations';
 import { useShortLiquidations } from '../hooks/useShortLiquidations';
 import { useTrading } from '../contexts/TradingContext';
 import { useHybridTrendReversal } from '../hooks/useHybridTrendReversal';
+import { useLiquidationPatternDetector } from '../hooks/useLiquidationPatternDetector';
 import { HybridTrendReversalSection } from './liquidation/HybridTrendReversalSection';
 
 // Interface específica para análise de reversão de tendência
@@ -43,7 +43,7 @@ export const TrendReversalDetector: React.FC = () => {
   const { longLiquidations } = useLongLiquidations();
   const { shortLiquidations } = useShortLiquidations();
   const { setSelectedAsset } = useTrading();
-  const [cardHeight, setCardHeight] = useState<1 | 2 | 3 | 4 | 5>(3); // Default 3x height
+  const [cardHeight, setCardHeight] = useState<1 | 2 | 3 | 4 | 5>(3);
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
@@ -122,7 +122,17 @@ export const TrendReversalDetector: React.FC = () => {
     }
   });
 
-  // Usar o novo hook híbrido
+  // Usar o novo hook de detecção de padrões com análise de 5 em 5 minutos
+  const {
+    isAnalyzing: isPatternAnalyzing,
+    analysisResult: patternAnalysis,
+    analysisError: patternError,
+    nextAnalysisIn,
+    triggerManualAnalysis,
+    hasData: hasPatternData
+  } = useLiquidationPatternDetector(unifiedAssetsMap);
+
+  // Usar o hook híbrido existente
   const {
     hybridAnalysis,
     isAnalyzing,
@@ -134,6 +144,11 @@ export const TrendReversalDetector: React.FC = () => {
     getCriticalAlerts,
     hasData
   } = useHybridTrendReversal(unifiedAssetsMap);
+
+  // Combinar análises - priorizar análise de padrões se disponível
+  const finalAnalysis = patternAnalysis || hybridAnalysis;
+  const finalIsAnalyzing = isPatternAnalyzing || isAnalyzing;
+  const finalError = patternError || analysisError;
 
   // Controles de altura do card
   const getCardHeight = () => {
@@ -167,9 +182,9 @@ export const TrendReversalDetector: React.FC = () => {
       </div>
 
       <HybridTrendReversalSection 
-        hybridAnalysis={hybridAnalysis}
-        isAnalyzing={isAnalyzing}
-        analysisError={analysisError}
+        hybridAnalysis={finalAnalysis}
+        isAnalyzing={finalIsAnalyzing}
+        analysisError={finalError}
         performanceStats={performanceStats}
         unifiedAssets={unifiedAssetsMap}
         onAssetClick={handleAssetClick}
@@ -177,7 +192,9 @@ export const TrendReversalDetector: React.FC = () => {
         getCascadeAlerts={getCascadeAlerts}
         getSqueezeAlerts={getSqueezeAlerts}
         getCriticalAlerts={getCriticalAlerts}
-        hasData={hasData}
+        hasData={hasData || hasPatternData}
+        nextAnalysisIn={nextAnalysisIn}
+        triggerManualAnalysis={triggerManualAnalysis}
       />
     </div>
   );
