@@ -18,8 +18,8 @@ interface HybridAnalysis {
       cascadeProbability: number;
       volumeSpike: number;
     };
-    severity: "HIGH" | "MEDIUM" | "LOW";
-    nextProbableDirection: "SHORT_LIQUIDATIONS" | "LONG_LIQUIDATIONS";
+    severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    nextProbableDirection: "SHORT_LIQUIDATIONS" | "LONG_LIQUIDATIONS" | "BALANCED";
     reasoning: string;
   }>;
   marketSummary: {
@@ -100,6 +100,7 @@ export const HybridTrendReversalSection: React.FC<HybridTrendReversalSectionProp
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
+      case 'CRITICAL': return 'bg-red-900 text-red-100 border-red-700';
       case 'HIGH': return 'bg-red-100 text-red-800 border-red-300';
       case 'MEDIUM': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'LOW': return 'bg-blue-100 text-blue-800 border-blue-300';
@@ -259,7 +260,9 @@ export const HybridTrendReversalSection: React.FC<HybridTrendReversalSectionProp
                         <span className={`font-medium ${
                           pattern.nextProbableDirection === 'LONG_LIQUIDATIONS' 
                             ? 'text-red-400' 
-                            : 'text-green-400'
+                            : pattern.nextProbableDirection === 'SHORT_LIQUIDATIONS'
+                            ? 'text-green-400'
+                            : 'text-yellow-400'
                         }`}>
                           {pattern.nextProbableDirection.replace('_', ' ')}
                         </span>

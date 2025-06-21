@@ -146,10 +146,27 @@ export const TrendReversalDetector: React.FC = () => {
     hasData
   } = useHybridTrendReversal(unifiedAssetsMap);
 
+  // Normalizar análise de padrões para o formato HybridAnalysis
+  const normalizedPatternAnalysis = patternAnalysis ? {
+    detectedPatterns: patternAnalysis.detectedPatterns.map(pattern => ({
+      ...pattern,
+      nextProbableDirection: pattern.nextProbableDirection as "SHORT_LIQUIDATIONS" | "LONG_LIQUIDATIONS" | "BALANCED"
+    })),
+    marketSummary: patternAnalysis.marketSummary
+  } : null;
+
   // Combinar análises - priorizar análise de padrões se disponível
-  const finalAnalysis = patternAnalysis || hybridAnalysis;
+  const finalAnalysis = normalizedPatternAnalysis || hybridAnalysis;
   const finalIsAnalyzing = isPatternAnalyzing || isAnalyzing;
   const finalError = patternError || analysisError;
+
+  // Combinar estatísticas de performance
+  const finalPerformanceStats = {
+    totalAnalyses: performanceStats.totalAnalyses,
+    tokensSaved: performanceStats.tokensSaved,
+    averageResponseTime: performanceStats.averageResponseTime,
+    cacheHitRate: performanceStats.cacheHitRate
+  };
 
   // Controles de altura do card
   const getCardHeight = () => {
@@ -186,7 +203,7 @@ export const TrendReversalDetector: React.FC = () => {
         hybridAnalysis={finalAnalysis}
         isAnalyzing={finalIsAnalyzing}
         analysisError={finalError}
-        performanceStats={performanceStats}
+        performanceStats={finalPerformanceStats}
         unifiedAssets={unifiedAssetsMap}
         onAssetClick={handleAssetClick}
         getIcebergAlerts={getIcebergAlerts}
