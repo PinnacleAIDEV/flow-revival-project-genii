@@ -16,19 +16,19 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
   shortLiquidations
 }) => {
   const stats = useMemo(() => {
-    // CORRIGIDO: Calcular totais apenas de LONG liquidations
+    // Calcular totais de long liquidations
     const totalLongAmount = longLiquidations.reduce((sum, asset) => sum + asset.longLiquidated, 0);
     const totalLongPositions = longLiquidations.reduce((sum, asset) => sum + asset.longPositions, 0);
     const highCapLong = longLiquidations.filter(a => a.marketCap === 'high').length;
     const lowCapLong = longLiquidations.filter(a => a.marketCap === 'low').length;
     
-    // CORRIGIDO: Calcular totais apenas de SHORT liquidations
+    // Calcular totais de short liquidations
     const totalShortAmount = shortLiquidations.reduce((sum, asset) => sum + asset.shortLiquidated, 0);
     const totalShortPositions = shortLiquidations.reduce((sum, asset) => sum + asset.shortPositions, 0);
     const highCapShort = shortLiquidations.filter(a => a.marketCap === 'high').length;
     const lowCapShort = shortLiquidations.filter(a => a.marketCap === 'low').length;
     
-    // Calcular estatísticas combinadas apenas para dominância
+    // Calcular estatísticas combinadas
     const totalCombined = totalLongAmount + totalShortAmount;
     const totalPositions = totalLongPositions + totalShortPositions;
     const totalAssets = longLiquidations.length + shortLiquidations.length;
@@ -73,7 +73,7 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
   return (
     <div className="p-4 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Long Liquidations Stats - APENAS LONG */}
+        {/* Long Liquidations Stats */}
         <Card className="bg-red-950/50 border-red-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center space-x-2 text-red-300">
@@ -86,7 +86,7 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
               {formatAmount(stats.totalLongAmount)}
             </div>
             <div className="flex items-center justify-between text-xs text-red-300">
-              <span>{stats.totalLongPositions} posições long</span>
+              <span>{stats.totalLongPositions} posições</span>
               <span>{longLiquidations.length} ativos</span>
             </div>
             <div className="flex items-center space-x-2 text-xs">
@@ -100,7 +100,7 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
           </CardContent>
         </Card>
 
-        {/* Short Liquidations Stats - APENAS SHORT */}
+        {/* Short Liquidations Stats */}
         <Card className="bg-green-950/50 border-green-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center space-x-2 text-green-300">
@@ -113,7 +113,7 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
               {formatAmount(stats.totalShortAmount)}
             </div>
             <div className="flex items-center justify-between text-xs text-green-300">
-              <span>{stats.totalShortPositions} posições short</span>
+              <span>{stats.totalShortPositions} posições</span>
               <span>{shortLiquidations.length} ativos</span>
             </div>
             <div className="flex items-center space-x-2 text-xs">
