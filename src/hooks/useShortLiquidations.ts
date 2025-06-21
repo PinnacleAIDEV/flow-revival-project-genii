@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { ShortLiquidationAsset } from '../types/separatedLiquidation';
 import { getMarketCapCategory } from '../types/liquidation';
