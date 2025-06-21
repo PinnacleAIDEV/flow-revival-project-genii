@@ -18,44 +18,55 @@ export const useRealFlowData = () => {
   });
 
   const handleFlowData = useCallback((data: FlowData) => {
-    // ADICIONADO: Log detalhado para entender a estrutura dos dados
-    console.log(`📊 DADOS RECEBIDOS:`, {
-      ticker: data.ticker,
-      price: data.price,
-      volume: data.volume,
-      change_24h: data.change_24h,
-      // Log todas as propriedades para identificar indicadores de liquidação
-      allData: data
-    });
-    
-    console.log(`📈 Processing ${data.kline_volume ? 'Kline' : 'Ticker'} data: ${data.ticker} - $${data.price.toFixed(4)}`);
+    // NOVA LÓGICA: Distinguir entre dados de liquidação e dados de preço
+    if (data.isLiquidation && data.liquidationType) {
+      console.log(`🔥 REAL LIQUIDATION RECEIVED:`, {
+        ticker: data.ticker,
+        type: data.liquidationType,
+        amount: data.liquidationAmount,
+        price: data.liquidationPrice,
+        timestamp: new Date(data.liquidationTime || data.timestamp).toLocaleTimeString()
+      });
+    } else {
+      console.log(`📊 PRICE DATA:`, {
+        ticker: data.ticker,
+        price: data.price,
+        change24h: data.change_24h?.toFixed(2) + '%',
+        volume: (data.volume * data.price / 1000).toFixed(0) + 'K'
+      });
+    }
     
     // Atualizar dados de flow
     setFlowData(prev => {
-      const updated = [data, ...prev.filter(item => item.ticker !== data.ticker)].slice(0, 200);
+      const updated = [data, ...prev.filter(item => 
+        // Manter apenas dados únicos por ticker, mas permitir tanto liquidações quanto dados de preço
+        !(item.ticker === data.ticker && item.isLiquidation === data.isLiquidation)
+      )].slice(0, 200);
       
-      // Calcular sentimento do mercado
-      const sentiment = flowAnalytics.calculateMarketSentiment(updated);
+      // Calcular sentimento apenas com dados de preço (não liquidações)
+      const priceData = updated.filter(d => !d.isLiquidation);
+      const sentiment = flowAnalytics.calculateMarketSentiment(priceData);
       setMarketSentiment(sentiment);
       
       return updated;
     });
 
-    // Analisar dados para alertas
-    const newAlerts = flowAnalytics.analyzeFlowData(data);
-    
-    // Processar cada alerta
-    newAlerts.forEach(alert => {
-      alertSystem.sendAlert(alert);
-      setAlerts(prev => [alert, ...prev].slice(0, 100));
-    });
+    // Analisar dados para alertas (apenas dados de preço)
+    if (!data.isLiquidation) {
+      const newAlerts = flowAnalytics.analyzeFlowData(data);
+      
+      newAlerts.forEach(alert => {
+        alertSystem.sendAlert(alert);
+        setAlerts(prev => [alert, ...prev].slice(0, 100));
+      });
+    }
   }, []);
 
   const connectToFlow = useCallback(async () => {
     try {
       setConnectionError(null);
       setConnectionStatus('connecting');
-      console.log('🚀 Connecting to expanded Binance data (200 assets)...');
+      console.log('🚀 Connecting to REAL Binance Force Order + Price data...');
       
       await binanceWebSocketService.connect();
       
@@ -64,7 +75,7 @@ export const useRealFlowData = () => {
       
       binanceWebSocketService.onMessage(handleFlowData);
       
-      console.log('✅ Successfully connected to expanded Binance real-time data');
+      console.log('✅ Successfully connected to REAL liquidation streams');
       
     } catch (error) {
       console.error('❌ Failed to connect to Binance:', error);
