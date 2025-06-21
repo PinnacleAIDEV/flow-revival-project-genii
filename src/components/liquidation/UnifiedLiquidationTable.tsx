@@ -29,7 +29,7 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
   const highCapCount = assets.filter(a => a.marketCap === 'high').length;
   const lowCapCount = assets.filter(a => a.marketCap === 'low').length;
   
-  // CORRIGIDO: Usar apenas dados do tipo específico
+  // CORRIGIDO: Usar APENAS dados do tipo específico (não mais unified)
   const totalPositions = assets.reduce((sum, asset) => 
     sum + (type === 'long' ? asset.longPositions : asset.shortPositions), 0
   );
@@ -54,8 +54,8 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
                 </Badge>
               </CardTitle>
               <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <span>{totalPositions} posições {type}</span>
-                <span>${(totalLiquidated / 1e6).toFixed(1)}M liquidado</span>
+                <span>{totalPositions} posições {type.toUpperCase()}</span>
+                <span>${(totalLiquidated / 1e6).toFixed(1)}M liquidado {type.toUpperCase()}</span>
               </div>
             </div>
           </div>
@@ -94,7 +94,7 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
               <div>
                 <h4 className="text-lg font-medium text-gray-700 mb-2">Aguardando {title}</h4>
                 <p className="text-gray-500 text-sm max-w-xs">
-                  Monitorando liquidações de {type === 'long' ? 'posições longas' : 'posições short'} em tempo real...
+                  Monitorando liquidações de {type === 'long' ? 'posições longas (quedas)' : 'posições short (altas)'} em tempo real...
                 </p>
               </div>
             </div>

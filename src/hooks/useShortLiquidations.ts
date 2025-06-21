@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { UnifiedLiquidationAsset, getMarketCapCategory } from '../types/liquidation';
 import { safeCreateDate } from '../utils/liquidationUtils';
@@ -9,24 +10,26 @@ export const useShortLiquidations = () => {
   const { saveLiquidation } = useSupabaseStorage();
   
   const [shortAssets, setShortAssets] = useState<Map<string, UnifiedLiquidationAsset>>(new Map());
-  const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
+  const [processedShortTickers, setProcessedShortTickers] = useState<Set<string>>(new Set());
 
-  // Processar dados de liquidação SHORT reais
+  // Processar EXCLUSIVAMENTE liquidações SHORT (altas de preço)
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
     const now = new Date();
     const updatedAssets = new Map(shortAssets);
 
-    // CORRIGIDO: Filtrar por dados que contenham indicação de SHORT liquidation
+    // FILTRO EXCLUSIVO PARA SHORT: Apenas altas significativas
     const shortLiquidationData = flowData.filter((data, index, self) => {
-      const key = `${data.ticker}-${data.timestamp}`;
+      const key = `short-${data.ticker}-${data.timestamp}`;
       const volumeValue = data.volume * data.price;
       const marketCap = getMarketCapCategory(data.ticker);
       const isHighMarketCap = marketCap === 'high';
+      const priceChange = data.change_24h || 0;
       
-      // CRUCIAL: Verificar se contém indicação de liquidação SHORT nos dados
-      const minVolume = isHighMarketCap ? 50000 : 15000;
+      // CRUCIAL: SHORT liquidations APENAS em ALTAS significativas
+      const minVolume = isHighMarketCap ? 80000 : 25000; // Thresholds mais altos
+      const minPriceRise = isHighMarketCap ? 2.0 : 3.5; // Altas mínimas
       
       return (
         data.ticker && 
@@ -34,15 +37,14 @@ export const useShortLiquidations = () => {
         data.price > 0 &&
         !isNaN(data.volume) && 
         data.volume > 0 &&
-        !processedTickers.has(key) &&
+        !processedShortTickers.has(key) &&
         index === self.findIndex(d => d.ticker === data.ticker) &&
         volumeValue > minVolume &&
-        // TODO: Aqui deveria verificar se é liquidação SHORT baseado nos dados reais
-        data.change_24h !== undefined
+        priceChange >= minPriceRise // EXCLUSIVO: Apenas ALTAS
       );
     });
 
-    console.log(`🟢 PROCESSANDO ${shortLiquidationData.length} possíveis SHORT liquidations...`);
+    console.log(`🟢 PROCESSANDO ${shortLiquidationData.length} SHORT liquidations (apenas altas)...`);
 
     shortLiquidationData.forEach(data => {
       try {
@@ -51,33 +53,29 @@ export const useShortLiquidations = () => {
         const marketCap = getMarketCapCategory(data.ticker);
         const assetName = data.ticker.replace('USDT', '');
         
-        // Calcular intensidade baseada no volume
+        // Intensidade baseada na combinação volume + alta
         const isHighMarketCap = marketCap === 'high';
-        const minVolume = isHighMarketCap ? 50000 : 15000;
-        
+        const minVolume = isHighMarketCap ? 80000 : 25000;
         const volumeRatio = volumeValue / minVolume;
+        const riseSeverity = priceChange / (isHighMarketCap ? 2.0 : 3.5);
         
-        let intensity = 1;
-        if (volumeRatio >= 10) intensity = 5;
-        else if (volumeRatio >= 5) intensity = 4;
-        else if (volumeRatio >= 3) intensity = 3;
-        else if (volumeRatio >= 1.5) intensity = 2;
+        let intensity = Math.min(5, Math.max(1, Math.floor((volumeRatio + riseSeverity) / 2)));
         
-        console.log(`🟢 SHORT LIQUIDATION: ${data.ticker} - Vol: $${(volumeValue/1000).toFixed(0)}K`);
+        console.log(`🟢 SHORT LIQUIDATION DETECTADA: ${data.ticker} - Rise: +${priceChange.toFixed(2)}% - Vol: $${(volumeValue/1000).toFixed(0)}K`);
         
-        // Criar/atualizar asset SHORT
+        // Criar/atualizar asset SHORT EXCLUSIVO
         const existing = updatedAssets.get(assetName);
         if (existing) {
           const updated: UnifiedLiquidationAsset = {
             ...existing,
             price: data.price,
-            shortPositions: existing.shortPositions + 1,
-            shortLiquidated: existing.shortLiquidated + volumeValue,
-            combinedTotal: existing.combinedTotal + volumeValue,
+            shortPositions: existing.shortPositions + 1, // APENAS incrementar SHORT
+            shortLiquidated: existing.shortLiquidated + volumeValue, // APENAS somar ao SHORT
+            combinedTotal: existing.shortLiquidated + volumeValue + existing.longLiquidated,
             lastUpdateTime: now,
             intensity: Math.max(existing.intensity, intensity),
             volatility: Math.abs(priceChange),
-            dominantType: 'short',
+            dominantType: 'short', // SEMPRE short neste hook
             liquidationHistory: [
               ...existing.liquidationHistory.slice(-19),
               {
@@ -95,11 +93,11 @@ export const useShortLiquidations = () => {
             ticker: data.ticker,
             price: data.price,
             marketCap,
-            longPositions: 0,
-            shortPositions: 1,
+            longPositions: 0, // ZERO long positions
+            shortPositions: 1, // INICIAR com 1 posição SHORT
             totalPositions: 1,
-            longLiquidated: 0,
-            shortLiquidated: volumeValue,
+            longLiquidated: 0, // ZERO long liquidated
+            shortLiquidated: volumeValue, // APENAS valor SHORT
             combinedTotal: volumeValue,
             lastUpdateTime: now,
             firstDetectionTime: now,
@@ -116,7 +114,7 @@ export const useShortLiquidations = () => {
           updatedAssets.set(assetName, newAsset);
         }
         
-        // Salvar no Supabase
+        // Salvar no Supabase como SHORT
         saveLiquidation({
           asset: assetName,
           ticker: data.ticker,
@@ -131,7 +129,7 @@ export const useShortLiquidations = () => {
           volume_spike: 1
         });
 
-        setProcessedTickers(prev => new Set([...prev, `${data.ticker}-${data.timestamp}`]));
+        setProcessedShortTickers(prev => new Set([...prev, `short-${data.ticker}-${data.timestamp}`]));
       } catch (error) {
         console.error('❌ Erro ao processar SHORT liquidação:', error, data);
       }
@@ -164,7 +162,7 @@ export const useShortLiquidations = () => {
         return cleaned;
       });
 
-      setProcessedTickers(new Set());
+      setProcessedShortTickers(new Set());
     }, 60000);
 
     return () => clearInterval(cleanupInterval);
@@ -176,13 +174,13 @@ export const useShortLiquidations = () => {
     
     const filtered = assetsArray.filter(asset => {
       const isHighCap = asset.marketCap === 'high';
-      const minAmount = isHighCap ? 100000 : 25000;
+      const minAmount = isHighCap ? 150000 : 35000; // Thresholds mais altos
       const minPositions = isHighCap ? 2 : 1;
       
       return asset.shortLiquidated >= minAmount && asset.shortPositions >= minPositions;
     });
     
-    // Ordenar por valor liquidado SHORT
+    // Ordenar APENAS por valores SHORT
     const sorted = filtered.sort((a, b) => {
       if (a.shortLiquidated !== b.shortLiquidated) {
         return b.shortLiquidated - a.shortLiquidated;
@@ -192,10 +190,10 @@ export const useShortLiquidations = () => {
     
     console.log(`🟢 SHORT ASSETS FILTRADOS: ${sorted.length}`);
     sorted.forEach(asset => {
-      console.log(`🟢 ${asset.asset}: $${(asset.shortLiquidated/1000).toFixed(0)}K (${asset.shortPositions} pos)`);
+      console.log(`🟢 ${asset.asset}: $${(asset.shortLiquidated/1000).toFixed(0)}K (${asset.shortPositions} pos SHORT)`);
     });
     
-    return sorted.slice(0, 50);
+    return sorted.slice(0, 25); // Limite reduzido
   }, [shortAssets]);
 
   return {

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { TrendingDown, TrendingUp, Clock, Target } from 'lucide-react';
+import { TrendingDown, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { UnifiedLiquidationAsset } from '../../types/liquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
@@ -18,7 +18,7 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
 }) => {
   const isLong = type === 'long';
   
-  // CORRIGIDO: Usar apenas valores do tipo específico
+  // CORRIGIDO: Usar EXCLUSIVAMENTE valores do tipo específico
   const relevantAmount = isLong ? asset.longLiquidated : asset.shortLiquidated;
   const relevantPositions = isLong ? asset.longPositions : asset.shortPositions;
   
@@ -44,7 +44,10 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
     return 'bg-gray-500 text-white';
   };
 
-  const hasOtherType = isLong ? asset.shortPositions > 0 : asset.longPositions > 0;
+  // Verificar se há conflito de dados (debugging)
+  const hasConflictingData = isLong 
+    ? (asset.shortPositions > 0 || asset.shortLiquidated > 0)
+    : (asset.longPositions > 0 || asset.longLiquidated > 0);
 
   return (
     <div
@@ -68,10 +71,10 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
             {relevantPositions} pos {isLong ? 'LONG' : 'SHORT'}
           </Badge>
           
-          {hasOtherType && (
-            <Badge className="text-xs bg-purple-100 text-purple-800 border-purple-300">
-              <Target className="w-3 h-3 mr-1" />
-              Misto
+          {hasConflictingData && (
+            <Badge className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              CONFLITO
             </Badge>
           )}
         </div>
@@ -124,16 +127,12 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
         </div>
       </div>
       
-      {/* NOVA seção: Mostrar detalhamento separado apenas se houver ambos os tipos */}
-      {hasOtherType && (
-        <div className="mt-2 pt-2 border-t border-gray-200">
-          <div className="flex justify-between items-center text-xs text-gray-500">
-            <span className="text-red-600">
-              Long: {asset.longPositions}pos/${formatAmount(asset.longLiquidated)}
-            </span>
-            <span className="text-green-600">
-              Short: {asset.shortPositions}pos/${formatAmount(asset.shortLiquidated)}
-            </span>
+      {/* DEBUG: Mostrar dados conflitantes se existirem */}
+      {hasConflictingData && (
+        <div className="mt-2 pt-2 border-t border-yellow-200 bg-yellow-50 rounded p-2">
+          <div className="text-xs text-yellow-800">
+            <strong>DEBUG:</strong> L:{asset.longPositions}pos/${formatAmount(asset.longLiquidated)} | 
+            S:{asset.shortPositions}pos/${formatAmount(asset.shortLiquidated)}
           </div>
         </div>
       )}
