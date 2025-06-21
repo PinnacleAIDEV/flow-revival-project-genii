@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { UnifiedLiquidationAsset, getMarketCapCategory } from '../types/liquidation';
 import { safeCreateDate } from '../utils/liquidationUtils';
@@ -11,14 +12,14 @@ export const useLongLiquidations = () => {
   const [longAssets, setLongAssets] = useState<Map<string, UnifiedLiquidationAsset>>(new Map());
   const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
 
-  // Processar dados de liquidação LONG reais - APENAS QUEDAS
+  // Processar dados de liquidação LONG reais
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
     const now = new Date();
     const updatedAssets = new Map(longAssets);
 
-    // CRUCIAL: Filtrar RIGOROSAMENTE apenas liquidações LONG (quedas significativas)
+    // CORRIGIDO: Filtrar APENAS por liquidações LONG (quedas de preço)
     const longLiquidationData = flowData.filter((data, index, self) => {
       const key = `${data.ticker}-${data.timestamp}`;
       const volumeValue = data.volume * data.price;
@@ -26,37 +27,25 @@ export const useLongLiquidations = () => {
       const isHighMarketCap = marketCap === 'high';
       const priceChange = data.change_24h || 0;
       
-      // LIQUIDAÇÃO LONG: Apenas em QUEDAS FORTES (valores negativos significativos)
-      const minVolume = isHighMarketCap ? 75000 : 25000;
-      const maxPriceChange = isHighMarketCap ? -2.0 : -3.0; // QUEDAS mínimas
-      
-      const isValidTicker = data.ticker && !isNaN(data.price) && data.price > 0;
-      const isValidVolume = !isNaN(data.volume) && data.volume > 0;
-      const hasValidPriceChange = !isNaN(priceChange);
-      const isNotProcessed = !processedTickers.has(key);
-      const isUniqueInBatch = index === self.findIndex(d => d.ticker === data.ticker);
-      const hasMinVolume = volumeValue > minVolume;
-      const isSignificantDrop = priceChange <= maxPriceChange; // SÓ QUEDAS
-      
-      // Debug para entender filtros
-      if (data.ticker === 'BTCUSDT' || data.ticker === 'ETHUSDT') {
-        console.log(`🔴 LONG FILTER ${data.ticker}: Price=${priceChange.toFixed(2)}% (need <=${maxPriceChange}), Vol=$${(volumeValue/1000).toFixed(0)}K (need >${(minVolume/1000).toFixed(0)}K), Pass=${isSignificantDrop && hasMinVolume}`);
-      }
+      // CRUCIAL: Long liquidations ocorrem em QUEDAS (preço negativo)
+      const minVolume = isHighMarketCap ? 50000 : 15000;
+      const minPriceChange = isHighMarketCap ? -1.5 : -2.5; // Quedas
       
       return (
-        isValidTicker &&
-        isValidVolume &&
-        hasValidPriceChange &&
-        isNotProcessed &&
-        isUniqueInBatch &&
-        hasMinVolume &&
-        isSignificantDrop // CRUCIAL: SÓ QUEDAS
+        data.ticker && 
+        !isNaN(data.price) && 
+        data.price > 0 &&
+        !isNaN(data.volume) && 
+        data.volume > 0 &&
+        !processedTickers.has(key) &&
+        index === self.findIndex(d => d.ticker === data.ticker) &&
+        volumeValue > minVolume &&
+        priceChange <= minPriceChange // QUEDA para long liquidation
       );
     });
 
-    console.log(`🔴 PROCESSANDO ${longLiquidationData.length} LONG liquidations (apenas quedas significativas)...`);
+    console.log(`🔴 PROCESSANDO ${longLiquidationData.length} LONG liquidations (quedas)...`);
 
-    // Processar apenas as liquidações long válidas
     longLiquidationData.forEach(data => {
       try {
         const priceChange = data.change_24h || 0;
@@ -64,35 +53,33 @@ export const useLongLiquidations = () => {
         const marketCap = getMarketCapCategory(data.ticker);
         const assetName = data.ticker.replace('USDT', '');
         
-        // Calcular intensidade baseada na queda
+        // Calcular intensidade baseada no volume
         const isHighMarketCap = marketCap === 'high';
-        const minVolume = isHighMarketCap ? 75000 : 25000;
-        const priceDropRatio = Math.abs(priceChange) / (isHighMarketCap ? 2.0 : 3.0);
+        const minVolume = isHighMarketCap ? 50000 : 15000;
         const volumeRatio = volumeValue / minVolume;
-        const combinedRatio = (priceDropRatio + volumeRatio) / 2;
         
         let intensity = 1;
-        if (combinedRatio >= 5) intensity = 5;
-        else if (combinedRatio >= 3) intensity = 4;
-        else if (combinedRatio >= 2) intensity = 3;
-        else if (combinedRatio >= 1.5) intensity = 2;
+        if (volumeRatio >= 10) intensity = 5;
+        else if (volumeRatio >= 5) intensity = 4;
+        else if (volumeRatio >= 3) intensity = 3;
+        else if (volumeRatio >= 1.5) intensity = 2;
         
-        console.log(`🔴 LONG LIQUIDATION: ${data.ticker} - Queda: ${priceChange.toFixed(2)}% - Vol: $${(volumeValue/1000).toFixed(0)}K - Intensity: ${intensity}`);
+        console.log(`🔴 LONG LIQUIDATION: ${data.ticker} - Queda: ${priceChange.toFixed(2)}% - Vol: $${(volumeValue/1000).toFixed(0)}K`);
         
-        // Criar/atualizar asset LONG com dados separados
+        // Criar/atualizar asset LONG
         const existing = updatedAssets.get(assetName);
         if (existing) {
           const updated: UnifiedLiquidationAsset = {
             ...existing,
             price: data.price,
-            longPositions: existing.longPositions + 1, // INCREMENTAR APENAS LONG
-            longLiquidated: existing.longLiquidated + volumeValue, // INCREMENTAR APENAS LONG
-            totalPositions: (existing.longPositions + 1) + existing.shortPositions, // RECALCULAR
-            combinedTotal: (existing.longLiquidated + volumeValue) + existing.shortLiquidated, // RECALCULAR
+            longPositions: existing.longPositions + 1,
+            longLiquidated: existing.longLiquidated + volumeValue,
+            totalPositions: existing.totalPositions + 1,
+            combinedTotal: existing.combinedTotal + volumeValue,
             lastUpdateTime: now,
             intensity: Math.max(existing.intensity, intensity),
             volatility: Math.abs(priceChange),
-            dominantType: (existing.longLiquidated + volumeValue) > existing.shortLiquidated ? 'long' : 'short',
+            dominantType: 'long',
             liquidationHistory: [
               ...existing.liquidationHistory.slice(-19),
               {
@@ -110,11 +97,11 @@ export const useLongLiquidations = () => {
             ticker: data.ticker,
             price: data.price,
             marketCap,
-            longPositions: 1, // APENAS LONG
-            shortPositions: 0, // ZERO SHORT
+            longPositions: 1,
+            shortPositions: 0,
             totalPositions: 1,
-            longLiquidated: volumeValue, // APENAS LONG
-            shortLiquidated: 0, // ZERO SHORT
+            longLiquidated: volumeValue,
+            shortLiquidated: 0,
             combinedTotal: volumeValue,
             lastUpdateTime: now,
             firstDetectionTime: now,
@@ -185,20 +172,20 @@ export const useLongLiquidations = () => {
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // Filtrar e ordenar assets LONG - APENAS dados LONG
+  // Filtrar e ordenar assets LONG
   const filteredLongAssets = useMemo(() => {
     const assetsArray = Array.from(longAssets.values());
     
     const filtered = assetsArray.filter(asset => {
       const isHighCap = asset.marketCap === 'high';
-      const minAmount = isHighCap ? 150000 : 40000; // Aumentar thresholds
-      const minPositions = isHighCap ? 1 : 1;
+      const minAmount = isHighCap ? 100000 : 25000;
+      const minPositions = isHighCap ? 2 : 1;
       
-      // FILTRAR APENAS por valores LONG (não usar combinedTotal)
+      // CORRIGIDO: Filtrar apenas por valores LONG
       return asset.longLiquidated >= minAmount && asset.longPositions >= minPositions;
     });
     
-    // Ordenar por valor liquidado LONG especificamente
+    // Ordenar por valor liquidado LONG
     const sorted = filtered.sort((a, b) => {
       if (a.longLiquidated !== b.longLiquidated) {
         return b.longLiquidated - a.longLiquidated;
@@ -208,7 +195,7 @@ export const useLongLiquidations = () => {
     
     console.log(`🔴 LONG ASSETS FILTRADOS: ${sorted.length}`);
     sorted.forEach(asset => {
-      console.log(`🔴 ${asset.asset}: $${(asset.longLiquidated/1000).toFixed(0)}K LONG (${asset.longPositions} pos) [Short: $${(asset.shortLiquidated/1000).toFixed(0)}K]`);
+      console.log(`🔴 ${asset.asset}: $${(asset.longLiquidated/1000).toFixed(0)}K LONG (${asset.longPositions} pos)`);
     });
     
     return sorted.slice(0, 50);
