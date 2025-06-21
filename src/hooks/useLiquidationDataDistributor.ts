@@ -31,7 +31,8 @@ export const useLiquidationDataDistributor = () => {
       const marketCap = getMarketCapCategory(data.ticker);
       const priceChange = data.change_24h || 0;
       
-      const minVolume = marketCap === 'high' ? 50000 : 15000;
+      // FILTROS AUMENTADOS EM 40% (reduzidos para capturar mais dados)
+      const minVolume = marketCap === 'high' ? 35714 : 10714; // 50000*0.6 e 15000*0.6 (redução de 40%)
       
       // Critério básico: se o volume é significativo
       if (volumeValue > minVolume) {
