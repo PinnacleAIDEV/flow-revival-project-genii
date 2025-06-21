@@ -1,62 +1,37 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { ShortLiquidationAsset } from '../types/separatedLiquidation';
-import { getMarketCapCategory } from '../types/liquidation';
 import { safeCreateDate } from '../utils/liquidationUtils';
-import { useRealFlowData } from './useRealFlowData';
+import { useLiquidationDataDistributor } from './useLiquidationDataDistributor';
 import { useSupabaseStorage } from './useSupabaseStorage';
 
 export const useShortLiquidations = () => {
-  const { flowData } = useRealFlowData();
+  const { shortFlowData } = useLiquidationDataDistributor();
   const { saveLiquidation } = useSupabaseStorage();
   
   const [shortAssets, setShortAssets] = useState<Map<string, ShortLiquidationAsset>>(new Map());
   const [processedShortTickers, setProcessedShortTickers] = useState<Set<string>>(new Set());
 
-  // Processar EXCLUSIVAMENTE liquidações SHORT - APENAS VOLUME
+  // Processar EXCLUSIVAMENTE dados SHORT
   useEffect(() => {
-    if (!flowData || flowData.length === 0) return;
+    if (!shortFlowData || shortFlowData.length === 0) return;
 
     const now = new Date();
     const updatedAssets = new Map(shortAssets);
 
-    // APENAS volume alto = liquidação SHORT
-    const shortLiquidationData = flowData.filter((data, index, self) => {
-      const key = `short-${data.ticker}-${data.timestamp}`;
-      const volumeValue = data.volume * data.price;
-      const marketCap = getMarketCapCategory(data.ticker);
-      const isHighMarketCap = marketCap === 'high';
-      
-      const minVolume = isHighMarketCap ? 50000 : 15000;
-      
-      return (
-        data.ticker && 
-        !isNaN(data.price) && 
-        data.price > 0 &&
-        !isNaN(data.volume) && 
-        data.volume > 0 &&
-        !processedShortTickers.has(key) &&
-        index === self.findIndex(d => d.ticker === data.ticker) &&
-        volumeValue > minVolume
-      );
-    });
+    console.log(`🟢 PROCESSANDO ${shortFlowData.length} SHORT liquidations EXCLUSIVOS...`);
 
-    console.log(`🟢 PROCESSANDO ${shortLiquidationData.length} SHORT liquidations...`);
-
-    shortLiquidationData.forEach(data => {
+    shortFlowData.forEach(data => {
       try {
-        const priceChange = data.change_24h || 0;
-        const volumeValue = data.volume * data.price;
-        const marketCap = getMarketCapCategory(data.ticker);
+        const key = `short-${data.ticker}-${data.timestamp}`;
+        
+        if (processedShortTickers.has(key)) return;
+
         const assetName = data.ticker.replace('USDT', '');
-        
-        const isHighMarketCap = marketCap === 'high';
-        const minVolume = isHighMarketCap ? 50000 : 15000;
-        const volumeRatio = volumeValue / minVolume;
-        
+        const minVolume = data.marketCap === 'high' ? 50000 : 15000;
+        const volumeRatio = data.volumeValue / minVolume;
         let intensity = Math.min(5, Math.max(1, Math.floor(volumeRatio / 2)));
         
-        console.log(`🟢 SHORT LIQUIDATION: ${data.ticker} - Vol: $${(volumeValue/1000).toFixed(0)}K`);
+        console.log(`🟢 SHORT LIQUIDATION: ${data.ticker} - Vol: $${(data.volumeValue/1000).toFixed(0)}K`);
         
         const existing = updatedAssets.get(assetName);
         if (existing) {
@@ -64,17 +39,17 @@ export const useShortLiquidations = () => {
             ...existing,
             price: data.price,
             shortPositions: existing.shortPositions + 1,
-            shortLiquidated: existing.shortLiquidated + volumeValue,
+            shortLiquidated: existing.shortLiquidated + data.volumeValue,
             lastUpdateTime: now,
             intensity: Math.max(existing.intensity, intensity),
-            volatility: Math.abs(priceChange),
+            volatility: Math.abs(data.change_24h),
             liquidationHistory: [
               ...existing.liquidationHistory.slice(-19),
               {
                 type: 'short',
-                amount: volumeValue,
+                amount: data.volumeValue,
                 timestamp: now,
-                change24h: priceChange
+                change24h: data.change_24h
               }
             ]
           };
@@ -84,18 +59,18 @@ export const useShortLiquidations = () => {
             asset: assetName,
             ticker: data.ticker,
             price: data.price,
-            marketCap,
+            marketCap: data.marketCap,
             shortPositions: 1,
-            shortLiquidated: volumeValue,
+            shortLiquidated: data.volumeValue,
             lastUpdateTime: now,
             firstDetectionTime: now,
-            volatility: Math.abs(priceChange),
+            volatility: Math.abs(data.change_24h),
             intensity,
             liquidationHistory: [{
               type: 'short',
-              amount: volumeValue,
+              amount: data.volumeValue,
               timestamp: now,
-              change24h: priceChange
+              change24h: data.change_24h
             }]
           };
           updatedAssets.set(assetName, newAsset);
@@ -105,24 +80,24 @@ export const useShortLiquidations = () => {
           asset: assetName,
           ticker: data.ticker,
           type: 'short',
-          amount: volumeValue,
+          amount: data.volumeValue,
           price: data.price,
-          market_cap: marketCap,
+          market_cap: data.marketCap,
           intensity,
-          change_24h: priceChange,
+          change_24h: data.change_24h,
           volume: data.volume,
-          total_liquidated: volumeValue,
+          total_liquidated: data.volumeValue,
           volume_spike: 1
         });
 
-        setProcessedShortTickers(prev => new Set([...prev, `short-${data.ticker}-${data.timestamp}`]));
+        setProcessedShortTickers(prev => new Set([...prev, key]));
       } catch (error) {
         console.error('❌ Erro ao processar SHORT liquidação:', error, data);
       }
     });
 
     setShortAssets(updatedAssets);
-  }, [flowData, saveLiquidation]);
+  }, [shortFlowData, saveLiquidation]);
 
   // Limpeza automática
   useEffect(() => {
@@ -165,9 +140,9 @@ export const useShortLiquidations = () => {
       return b.shortPositions - a.shortPositions;
     });
     
-    console.log(`🟢 SHORT ASSETS: ${sorted.length}`);
+    console.log(`🟢 SHORT ASSETS FINAIS: ${sorted.length}`);
     sorted.forEach(asset => {
-      console.log(`🟢 ${asset.asset}: $${(asset.shortLiquidated/1000).toFixed(0)}K (${asset.shortPositions} pos)`);
+      console.log(`🟢 ${asset.asset}: $${(asset.shortLiquidated/1000).toFixed(0)}K (${asset.shortPositions} pos SHORT)`);
     });
     
     return sorted.slice(0, 50);

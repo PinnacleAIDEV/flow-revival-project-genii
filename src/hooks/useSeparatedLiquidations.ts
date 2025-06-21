@@ -7,31 +7,33 @@ export const useSeparatedLiquidations = () => {
   const { longLiquidations } = useLongLiquidations();
   const { shortLiquidations } = useShortLiquidations();
 
-  // Logs detalhados para debug
-  console.log(`🔴 Long liquidations disponíveis: ${longLiquidations.length}`);
+  // Logs detalhados para debug - DADOS REALMENTE SEPARADOS
+  console.log(`🔴 Long liquidations SEPARADOS: ${longLiquidations.length}`);
   longLiquidations.forEach((asset, index) => {
-    if (index < 3) { // Log apenas os primeiros 3 para não poluir
-      console.log(`🔴 LONG ${asset.asset}: longLiquidated=$${(asset.longLiquidated/1000).toFixed(0)}K, positions=${asset.longPositions}`);
+    if (index < 3) {
+      console.log(`🔴 LONG EXCLUSIVO ${asset.asset}: longLiquidated=$${(asset.longLiquidated/1000).toFixed(0)}K, longPositions=${asset.longPositions}`);
     }
   });
 
-  console.log(`🟢 Short liquidations disponíveis: ${shortLiquidations.length}`);
+  console.log(`🟢 Short liquidations SEPARADOS: ${shortLiquidations.length}`);
   shortLiquidations.forEach((asset, index) => {
-    if (index < 3) { // Log apenas os primeiros 3 para não poluir
-      console.log(`🟢 SHORT ${asset.asset}: shortLiquidated=$${(asset.shortLiquidated/1000).toFixed(0)}K, positions=${asset.shortPositions}`);
+    if (index < 3) {
+      console.log(`🟢 SHORT EXCLUSIVO ${asset.asset}: shortLiquidated=$${(asset.shortLiquidated/1000).toFixed(0)}K, shortPositions=${asset.shortPositions}`);
     }
   });
 
-  // Verificar se há sobreposição de assets (problema potencial)
+  // Verificar se NÃO há sobreposição (deve ser zero agora)
   const longAssetNames = new Set(longLiquidations.map(a => a.asset));
   const shortAssetNames = new Set(shortLiquidations.map(a => a.asset));
   const overlap = [...longAssetNames].filter(name => shortAssetNames.has(name));
   
   if (overlap.length > 0) {
-    console.warn(`⚠️ OVERLAP DETECTADO: ${overlap.length} assets aparecem em ambas as listas:`, overlap.slice(0, 5));
+    console.error(`❌ AINDA HÁ OVERLAP: ${overlap.length} assets duplicados:`, overlap);
+  } else {
+    console.log(`✅ PERFEITO: Nenhum overlap entre long e short liquidations`);
   }
 
-  // Memoizar para evitar re-renders desnecessários
+  // Memoizar dados completamente separados
   const memoizedData = useMemo(() => ({
     longLiquidations,
     shortLiquidations,
