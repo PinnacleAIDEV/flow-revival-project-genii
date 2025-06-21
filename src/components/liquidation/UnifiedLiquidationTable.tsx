@@ -39,6 +39,12 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
     sum + (type === 'long' ? asset.longLiquidated : asset.shortLiquidated), 0
   );
 
+  const formatAmount = (amount: number) => {
+    if (amount >= 1e6) return `$${(amount / 1e6).toFixed(1)}M`;
+    if (amount >= 1e3) return `$${(amount / 1e3).toFixed(0)}K`;
+    return `$${amount.toFixed(0)}`;
+  };
+
   return (
     <Card className="flex-1 bg-white/95 backdrop-blur-sm border-gray-200">
       <CardHeader className="pb-3">
@@ -51,12 +57,12 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
               <CardTitle className={`flex items-center space-x-2 ${textColor} font-mono`}>
                 <span>{title}</span>
                 <Badge className="bg-gray-100 text-gray-700 border-gray-300">
-                  {assets.length} assets
+                  {assets.length}
                 </Badge>
               </CardTitle>
               <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <span>{totalPositions} posições {type}</span>
-                <span>${(totalLiquidated / 1e6).toFixed(1)}M liquidado</span>
+                <span>{totalPositions} posições</span>
+                <span>{formatAmount(totalLiquidated)} liquidado</span>
               </div>
             </div>
           </div>
@@ -75,7 +81,7 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
       <CardContent className="p-0 h-[calc(100vh-280px)]">
         {assets.length > 0 ? (
           <ScrollArea className="h-full">
-            <div className="space-y-2 p-4">
+            <div className="space-y-3 p-4">
               {assets.map((asset) => (
                 <UnifiedLiquidationRow
                   key={asset.asset}
