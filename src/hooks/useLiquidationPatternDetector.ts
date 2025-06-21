@@ -59,6 +59,12 @@ export const useLiquidationPatternDetector = (unifiedAssets: Map<string, any>) =
 
   // Preparar dados para análise
   const prepareDataForAnalysis = (): LiquidationData[] => {
+    // Verificação de segurança para evitar erro de undefined
+    if (!unifiedAssets || typeof unifiedAssets.size === 'undefined') {
+      console.log('🤖 unifiedAssets não está disponível ainda, aguardando...');
+      return [];
+    }
+
     const unifiedData: LiquidationData[] = [];
     
     unifiedAssets.forEach((asset, key) => {
@@ -178,7 +184,8 @@ export const useLiquidationPatternDetector = (unifiedAssets: Map<string, any>) =
 
   // Efeito principal
   useEffect(() => {
-    if (unifiedAssets.size > 0) {
+    // Verificação de segurança adicional
+    if (unifiedAssets && unifiedAssets.size > 0) {
       scheduleNextAnalysis();
     }
 
@@ -190,7 +197,7 @@ export const useLiquidationPatternDetector = (unifiedAssets: Map<string, any>) =
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [unifiedAssets.size]);
+  }, [unifiedAssets?.size]); // Adicionar verificação de segurança na dependência
 
   // Força nova análise manualmente
   const triggerManualAnalysis = () => {
@@ -204,6 +211,6 @@ export const useLiquidationPatternDetector = (unifiedAssets: Map<string, any>) =
     analysisHistory,
     nextAnalysisIn,
     triggerManualAnalysis,
-    hasData: unifiedAssets.size > 0
+    hasData: unifiedAssets ? unifiedAssets.size > 0 : false
   };
 };

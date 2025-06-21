@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLongLiquidations } from '../hooks/useLongLiquidations';
 import { useShortLiquidations } from '../hooks/useShortLiquidations';
 import { useTrading } from '../contexts/TradingContext';
@@ -52,76 +52,80 @@ export const TrendReversalDetector: React.FC = () => {
     console.log(`🔄 Hybrid Trend Reversal selecionado: ${fullTicker}`);
   };
 
-  // Criar Map unificado mantendo dados separados por tipo
-  const unifiedAssetsMap = new Map<string, TrendReversalAsset>();
-  
-  // Processar long liquidations
-  longLiquidations.forEach(asset => {
-    const trendAsset: TrendReversalAsset = {
-      asset: asset.asset,
-      ticker: asset.ticker,
-      price: asset.price,
-      marketCap: asset.marketCap,
-      longPositions: asset.longPositions,
-      longLiquidated: asset.longLiquidated,
-      shortPositions: 0,
-      shortLiquidated: 0,
-      totalPositions: asset.longPositions,
-      combinedTotal: asset.longLiquidated,
-      dominantType: 'long',
-      lastUpdateTime: asset.lastUpdateTime,
-      firstDetectionTime: asset.firstDetectionTime,
-      volatility: asset.volatility,
-      intensity: asset.intensity,
-      liquidationHistory: asset.liquidationHistory
-    };
-    unifiedAssetsMap.set(asset.asset, trendAsset);
-  });
-  
-  // Processar short liquidations e mesclar com long se necessário
-  shortLiquidations.forEach(asset => {
-    const existing = unifiedAssetsMap.get(asset.asset);
-    if (existing) {
-      // MESCLAR: Manter dados separados mas criar vista unificada
-      const merged: TrendReversalAsset = {
-        ...existing,
-        // Adicionar dados SHORT
-        shortPositions: asset.shortPositions,
-        shortLiquidated: asset.shortLiquidated,
-        // Recalcular totais
-        totalPositions: existing.longPositions + asset.shortPositions,
-        combinedTotal: existing.longLiquidated + asset.shortLiquidated,
-        // Determinar tipo dominante baseado em valores separados
-        dominantType: existing.longLiquidated > asset.shortLiquidated ? 'long' : 'short',
-        // Mesclar histórico mantendo separação por tipo
-        liquidationHistory: [...existing.liquidationHistory, ...asset.liquidationHistory],
-        // Usar última atualização mais recente
-        lastUpdateTime: existing.lastUpdateTime > asset.lastUpdateTime ? existing.lastUpdateTime : asset.lastUpdateTime
-      };
-      unifiedAssetsMap.set(asset.asset, merged);
-    } else {
-      // Adicionar asset que só tem SHORT liquidations
+  // Criar Map unificado mantendo dados separados por tipo usando useMemo
+  const unifiedAssetsMap = useMemo(() => {
+    const assetsMap = new Map<string, TrendReversalAsset>();
+    
+    // Processar long liquidations
+    longLiquidations.forEach(asset => {
       const trendAsset: TrendReversalAsset = {
         asset: asset.asset,
         ticker: asset.ticker,
         price: asset.price,
         marketCap: asset.marketCap,
-        longPositions: 0,
-        longLiquidated: 0,
-        shortPositions: asset.shortPositions,
-        shortLiquidated: asset.shortLiquidated,
-        totalPositions: asset.shortPositions,
-        combinedTotal: asset.shortLiquidated,
-        dominantType: 'short',
+        longPositions: asset.longPositions,
+        longLiquidated: asset.longLiquidated,
+        shortPositions: 0,
+        shortLiquidated: 0,
+        totalPositions: asset.longPositions,
+        combinedTotal: asset.longLiquidated,
+        dominantType: 'long',
         lastUpdateTime: asset.lastUpdateTime,
         firstDetectionTime: asset.firstDetectionTime,
         volatility: asset.volatility,
         intensity: asset.intensity,
         liquidationHistory: asset.liquidationHistory
       };
-      unifiedAssetsMap.set(asset.asset, trendAsset);
-    }
-  });
+      assetsMap.set(asset.asset, trendAsset);
+    });
+    
+    // Processar short liquidations e mesclar com long se necessário
+    shortLiquidations.forEach(asset => {
+      const existing = assetsMap.get(asset.asset);
+      if (existing) {
+        // MESCLAR: Manter dados separados mas criar vista unificada
+        const merged: TrendReversalAsset = {
+          ...existing,
+          // Adicionar dados SHORT
+          shortPositions: asset.shortPositions,
+          shortLiquidated: asset.shortLiquidated,
+          // Recalcular totais
+          totalPositions: existing.longPositions + asset.shortPositions,
+          combinedTotal: existing.longLiquidated + asset.shortLiquidated,
+          // Determinar tipo dominante baseado em valores separados
+          dominantType: existing.longLiquidated > asset.shortLiquidated ? 'long' : 'short',
+          // Mesclar histórico mantendo separação por tipo
+          liquidationHistory: [...existing.liquidationHistory, ...asset.liquidationHistory],
+          // Usar última atualização mais recente
+          lastUpdateTime: existing.lastUpdateTime > asset.lastUpdateTime ? existing.lastUpdateTime : asset.lastUpdateTime
+        };
+        assetsMap.set(asset.asset, merged);
+      } else {
+        // Adicionar asset que só tem SHORT liquidations
+        const trendAsset: TrendReversalAsset = {
+          asset: asset.asset,
+          ticker: asset.ticker,
+          price: asset.price,
+          marketCap: asset.marketCap,
+          longPositions: 0,
+          longLiquidated: 0,
+          shortPositions: asset.shortPositions,
+          shortLiquidated: asset.shortLiquidated,
+          totalPositions: asset.shortPositions,
+          combinedTotal: asset.shortLiquidated,
+          dominantType: 'short',
+          lastUpdateTime: asset.lastUpdateTime,
+          firstDetectionTime: asset.firstDetectionTime,
+          volatility: asset.volatility,
+          intensity: asset.intensity,
+          liquidationHistory: asset.liquidationHistory
+        };
+        assetsMap.set(asset.asset, trendAsset);
+      }
+    });
+
+    return assetsMap;
+  }, [longLiquidations, shortLiquidations]);
 
   // Usar o novo hook de detecção de padrões com análise de 5 em 5 minutos
   const {
