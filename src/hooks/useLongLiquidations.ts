@@ -1,24 +1,28 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { LongLiquidationAsset } from '../types/separatedLiquidation';
 import { safeCreateDate } from '../utils/liquidationUtils';
 import { useLiquidationDataDistributor } from './useLiquidationDataDistributor';
-import { useSupabaseStorage } from './useSupabaseStorage';
+import { useOptimizedSupabaseStorage } from './useOptimizedSupabaseStorage';
 
 export const useLongLiquidations = () => {
   const { longFlowData } = useLiquidationDataDistributor();
-  const { saveLiquidation } = useSupabaseStorage();
+  const { saveCriticalLiquidation } = useOptimizedSupabaseStorage();
   
   const [longAssets, setLongAssets] = useState<Map<string, LongLiquidationAsset>>(new Map());
   const [processedLongTickers, setProcessedLongTickers] = useState<Set<string>>(new Set());
 
-  // Processar EXCLUSIVAMENTE dados LONG
+  // Processar EXCLUSIVAMENTE dados LONG já filtrados
   useEffect(() => {
     if (!longFlowData || longFlowData.length === 0) return;
 
     const now = new Date();
     const updatedAssets = new Map(longAssets);
 
-    console.log(`🔴 PROCESSANDO ${longFlowData.length} LONG liquidations EXCLUSIVOS...`);
+    console.log(`🔴 PROCESSANDO ${longFlowData.length} LONG liquidations OTIMIZADOS...`);
+
+    // Buffer para batch operations
+    const liquidationsToSave: any[] = [];
 
     longFlowData.forEach(data => {
       try {
@@ -27,7 +31,7 @@ export const useLongLiquidations = () => {
         if (processedLongTickers.has(key)) return;
 
         const assetName = data.ticker.replace('USDT', '');
-        const minVolume = data.marketCap === 'high' ? 50000 : 15000;
+        const minVolume = data.marketCap === 'high' ? 75000 : 25000; // Já otimizado
         const volumeRatio = data.volumeValue / minVolume;
         let intensity = Math.min(5, Math.max(1, Math.floor(volumeRatio / 2)));
         
@@ -76,7 +80,8 @@ export const useLongLiquidations = () => {
           updatedAssets.set(assetName, newAsset);
         }
         
-        saveLiquidation({
+        // OTIMIZAÇÃO: Apenas preparar para salvar, não salvar imediatamente
+        liquidationsToSave.push({
           asset: assetName,
           ticker: data.ticker,
           type: 'long',
@@ -96,17 +101,22 @@ export const useLongLiquidations = () => {
       }
     });
 
-    setLongAssets(updatedAssets);
-  }, [longFlowData, saveLiquidation]);
+    // OTIMIZAÇÃO: Salvar apenas as liquidações críticas (redução massiva)
+    liquidationsToSave.forEach(liq => {
+      saveCriticalLiquidation(liq); // Só salva se atender critérios rígidos
+    });
 
-  // Limpeza automática
+    setLongAssets(updatedAssets);
+  }, [longFlowData, saveCriticalLiquidation]);
+
+  // Limpeza otimizada (menos frequente)
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
-      console.log('🧹 Limpando LONG assets antigos...');
+      console.log('🧹 Limpando LONG assets antigos (otimizado)...');
       
       setLongAssets(prev => {
         const now = new Date();
-        const cutoffTime = new Date(now.getTime() - 15 * 60 * 1000);
+        const cutoffTime = new Date(now.getTime() - 20 * 60 * 1000); // 20min ao invés de 15min
         const cleaned = new Map<string, LongLiquidationAsset>();
         
         prev.forEach((asset, key) => {
@@ -124,7 +134,7 @@ export const useLongLiquidations = () => {
       });
 
       setProcessedLongTickers(new Set());
-    }, 60000);
+    }, 90000); // 90s ao invés de 60s
 
     return () => clearInterval(cleanupInterval);
   }, []);
@@ -140,12 +150,12 @@ export const useLongLiquidations = () => {
       return b.longPositions - a.longPositions;
     });
     
-    console.log(`🔴 LONG ASSETS FINAIS: ${sorted.length}`);
+    console.log(`🔴 LONG ASSETS OTIMIZADOS: ${sorted.length}`);
     sorted.forEach(asset => {
       console.log(`🔴 ${asset.asset}: $${(asset.longLiquidated/1000).toFixed(0)}K (${asset.longPositions} pos LONG)`);
     });
     
-    return sorted.slice(0, 50);
+    return sorted.slice(0, 30); // Reduzido de 50 para 30
   }, [longAssets]);
 
   return {

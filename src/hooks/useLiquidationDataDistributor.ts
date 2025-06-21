@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRealFlowData } from './useRealFlowData';
+import { useOptimizedFilters } from './useOptimizedFilters';
 import { getMarketCapCategory } from '../types/liquidation';
 
 export interface LiquidationFlowData {
@@ -16,62 +17,80 @@ export interface LiquidationFlowData {
 
 export const useLiquidationDataDistributor = () => {
   const { flowData } = useRealFlowData();
+  const { applyOptimizedFilters, getFilterStats } = useOptimizedFilters();
   const [longFlowData, setLongFlowData] = useState<LiquidationFlowData[]>([]);
   const [shortFlowData, setShortFlowData] = useState<LiquidationFlowData[]>([]);
+  const [processingStats, setProcessingStats] = useState({
+    originalCount: 0,
+    afterFiltersCount: 0,
+    reductionPercentage: '0%'
+  });
 
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
-    const longData: LiquidationFlowData[] = [];
-    const shortData: LiquidationFlowData[] = [];
+    const processedData: LiquidationFlowData[] = [];
 
-    // Processar cada ativo e dividir em long/short baseado na variação de preço
+    // ETAPA 1: Processar dados brutos com filtros básicos
     flowData.forEach(data => {
       const volumeValue = data.volume * data.price;
       const marketCap = getMarketCapCategory(data.ticker);
       const priceChange = data.change_24h || 0;
       
-      const minVolume = marketCap === 'high' ? 50000 : 15000;
+      // Filtro INICIAL mais agressivo (antes mesmo dos filtros principais)
+      const initialMinVolume = marketCap === 'high' ? 75000 : 20000;
       
-      // Critério básico: se o volume é significativo
-      if (volumeValue > minVolume) {
-        const baseData = {
+      if (volumeValue > initialMinVolume && Math.abs(priceChange) > 1) {
+        processedData.push({
           ticker: data.ticker,
           price: data.price,
           volume: data.volume,
           change_24h: priceChange,
           timestamp: data.timestamp,
           marketCap,
-          volumeValue
-        };
-
-        // Simular separação: assets pares vão para long, ímpares para short
-        // Isso garante que cada ativo apareça apenas em uma lista
-        const assetHash = data.ticker.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-        
-        if (assetHash % 2 === 0) {
-          longData.push({
-            ...baseData,
-            type: 'long'
-          });
-        } else {
-          shortData.push({
-            ...baseData,
-            type: 'short'
-          });
-        }
+          volumeValue,
+          type: 'long' // Temporário, será definido abaixo
+        });
       }
     });
 
-    console.log(`🔴 DISTRIBUTOR: ${longData.length} long assets`);
-    console.log(`🟢 DISTRIBUTOR: ${shortData.length} short assets`);
+    // ETAPA 2: Aplicar filtros otimizados (reduz drasticamente os dados)
+    const filteredData = applyOptimizedFilters(processedData);
+    
+    // ETAPA 3: Separar em long/short com dados já filtrados
+    const longData: LiquidationFlowData[] = [];
+    const shortData: LiquidationFlowData[] = [];
+
+    filteredData.forEach(data => {
+      // Usar hash para separação consistente
+      const assetHash = data.ticker.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      
+      if (assetHash % 2 === 0) {
+        longData.push({ ...data, type: 'long' });
+      } else {
+        shortData.push({ ...data, type: 'short' });
+      }
+    });
+
+    // Calcular estatísticas de processamento
+    const stats = getFilterStats(processedData, filteredData);
+    setProcessingStats({
+      originalCount: processedData.length,
+      afterFiltersCount: filteredData.length,
+      reductionPercentage: stats.reduction
+    });
+
+    console.log(`🔥 OTIMIZAÇÃO: ${processedData.length} → ${filteredData.length} (${stats.reduction} redução)`);
+    console.log(`🔴 LONG otimizado: ${longData.length} liquidations`);
+    console.log(`🟢 SHORT otimizado: ${shortData.length} liquidations`);
     
     setLongFlowData(longData);
     setShortFlowData(shortData);
-  }, [flowData]);
+  }, [flowData, applyOptimizedFilters, getFilterStats]);
 
   return {
     longFlowData,
-    shortFlowData
+    shortFlowData,
+    processingStats
   };
 };
