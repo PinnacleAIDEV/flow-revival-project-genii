@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRealFlowData } from './useRealFlowData';
-import { useOptimizedFilters } from './useOptimizedFilters';
 import { getMarketCapCategory } from '../types/liquidation';
 
 export interface LiquidationFlowData {
@@ -17,89 +16,62 @@ export interface LiquidationFlowData {
 
 export const useLiquidationDataDistributor = () => {
   const { flowData } = useRealFlowData();
-  const { applyOptimizedFilters, getFilterStats } = useOptimizedFilters();
   const [longFlowData, setLongFlowData] = useState<LiquidationFlowData[]>([]);
   const [shortFlowData, setShortFlowData] = useState<LiquidationFlowData[]>([]);
-  const [processingStats, setProcessingStats] = useState({
-    originalCount: 0,
-    afterFiltersCount: 0,
-    reductionPercentage: '0%'
-  });
 
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
-    const processedData: LiquidationFlowData[] = [];
+    const longData: LiquidationFlowData[] = [];
+    const shortData: LiquidationFlowData[] = [];
 
-    // ETAPA 1: Processar dados brutos com filtros bem permissivos
+    // Processar cada ativo e dividir em long/short baseado na variação de preço
     flowData.forEach(data => {
       const volumeValue = data.volume * data.price;
       const marketCap = getMarketCapCategory(data.ticker);
       const priceChange = data.change_24h || 0;
       
-      // Filtro INICIAL super permissivo - aceitar quase tudo
-      const initialMinVolume = marketCap === 'high' ? 1000 : 500; // Muito baixo para capturar mais dados
+      const minVolume = marketCap === 'high' ? 50000 : 15000;
       
-      if (volumeValue > initialMinVolume && Math.abs(priceChange) > 0.01) { // Apenas 0.01% de mudança
-        processedData.push({
+      // Critério básico: se o volume é significativo
+      if (volumeValue > minVolume) {
+        const baseData = {
           ticker: data.ticker,
           price: data.price,
           volume: data.volume,
           change_24h: priceChange,
           timestamp: data.timestamp,
           marketCap,
-          volumeValue,
-          type: 'long' // Temporário, será definido abaixo
-        });
-      }
-    });
+          volumeValue
+        };
 
-    console.log(`🔍 Dados após filtro inicial PERMISSIVO: ${processedData.length} (de ${flowData.length} originais)`);
-
-    // ETAPA 2: Aplicar filtros otimizados (agora bem menos restritivos)
-    const filteredData = applyOptimizedFilters(processedData);
-    
-    console.log(`🔍 Dados após filtros otimizados: ${filteredData.length} (de ${processedData.length})`);
-    
-    // ETAPA 3: Separar em long/short baseado na mudança de preço
-    const longData: LiquidationFlowData[] = [];
-    const shortData: LiquidationFlowData[] = [];
-
-    filteredData.forEach(data => {
-      // Lógica melhorada para separação long/short
-      if (data.change_24h < -0.5) {
-        // Preço caindo mais de 0.5% = Long liquidations (apostavam na alta)
-        longData.push({ ...data, type: 'long' });
-      } else if (data.change_24h > 0.5) {
-        // Preço subindo mais de 0.5% = Short liquidations (apostavam na queda)
-        shortData.push({ ...data, type: 'short' });
-      } else {
-        // Para mudanças pequenas, distribuir baseado no volume
-        if (data.volumeValue > 10000) {
-          longData.push({ ...data, type: 'long' });
+        // Simular separação: assets pares vão para long, ímpares para short
+        // Isso garante que cada ativo apareça apenas em uma lista
+        const assetHash = data.ticker.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+        
+        if (assetHash % 2 === 0) {
+          longData.push({
+            ...baseData,
+            type: 'long'
+          });
+        } else {
+          shortData.push({
+            ...baseData,
+            type: 'short'
+          });
         }
       }
     });
 
-    // Calcular estatísticas de processamento
-    const stats = getFilterStats(processedData, filteredData);
-    setProcessingStats({
-      originalCount: processedData.length,
-      afterFiltersCount: filteredData.length,
-      reductionPercentage: stats.reduction
-    });
-
-    console.log(`🔥 SISTEMA CORRIGIDO: ${processedData.length} → ${filteredData.length} (${stats.reduction} redução)`);
-    console.log(`🔴 LONG detectados: ${longData.length} liquidations`);
-    console.log(`🟢 SHORT detectados: ${shortData.length} liquidations`);
+    console.log(`🔴 DISTRIBUTOR: ${longData.length} long assets`);
+    console.log(`🟢 DISTRIBUTOR: ${shortData.length} short assets`);
     
     setLongFlowData(longData);
     setShortFlowData(shortData);
-  }, [flowData, applyOptimizedFilters, getFilterStats]);
+  }, [flowData]);
 
   return {
     longFlowData,
-    shortFlowData,
-    processingStats
+    shortFlowData
   };
 };

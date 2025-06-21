@@ -1,122 +1,87 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSupabaseStorage } from './useSupabaseStorage';
 
 interface PerformanceMetrics {
-  averageProcessingTime: number;
-  memoryUsage: number;
-  dataProcessingRate: number;
-  filterEfficiency: number;
-  supabaseOperations: number;
-  lastUpdate: Date;
-}
-
-interface PerformanceAlert {
-  type: 'warning' | 'error' | 'info';
-  message: string;
-  timestamp: Date;
-  metric: string;
+  dbQueries: number;
+  avgQueryTime: number;
+  cacheHitRate: number;
+  lastCleanup: Date | null;
+  activeAssets: number;
+  totalLiquidations: number;
+  totalTrends: number;
 }
 
 export const usePerformanceMonitor = () => {
   const [metrics, setMetrics] = useState<PerformanceMetrics>({
-    averageProcessingTime: 0,
-    memoryUsage: 0,
-    dataProcessingRate: 0,
-    filterEfficiency: 0,
-    supabaseOperations: 0,
-    lastUpdate: new Date()
+    dbQueries: 0,
+    avgQueryTime: 0,
+    cacheHitRate: 0,
+    lastCleanup: null,
+    activeAssets: 0,
+    totalLiquidations: 0,
+    totalTrends: 0
   });
-  
-  const [alerts, setAlerts] = useState<PerformanceAlert[]>([]);
-  const [processingTimes, setProcessingTimes] = useState<number[]>([]);
-  const [supabaseCallCount, setSupabaseCallCount] = useState(0);
 
-  // Monitorar performance a cada 30 segundos
-  useEffect(() => {
-    const interval = setInterval(() => {
-      updateMetrics();
-    }, 30000); // 30 segundos
+  const { getAllActiveAssets, liquidations, coinTrends, cleanupExpiredData } = useSupabaseStorage();
 
-    return () => clearInterval(interval);
-  }, []);
-
-  const updateMetrics = () => {
-    const now = new Date();
+  // Monitorar métricas de performance
+  const updateMetrics = useCallback(async () => {
+    const startTime = performance.now();
     
-    // Calcular média dos tempos de processamento
-    const avgProcessingTime = processingTimes.length > 0 
-      ? processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length
-      : 0;
+    try {
+      // Buscar dados para calcular métricas
+      const activeAssets = await getAllActiveAssets(50);
 
-    // Estimar uso de memória (aproximado)
-    const memoryEstimate = (performance as any).memory?.usedJSHeapSize || 0;
+      const endTime = performance.now();
+      const queryTime = endTime - startTime;
 
-    const newMetrics: PerformanceMetrics = {
-      averageProcessingTime: avgProcessingTime,
-      memoryUsage: memoryEstimate,
-      dataProcessingRate: processingTimes.length,
-      filterEfficiency: calculateFilterEfficiency(),
-      supabaseOperations: supabaseCallCount,
-      lastUpdate: now
-    };
+      setMetrics(prev => ({
+        ...prev,
+        dbQueries: prev.dbQueries + 1,
+        avgQueryTime: (prev.avgQueryTime + queryTime) / 2,
+        activeAssets: activeAssets?.length || 0,
+        totalLiquidations: liquidations?.length || 0,
+        totalTrends: coinTrends?.length || 0
+      }));
 
-    setMetrics(newMetrics);
-    checkForAlerts(newMetrics);
-  };
-
-  const calculateFilterEfficiency = (): number => {
-    // Simular eficiência dos filtros (0-100%)
-    return Math.random() * 100;
-  };
-
-  const checkForAlerts = (currentMetrics: PerformanceMetrics) => {
-    const newAlerts: PerformanceAlert[] = [];
-
-    // Alert para tempo de processamento alto
-    if (currentMetrics.averageProcessingTime > 1000) {
-      newAlerts.push({
-        type: 'warning',
-        message: `Tempo de processamento alto: ${currentMetrics.averageProcessingTime.toFixed(0)}ms`,
-        timestamp: new Date(),
-        metric: 'processingTime'
-      });
+      console.log(`📊 Performance: ${queryTime.toFixed(2)}ms para buscar ativos ativos`);
+    } catch (error) {
+      console.error('❌ Erro ao monitorar performance:', error);
     }
+  }, [getAllActiveAssets, liquidations, coinTrends]);
 
-    // Alert para muitas operações no Supabase
-    if (currentMetrics.supabaseOperations > 50) {
-      newAlerts.push({
-        type: 'error',
-        message: `Muitas operações no Supabase: ${currentMetrics.supabaseOperations}`,
-        timestamp: new Date(),
-        metric: 'supabase'
-      });
+  // Executar limpeza automática
+  const runCleanup = useCallback(async () => {
+    try {
+      const success = await cleanupExpiredData();
+      if (success) {
+        setMetrics(prev => ({
+          ...prev,
+          lastCleanup: new Date()
+        }));
+      }
+    } catch (error) {
+      console.error('❌ Erro na limpeza automática:', error);
     }
+  }, [cleanupExpiredData]);
 
-    if (newAlerts.length > 0) {
-      setAlerts(prev => [...newAlerts, ...prev.slice(0, 9)]); // Manter apenas 10 alerts
-    }
-  };
+  // Executar limpeza a cada 30 minutos
+  useEffect(() => {
+    const cleanupInterval = setInterval(runCleanup, 30 * 60 * 1000);
+    return () => clearInterval(cleanupInterval);
+  }, [runCleanup]);
 
-  const trackProcessingTime = (startTime: number) => {
-    const processingTime = Date.now() - startTime;
-    setProcessingTimes(prev => [...prev.slice(-19), processingTime]); // Manter apenas 20 tempos
-  };
-
-  const trackSupabaseOperation = () => {
-    setSupabaseCallCount(prev => prev + 1);
-  };
-
-  const resetMetrics = () => {
-    setProcessingTimes([]);
-    setSupabaseCallCount(0);
-    setAlerts([]);
-  };
+  // Atualizar métricas a cada 5 minutos
+  useEffect(() => {
+    updateMetrics(); // Executar imediatamente
+    const metricsInterval = setInterval(updateMetrics, 5 * 60 * 1000);
+    return () => clearInterval(metricsInterval);
+  }, [updateMetrics]);
 
   return {
     metrics,
-    alerts,
-    trackProcessingTime,
-    trackSupabaseOperation,
-    resetMetrics
+    updateMetrics,
+    runCleanup
   };
 };

@@ -1,28 +1,24 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { ShortLiquidationAsset } from '../types/separatedLiquidation';
 import { safeCreateDate } from '../utils/liquidationUtils';
 import { useLiquidationDataDistributor } from './useLiquidationDataDistributor';
-import { useOptimizedSupabaseStorage } from './useOptimizedSupabaseStorage';
+import { useSupabaseStorage } from './useSupabaseStorage';
 
 export const useShortLiquidations = () => {
   const { shortFlowData } = useLiquidationDataDistributor();
-  const { saveCriticalLiquidation } = useOptimizedSupabaseStorage();
+  const { saveLiquidation } = useSupabaseStorage();
   
   const [shortAssets, setShortAssets] = useState<Map<string, ShortLiquidationAsset>>(new Map());
   const [processedShortTickers, setProcessedShortTickers] = useState<Set<string>>(new Set());
 
-  // Processar EXCLUSIVAMENTE dados SHORT já filtrados
+  // Processar EXCLUSIVAMENTE dados SHORT
   useEffect(() => {
     if (!shortFlowData || shortFlowData.length === 0) return;
 
     const now = new Date();
     const updatedAssets = new Map(shortAssets);
 
-    console.log(`🟢 PROCESSANDO ${shortFlowData.length} SHORT liquidations OTIMIZADOS...`);
-
-    // Buffer para batch operations
-    const liquidationsToSave: any[] = [];
+    console.log(`🟢 PROCESSANDO ${shortFlowData.length} SHORT liquidations EXCLUSIVOS...`);
 
     shortFlowData.forEach(data => {
       try {
@@ -31,7 +27,7 @@ export const useShortLiquidations = () => {
         if (processedShortTickers.has(key)) return;
 
         const assetName = data.ticker.replace('USDT', '');
-        const minVolume = data.marketCap === 'high' ? 75000 : 25000; // Já otimizado
+        const minVolume = data.marketCap === 'high' ? 50000 : 15000;
         const volumeRatio = data.volumeValue / minVolume;
         let intensity = Math.min(5, Math.max(1, Math.floor(volumeRatio / 2)));
         
@@ -80,8 +76,7 @@ export const useShortLiquidations = () => {
           updatedAssets.set(assetName, newAsset);
         }
         
-        // OTIMIZAÇÃO: Apenas preparar para salvar, não salvar imediatamente
-        liquidationsToSave.push({
+        saveLiquidation({
           asset: assetName,
           ticker: data.ticker,
           type: 'short',
@@ -101,22 +96,17 @@ export const useShortLiquidations = () => {
       }
     });
 
-    // OTIMIZAÇÃO: Salvar apenas as liquidações críticas (redução massiva)
-    liquidationsToSave.forEach(liq => {
-      saveCriticalLiquidation(liq); // Só salva se atender critérios rígidos
-    });
-
     setShortAssets(updatedAssets);
-  }, [shortFlowData, saveCriticalLiquidation]);
+  }, [shortFlowData, saveLiquidation]);
 
-  // Limpeza otimizada (menos frequente)
+  // Limpeza automática
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
-      console.log('🧹 Limpando SHORT assets antigos (otimizado)...');
+      console.log('🧹 Limpando SHORT assets antigos...');
       
       setShortAssets(prev => {
         const now = new Date();
-        const cutoffTime = new Date(now.getTime() - 20 * 60 * 1000); // 20min ao invés de 15min
+        const cutoffTime = new Date(now.getTime() - 15 * 60 * 1000);
         const cleaned = new Map<string, ShortLiquidationAsset>();
         
         prev.forEach((asset, key) => {
@@ -134,7 +124,7 @@ export const useShortLiquidations = () => {
       });
 
       setProcessedShortTickers(new Set());
-    }, 90000); // 90s ao invés de 60s
+    }, 60000);
 
     return () => clearInterval(cleanupInterval);
   }, []);
@@ -150,12 +140,12 @@ export const useShortLiquidations = () => {
       return b.shortPositions - a.shortPositions;
     });
     
-    console.log(`🟢 SHORT ASSETS OTIMIZADOS: ${sorted.length}`);
+    console.log(`🟢 SHORT ASSETS FINAIS: ${sorted.length}`);
     sorted.forEach(asset => {
       console.log(`🟢 ${asset.asset}: $${(asset.shortLiquidated/1000).toFixed(0)}K (${asset.shortPositions} pos SHORT)`);
     });
     
-    return sorted.slice(0, 30); // Reduzido de 50 para 30
+    return sorted.slice(0, 50);
   }, [shortAssets]);
 
   return {
