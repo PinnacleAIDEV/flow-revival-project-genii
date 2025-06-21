@@ -46,20 +46,20 @@ export const CoinTrendHunter: React.FC = () => {
       const now = new Date();
       const newUncommonLiquidations: UncommonLiquidation[] = [];
 
-      // Processar LONG liquidations (ativos em queda com liquidações)
+      // Processar LONG liquidations (liquidações reais de posições long)
       longLiquidations.forEach(longAsset => {
         if (ignoreMainAssets.includes(longAsset.ticker)) {
           console.log(`⏭️ IGNORANDO asset principal: ${longAsset.asset}`);
           return;
         }
 
-        // Critérios para micro-caps incomuns
+        // Critérios para liquidações LONG significativas
         const isSignificantLiquidation = longAsset.longLiquidated >= 5000; // Mínimo $5K
         const hasMultiplePositions = longAsset.longPositions >= 1;
         const isLowPrice = longAsset.price < 1; // Tokens de baixo valor
 
         if (isSignificantLiquidation && hasMultiplePositions) {
-          // Calcular anomaly score
+          // Calcular anomaly score para LONG
           let anomalyScore = 1;
           
           if (longAsset.longLiquidated >= 500000) anomalyScore += 4; // $500K+
@@ -95,7 +95,7 @@ export const CoinTrendHunter: React.FC = () => {
             intensity: longAsset.intensity
           };
           
-          console.log(`🔴 LONG TREND: ${uncommonLiq.asset} - Score: ${uncommonLiq.anomalyScore}/10 - ${formatAmount(uncommonLiq.amount)}`);
+          console.log(`🔴 LONG LIQUIDATION TREND: ${uncommonLiq.asset} - Score: ${uncommonLiq.anomalyScore}/10 - ${formatAmount(uncommonLiq.amount)}`);
           newUncommonLiquidations.push(uncommonLiq);
           
           // Salvar no Supabase
@@ -110,27 +110,27 @@ export const CoinTrendHunter: React.FC = () => {
             last_activity_hours: uncommonLiq.lastActivity,
             daily_volume_impact: uncommonLiq.dailyVolumeImpact,
             change_24h: uncommonLiq.change24h,
-            volume: longAsset.longLiquidated / longAsset.price, // Calcular volume aproximado
+            volume: longAsset.longLiquidated / longAsset.price,
             is_hidden: uncommonLiq.isHidden,
             is_micro_cap: longAsset.price < 1
           });
         }
       });
 
-      // Processar SHORT liquidations (ativos em alta com liquidações)
+      // Processar SHORT liquidations (liquidações reais de posições short)
       shortLiquidations.forEach(shortAsset => {
         if (ignoreMainAssets.includes(shortAsset.ticker)) {
           console.log(`⏭️ IGNORANDO asset principal: ${shortAsset.asset}`);
           return;
         }
 
-        // Critérios para micro-caps incomuns
+        // Critérios para liquidações SHORT significativas
         const isSignificantLiquidation = shortAsset.shortLiquidated >= 5000; // Mínimo $5K
         const hasMultiplePositions = shortAsset.shortPositions >= 1;
         const isLowPrice = shortAsset.price < 1; // Tokens de baixo valor
 
         if (isSignificantLiquidation && hasMultiplePositions) {
-          // Calcular anomaly score
+          // Calcular anomaly score para SHORT
           let anomalyScore = 1;
           
           if (shortAsset.shortLiquidated >= 500000) anomalyScore += 4; // $500K+
@@ -166,7 +166,7 @@ export const CoinTrendHunter: React.FC = () => {
             intensity: shortAsset.intensity
           };
           
-          console.log(`🟢 SHORT TREND: ${uncommonLiq.asset} - Score: ${uncommonLiq.anomalyScore}/10 - ${formatAmount(uncommonLiq.amount)}`);
+          console.log(`🟢 SHORT LIQUIDATION TREND: ${uncommonLiq.asset} - Score: ${uncommonLiq.anomalyScore}/10 - ${formatAmount(uncommonLiq.amount)}`);
           newUncommonLiquidations.push(uncommonLiq);
           
           // Salvar no Supabase
@@ -181,7 +181,7 @@ export const CoinTrendHunter: React.FC = () => {
             last_activity_hours: uncommonLiq.lastActivity,
             daily_volume_impact: uncommonLiq.dailyVolumeImpact,
             change_24h: uncommonLiq.change24h,
-            volume: shortAsset.shortLiquidated / shortAsset.price, // Calcular volume aproximado
+            volume: shortAsset.shortLiquidated / shortAsset.price,
             is_hidden: uncommonLiq.isHidden,
             is_micro_cap: shortAsset.price < 1
           });
@@ -368,7 +368,7 @@ export const CoinTrendHunter: React.FC = () => {
               <div>
                 <h4 className="text-lg font-medium text-gray-700">Caçando Micro-Caps</h4>
                 <p className="text-gray-500 text-sm max-w-md">
-                  Aguardando liquidações reais em ativos pequenos e incomuns (>$5K, dados separados long/short)...
+                  Aguardando liquidações reais em ativos pequenos e incomuns (mais de $5K, dados separados long/short)...
                 </p>
               </div>
             </div>
