@@ -108,17 +108,6 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
             </div>
           </div>
         </div>
-
-        {asset.intensity >= 4 && (
-          <div className="mt-3 p-2 bg-red-50 rounded-md border border-red-200">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="w-4 h-4 text-red-600" />
-              <span className="text-sm font-medium text-red-700">
-                Alta intensidade de liquidação detectada
-              </span>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
