@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { binanceWebSocketService, FlowData, Alert } from '../services/BinanceWebSocketService';
 import { flowAnalytics } from '../services/FlowAnalytics';
@@ -19,6 +18,16 @@ export const useRealFlowData = () => {
   });
 
   const handleFlowData = useCallback((data: FlowData) => {
+    // ADICIONADO: Log detalhado para entender a estrutura dos dados
+    console.log(`📊 DADOS RECEBIDOS:`, {
+      ticker: data.ticker,
+      price: data.price,
+      volume: data.volume,
+      change_24h: data.change_24h,
+      // Log todas as propriedades para identificar indicadores de liquidação
+      allData: data
+    });
+    
     console.log(`📈 Processing ${data.kline_volume ? 'Kline' : 'Ticker'} data: ${data.ticker} - $${data.price.toFixed(4)}`);
     
     // Atualizar dados de flow
