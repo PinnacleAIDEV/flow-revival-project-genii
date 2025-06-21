@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { TrendingDown, TrendingUp, Clock, Target, Zap } from 'lucide-react';
+import { TrendingDown, TrendingUp, Clock, Target } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { UnifiedLiquidationAsset } from '../../types/liquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
@@ -17,6 +17,8 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
   onAssetClick
 }) => {
   const isLong = type === 'long';
+  
+  // CORRIGIDO: Usar apenas valores do tipo específico
   const relevantAmount = isLong ? asset.longLiquidated : asset.shortLiquidated;
   const relevantPositions = isLong ? asset.longPositions : asset.shortPositions;
   
@@ -62,12 +64,10 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
           )}
           <span className="font-bold text-gray-900 text-sm">{asset.asset}</span>
           
-          {/* Badge de posições */}
           <Badge variant="outline" className="text-xs">
             {relevantPositions} posições
           </Badge>
           
-          {/* Badge se tem liquidações do outro tipo */}
           {hasOtherType && (
             <Badge className="text-xs bg-purple-100 text-purple-800 border-purple-300">
               <Target className="w-3 h-3 mr-1" />
@@ -77,12 +77,10 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
         </div>
         
         <div className="flex items-center space-x-2">
-          {/* Intensidade */}
           <span className={`px-2 py-1 rounded text-xs font-bold ${getIntensityColor(asset.intensity)}`}>
             {asset.intensity}
           </span>
           
-          {/* Market Cap */}
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
             asset.marketCap === 'high' 
               ? 'bg-blue-100 text-blue-800' 
@@ -109,9 +107,12 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
         </div>
         
         <div className="space-y-1">
+          {/* CORRIGIDO: Mostrar apenas total do tipo específico */}
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Geral:</span>
-            <span className="font-bold text-purple-600">{formatAmount(asset.combinedTotal)}</span>
+            <span className="text-gray-600">Total {isLong ? 'Long' : 'Short'}:</span>
+            <span className={`font-bold ${isLong ? 'text-red-600' : 'text-green-600'}`}>
+              {formatAmount(relevantAmount)}
+            </span>
           </div>
           
           <div className="flex justify-between items-center">
@@ -124,7 +125,6 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
         </div>
       </div>
       
-      {/* Tooltip info adicional */}
       <div className="mt-2 pt-2 border-t border-gray-200">
         <div className="flex justify-between items-center text-xs text-gray-500">
           <span>

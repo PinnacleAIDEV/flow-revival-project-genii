@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Target, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -16,13 +15,13 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
   shortLiquidations
 }) => {
   const stats = useMemo(() => {
-    // Calcular totais de long liquidations
+    // Calcular totais APENAS de long liquidations do tipo LONG
     const totalLongAmount = longLiquidations.reduce((sum, asset) => sum + asset.longLiquidated, 0);
     const totalLongPositions = longLiquidations.reduce((sum, asset) => sum + asset.longPositions, 0);
     const highCapLong = longLiquidations.filter(a => a.marketCap === 'high').length;
     const lowCapLong = longLiquidations.filter(a => a.marketCap === 'low').length;
     
-    // Calcular totais de short liquidations
+    // Calcular totais APENAS de short liquidations do tipo SHORT
     const totalShortAmount = shortLiquidations.reduce((sum, asset) => sum + asset.shortLiquidated, 0);
     const totalShortPositions = shortLiquidations.reduce((sum, asset) => sum + asset.shortPositions, 0);
     const highCapShort = shortLiquidations.filter(a => a.marketCap === 'high').length;
