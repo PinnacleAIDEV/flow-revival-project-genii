@@ -23,135 +23,115 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
   const [realTrendReversals, setRealTrendReversals] = useState<TrendReversalData[]>([]);
   const [assetHistoryCache, setAssetHistoryCache] = useState<Map<string, UnifiedTrendReversalAsset[]>>(new Map());
 
-  // Track asset history with throttling
+  // Track asset history with optimized logic
   useEffect(() => {
-    const updateAssetHistory = () => {
-      const newCache = new Map(assetHistoryCache);
+    if (unifiedAssets.size === 0) return;
+
+    console.log(`📊 Processing ${unifiedAssets.size} unified assets for trend reversal...`);
+
+    setAssetHistoryCache(prevCache => {
+      const newCache = new Map(prevCache);
       const now = new Date();
-      const cutoffTime = new Date(now.getTime() - 30 * 60 * 1000); // 30 minutes
+      const cutoffTime = new Date(now.getTime() - 20 * 60 * 1000); // 20 minutes
 
       unifiedAssets.forEach((asset, assetName) => {
         const history = newCache.get(assetName) || [];
         
-        // Check if this is a new update (avoid duplicates)
-        const lastHistoryItem = history[history.length - 1];
-        const isNewUpdate = !lastHistoryItem || 
-          lastHistoryItem.lastUpdateTime.getTime() !== asset.lastUpdateTime.getTime() ||
-          lastHistoryItem.combinedTotal !== asset.combinedTotal;
+        // Add current snapshot if significantly different or first time
+        const lastSnapshot = history[history.length - 1];
+        const isSignificantChange = !lastSnapshot || 
+          Math.abs(lastSnapshot.combinedTotal - asset.combinedTotal) > 1000 || // $1K difference
+          lastSnapshot.dominantType !== asset.dominantType;
 
-        if (isNewUpdate) {
-          // Add new snapshot and limit history size
-          const updatedHistory = [...history, asset]
-            .filter(h => h.lastUpdateTime > cutoffTime)
-            .slice(-10); // Keep only last 10 snapshots per asset
+        if (isSignificantChange) {
+          const updatedHistory = [
+            ...history.filter(h => h.lastUpdateTime > cutoffTime),
+            asset
+          ].slice(-5); // Keep only last 5 snapshots
           
           newCache.set(assetName, updatedHistory);
+          console.log(`📈 Updated history for ${assetName}: ${updatedHistory.length} snapshots`);
         }
       });
 
-      setAssetHistoryCache(newCache);
-    };
+      return newCache;
+    });
+  }, [unifiedAssets]);
 
-    if (unifiedAssets.size > 0) {
-      // Throttle updates to every 5 seconds
-      const throttleTimer = setTimeout(updateAssetHistory, 5000);
-      return () => clearTimeout(throttleTimer);
-    }
-  }, [unifiedAssets, assetHistoryCache]);
-
-  // Detect REAL trend reversals with improved algorithm
+  // Detect REAL trend reversals with simplified algorithm
   const detectedReversals = useMemo(() => {
     const reversals: TrendReversalData[] = [];
     const now = new Date();
-    const analysisWindow = new Date(now.getTime() - 20 * 60 * 1000); // 20 minutes
+
+    console.log(`🔄 Analyzing ${assetHistoryCache.size} assets for reversals...`);
 
     assetHistoryCache.forEach((history, assetName) => {
-      if (history.length < 4) return; // Need at least 4 data points
+      if (history.length < 2) return; // Need at least 2 data points
 
-      // Filter recent history within analysis window
-      const recentHistory = history
-        .filter(h => h.lastUpdateTime > analysisWindow)
-        .sort((a, b) => a.lastUpdateTime.getTime() - b.lastUpdateTime.getTime());
+      // Sort history by time
+      const sortedHistory = history.sort((a, b) => a.lastUpdateTime.getTime() - b.lastUpdateTime.getTime());
+      
+      // Compare latest vs previous snapshot
+      const current = sortedHistory[sortedHistory.length - 1];
+      const previous = sortedHistory[sortedHistory.length - 2];
 
-      if (recentHistory.length < 4) return;
-
-      // Split into two periods for trend analysis
-      const midPoint = Math.floor(recentHistory.length / 2);
-      const firstPeriod = recentHistory.slice(0, midPoint);
-      const secondPeriod = recentHistory.slice(midPoint);
-
-      if (firstPeriod.length === 0 || secondPeriod.length === 0) return;
-
-      // Calculate dominant liquidation type in each period
-      const firstPeriodLongVol = firstPeriod.reduce((sum, h) => sum + h.longLiquidated, 0);
-      const firstPeriodShortVol = firstPeriod.reduce((sum, h) => sum + h.shortLiquidated, 0);
-      const secondPeriodLongVol = secondPeriod.reduce((sum, h) => sum + h.longLiquidated, 0);
-      const secondPeriodShortVol = secondPeriod.reduce((sum, h) => sum + h.shortLiquidated, 0);
-
-      const firstDominantType = firstPeriodLongVol > firstPeriodShortVol ? 'long' : 'short';
-      const secondDominantType = secondPeriodLongVol > secondPeriodShortVol ? 'long' : 'short';
-
-      // Detect reversal with improved criteria
-      if (firstDominantType !== secondDominantType) {
-        const previousVolume = firstDominantType === 'long' ? firstPeriodLongVol : firstPeriodShortVol;
-        const currentVolume = secondDominantType === 'long' ? secondPeriodLongVol : secondPeriodShortVol;
+      // Simple reversal detection: dominant type changed
+      if (current.dominantType !== previous.dominantType) {
+        const currentVolume = current.dominantType === 'long' ? current.longLiquidated : current.shortLiquidated;
+        const previousVolume = previous.dominantType === 'long' ? previous.longLiquidated : previous.shortLiquidated;
         
-        // Enhanced reversal validation
-        if (currentVolume > 0 && previousVolume > 0) {
-          const reversalRatio = currentVolume / previousVolume;
-          const minReversalThreshold = 1.2; // Must be at least 20% stronger
+        if (currentVolume > 5000 && previousVolume > 0) { // Minimum $5K threshold
+          const reversalRatio = currentVolume / Math.max(previousVolume, 1);
           
-          if (reversalRatio >= minReversalThreshold) {
-            const latestAsset = recentHistory[recentHistory.length - 1];
-            
-            // Calculate confidence and intensity
-            let intensity = 1;
-            let confidence = 50;
-            
-            if (reversalRatio >= 4) { intensity = 5; confidence = 95; }
-            else if (reversalRatio >= 3) { intensity = 4; confidence = 85; }
-            else if (reversalRatio >= 2.5) { intensity = 3; confidence = 75; }
-            else if (reversalRatio >= 1.8) { intensity = 2; confidence = 65; }
-            else { confidence = Math.round(40 + (reversalRatio - 1) * 25); }
+          // Calculate intensity and confidence with relaxed criteria
+          let intensity = 1;
+          let confidence = 40; // Lower base confidence
+          
+          if (reversalRatio >= 3) { intensity = 5; confidence = 80; }
+          else if (reversalRatio >= 2) { intensity = 4; confidence = 70; }
+          else if (reversalRatio >= 1.5) { intensity = 3; confidence = 60; }
+          else if (reversalRatio >= 1.2) { intensity = 2; confidence = 50; }
+          
+          // Boost confidence for high-cap assets
+          if (current.marketCap === 'high') {
+            confidence += 15;
+          }
 
-            // Additional confidence boost for high-cap assets
-            if (latestAsset.marketCap === 'high') {
-              confidence = Math.min(95, confidence + 10);
-            }
-
-            const reversal: TrendReversalData = {
-              asset: assetName,
-              previousType: firstDominantType,
-              currentType: secondDominantType,
-              previousVolume,
-              currentVolume,
-              reversalRatio,
-              timestamp: latestAsset.lastUpdateTime,
-              intensity,
-              price: latestAsset.price,
-              marketCap: latestAsset.marketCap,
-              timeframe: '20min',
-              confidence
-            };
-            
-            // Only include high-confidence reversals
-            if (confidence >= 60) {
-              reversals.push(reversal);
-              console.log(`🔄 REAL TREND REVERSAL: ${assetName} - ${firstDominantType.toUpperCase()} -> ${secondDominantType.toUpperCase()} - Ratio: ${reversalRatio.toFixed(2)}x - Confidence: ${confidence}%`);
-            }
+          const reversal: TrendReversalData = {
+            asset: assetName,
+            previousType: previous.dominantType,
+            currentType: current.dominantType,
+            previousVolume,
+            currentVolume,
+            reversalRatio,
+            timestamp: current.lastUpdateTime,
+            intensity,
+            price: current.price,
+            marketCap: current.marketCap,
+            timeframe: '10min',
+            confidence: Math.min(95, confidence)
+          };
+          
+          // Accept reversals with confidence >= 40% (much more relaxed)
+          if (confidence >= 40) {
+            reversals.push(reversal);
+            console.log(`🔄 REAL REVERSAL DETECTED: ${assetName} - ${previous.dominantType.toUpperCase()} -> ${current.dominantType.toUpperCase()} - Ratio: ${reversalRatio.toFixed(2)}x - Confidence: ${confidence}%`);
           }
         }
       }
     });
 
-    // Sort by confidence and reversal ratio, limit to top 25
-    return reversals
+    // Sort by combination of confidence and ratio, limit to top 30
+    const sortedReversals = reversals
       .sort((a, b) => {
-        const aScore = a.confidence * a.reversalRatio;
-        const bScore = b.confidence * b.reversalRatio;
+        const aScore = a.confidence * Math.log(a.reversalRatio + 1);
+        const bScore = b.confidence * Math.log(b.reversalRatio + 1);
         return bScore - aScore;
       })
-      .slice(0, 25);
+      .slice(0, 30);
+
+    console.log(`✅ Found ${sortedReversals.length} trend reversals`);
+    return sortedReversals;
   }, [assetHistoryCache]);
 
   // Update state with detected reversals
@@ -177,9 +157,9 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 85) return 'text-green-600 font-bold';
-    if (confidence >= 70) return 'text-blue-600 font-semibold';
-    if (confidence >= 60) return 'text-orange-600';
+    if (confidence >= 80) return 'text-green-600 font-bold';
+    if (confidence >= 65) return 'text-blue-600 font-semibold';
+    if (confidence >= 50) return 'text-orange-600';
     return 'text-gray-600';
   };
 
@@ -205,7 +185,7 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
                   )}
                 </CardTitle>
                 <p className="text-sm text-gray-400 font-mono">
-                  Detecta REAL reversões via Force Order - Algoritmo Otimizado v2.0
+                  Detecta REAL reversões via Force Order - Algoritmo Otimizado v2.1
                 </p>
               </div>
             </div>
@@ -218,7 +198,7 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
               <div className="space-y-3 p-4">
                 {realTrendReversals.map((reversal, index) => (
                   <div
-                    key={`${reversal.asset}-${reversal.timestamp.getTime()}`}
+                    key={`${reversal.asset}-${reversal.timestamp.getTime()}-${index}`}
                     className="p-4 rounded-lg border-l-4 border-purple-500 bg-gradient-to-r from-purple-50 to-purple-25 hover:from-purple-100 hover:to-purple-50 transition-all cursor-pointer"
                     onClick={() => onAssetClick(reversal.asset)}
                   >
@@ -326,7 +306,7 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
                         Professional Force Order Data
                       </p>
                       <p className="text-gray-400 text-xs">
-                        Algoritmo v2.0 • Confiança: 60%+ • Cache: {assetHistoryCache.size} assets
+                        Algoritmo v2.1 • Confiança: 40%+ • Cache: {assetHistoryCache.size} assets • Reversões: {realTrendReversals.length}
                       </p>
                     </div>
                   )}
