@@ -12,11 +12,12 @@ export interface LiquidationFlowData {
   marketCap: 'high' | 'low';
   volumeValue: number;
   type: 'long' | 'short';
-  // NOVOS CAMPOS PARA LIQUIDAÇÕES REAIS
   isRealLiquidation: boolean;
   liquidationAmount?: number;
   liquidationIntensity: number;
   source: 'FORCE_ORDER' | 'PRICE_ANALYSIS';
+  // NOVO: Categoria de filtro
+  filterCategory: 'COINTREND_HUNTER' | 'LIQUIDATION_BUBBLE' | 'FILTERED_OUT';
 }
 
 export const useLiquidationDataDistributor = () => {
@@ -30,55 +31,68 @@ export const useLiquidationDataDistributor = () => {
     const longData: LiquidationFlowData[] = [];
     const shortData: LiquidationFlowData[] = [];
 
-    console.log(`🔍 Processando ${flowData.length} dados para liquidações REAIS...`);
+    console.log(`🔍 Processando ${flowData.length} dados com NOVOS FILTROS...`);
 
     flowData.forEach(data => {
       const volumeValue = data.volume * data.price;
       const marketCap = getMarketCapCategory(data.ticker);
       const priceChange = data.change_24h || 0;
       
-      // NOVA LÓGICA: Priorizar Force Orders (liquidações REAIS)
+      // NOVOS THRESHOLDS DE FILTRO
+      let filterCategory: 'COINTREND_HUNTER' | 'LIQUIDATION_BUBBLE' | 'FILTERED_OUT' = 'FILTERED_OUT';
+      
       if (data.isLiquidation && data.liquidationType && data.liquidationAmount) {
-        // LIQUIDAÇÃO REAL DETECTADA via Force Order
-        const realLiquidation: LiquidationFlowData = {
-          ticker: data.ticker,
-          price: data.price,
-          volume: data.volume,
-          change_24h: priceChange,
-          timestamp: data.timestamp,
-          marketCap,
-          volumeValue: data.liquidationAmount,
-          type: data.liquidationType === 'LONG' ? 'long' : 'short',
-          isRealLiquidation: true,
-          liquidationAmount: data.liquidationAmount,
-          liquidationIntensity: Math.min(10, Math.floor(data.liquidationAmount / 50000)), // Intensidade baseada no valor
-          source: 'FORCE_ORDER'
-        };
+        // REAL LIQUIDATION via Force Order
+        const amount = data.liquidationAmount;
+        
+        // COINTREND HUNTER: $2K - $15K
+        if (amount >= 2000 && amount <= 15000) {
+          filterCategory = 'COINTREND_HUNTER';
+        }
+        // LIQUIDATION BUBBLE: $20K+ low cap, $50K+ high cap
+        else if ((marketCap === 'low' && amount >= 20000) || (marketCap === 'high' && amount >= 50000)) {
+          filterCategory = 'LIQUIDATION_BUBBLE';
+        }
+        
+        if (filterCategory !== 'FILTERED_OUT') {
+          const realLiquidation: LiquidationFlowData = {
+            ticker: data.ticker,
+            price: data.price,
+            volume: data.volume,
+            change_24h: priceChange,
+            timestamp: data.timestamp,
+            marketCap,
+            volumeValue: amount,
+            type: data.liquidationType === 'LONG' ? 'long' : 'short',
+            isRealLiquidation: true,
+            liquidationAmount: amount,
+            liquidationIntensity: Math.min(10, Math.floor(amount / 25000)),
+            source: 'FORCE_ORDER',
+            filterCategory
+          };
 
-        if (data.liquidationType === 'LONG') {
-          longData.push(realLiquidation);
-          console.log(`🔴 REAL LONG LIQUIDATION: ${data.ticker} - $${(data.liquidationAmount/1000).toFixed(1)}K`);
-        } else {
-          shortData.push(realLiquidation);
-          console.log(`🟢 REAL SHORT LIQUIDATION: ${data.ticker} - $${(data.liquidationAmount/1000).toFixed(1)}K`);
+          if (data.liquidationType === 'LONG') {
+            longData.push(realLiquidation);
+            console.log(`🔴 ${filterCategory}: ${data.ticker} LONG - $${(amount/1000).toFixed(1)}K`);
+          } else {
+            shortData.push(realLiquidation);
+            console.log(`🟢 ${filterCategory}: ${data.ticker} SHORT - $${(amount/1000).toFixed(1)}K`);
+          }
         }
       } else {
-        // ANÁLISE SECUNDÁRIA: Detectar possíveis liquidações por preço/volume (backup)
-        const minVolume = marketCap === 'high' ? 100000 : 35000;
+        // ANÁLISE SECUNDÁRIA para dados sem Force Order
+        const minVolume = marketCap === 'high' ? 50000 : 20000; // Usar thresholds do Liquidation Bubble
         
         if (volumeValue > minVolume) {
-          // Critérios mais rigorosos para análise secundária
           let liquidationType: 'long' | 'short' | null = null;
           let intensity = 1;
           
-          if (priceChange <= -5 && volumeValue > minVolume * 2) {
-            // Queda forte + volume alto = possível long liquidation
+          if (priceChange <= -5 && volumeValue > minVolume * 1.5) {
             liquidationType = 'long';
-            intensity = Math.min(8, Math.floor(Math.abs(priceChange) / 2));
-          } else if (priceChange >= 5 && volumeValue > minVolume * 2) {
-            // Subida forte + volume alto = possível short liquidation
+            intensity = Math.min(8, Math.floor(Math.abs(priceChange))); 
+          } else if (priceChange >= 5 && volumeValue > minVolume * 1.5) {
             liquidationType = 'short';
-            intensity = Math.min(8, Math.floor(priceChange / 2));
+            intensity = Math.min(8, Math.floor(priceChange));
           }
           
           if (liquidationType) {
@@ -93,15 +107,16 @@ export const useLiquidationDataDistributor = () => {
               type: liquidationType,
               isRealLiquidation: false,
               liquidationIntensity: intensity,
-              source: 'PRICE_ANALYSIS'
+              source: 'PRICE_ANALYSIS',
+              filterCategory: 'LIQUIDATION_BUBBLE' // Análise vai para bubble map apenas
             };
             
             if (liquidationType === 'long') {
               longData.push(analysisLiquidation);
-              console.log(`🔸 POSSIBLE LONG LIQ: ${data.ticker} - ${priceChange.toFixed(1)}% - $${(volumeValue/1000).toFixed(0)}K`);
+              console.log(`🔸 BUBBLE ANALYSIS LONG: ${data.ticker} - ${priceChange.toFixed(1)}%`);
             } else {
               shortData.push(analysisLiquidation);
-              console.log(`🔹 POSSIBLE SHORT LIQ: ${data.ticker} - ${priceChange.toFixed(1)}% - $${(volumeValue/1000).toFixed(0)}K`);
+              console.log(`🔹 BUBBLE ANALYSIS SHORT: ${data.ticker} - ${priceChange.toFixed(1)}%`);
             }
           }
         }
@@ -118,19 +133,23 @@ export const useLiquidationDataDistributor = () => {
     longData.sort(sortByRelevance);
     shortData.sort(sortByRelevance);
 
-    console.log(`🔴 LONG LIQUIDATIONS: ${longData.length} (${longData.filter(l => l.isRealLiquidation).length} reais)`);
-    console.log(`🟢 SHORT LIQUIDATIONS: ${shortData.length} (${shortData.filter(l => l.isRealLiquidation).length} reais)`);
+    console.log(`🔴 LONG FILTRADO: ${longData.length} (${longData.filter(l => l.filterCategory === 'COINTREND_HUNTER').length} CoinTrend, ${longData.filter(l => l.filterCategory === 'LIQUIDATION_BUBBLE').length} Bubble)`);
+    console.log(`🟢 SHORT FILTRADO: ${shortData.length} (${shortData.filter(l => l.filterCategory === 'COINTREND_HUNTER').length} CoinTrend, ${shortData.filter(l => l.filterCategory === 'LIQUIDATION_BUBBLE').length} Bubble)`);
     
-    setLongFlowData(longData.slice(0, 50)); // Limitar a 50 mais relevantes
+    setLongFlowData(longData.slice(0, 50));
     setShortFlowData(shortData.slice(0, 50));
   }, [flowData]);
 
   return {
     longFlowData,
     shortFlowData,
-    realLiquidationsCount: {
-      long: longFlowData.filter(l => l.isRealLiquidation).length,
-      short: shortFlowData.filter(l => l.isRealLiquidation).length
+    coinTrendHunterCount: {
+      long: longFlowData.filter(l => l.filterCategory === 'COINTREND_HUNTER').length,
+      short: shortFlowData.filter(l => l.filterCategory === 'COINTREND_HUNTER').length
+    },
+    liquidationBubbleCount: {
+      long: longFlowData.filter(l => l.filterCategory === 'LIQUIDATION_BUBBLE').length,
+      short: shortFlowData.filter(l => l.filterCategory === 'LIQUIDATION_BUBBLE').length
     }
   };
 };

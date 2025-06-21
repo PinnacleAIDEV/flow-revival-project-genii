@@ -18,6 +18,13 @@ export const useRealLongLiquidations = () => {
 
     longLiquidations.forEach(liquidation => {
       try {
+        // NOVO FILTRO: Aplicar thresholds específicos
+        const minThreshold = liquidation.marketCap === 'high' ? 50000 : 20000; // $50K high cap, $20K low cap
+        
+        if (liquidation.amount < minThreshold) {
+          return; // Skip liquidações abaixo do threshold
+        }
+
         const assetName = liquidation.asset;
         
         const existing = updatedAssets.get(assetName);
@@ -29,7 +36,7 @@ export const useRealLongLiquidations = () => {
             longLiquidated: existing.longLiquidated + liquidation.amount,
             lastUpdateTime: now,
             intensity: Math.max(existing.intensity, liquidation.intensity),
-            volatility: 0, // Real data doesn't need volatility simulation
+            volatility: 0,
             liquidationHistory: [
               ...existing.liquidationHistory.slice(-19),
               {
@@ -63,7 +70,7 @@ export const useRealLongLiquidations = () => {
           updatedAssets.set(assetName, newAsset);
         }
 
-        console.log(`🔴 REAL LONG: ${assetName} - $${(liquidation.amount/1000).toFixed(1)}K`);
+        console.log(`🔴 REAL LONG FILTERED: ${assetName} - $${(liquidation.amount/1000).toFixed(1)}K (${liquidation.marketCap} cap)`);
       } catch (error) {
         console.error('❌ Error processing REAL LONG liquidation:', error, liquidation);
       }
@@ -107,7 +114,7 @@ export const useRealLongLiquidations = () => {
       return b.longLiquidated - a.longLiquidated;
     });
     
-    console.log(`🔴 REAL LONG ASSETS: ${sorted.length}`);
+    console.log(`🔴 REAL LONG ASSETS FILTERED: ${sorted.length}`);
     
     return sorted.slice(0, 50);
   }, [longAssets]);
