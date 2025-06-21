@@ -4,8 +4,32 @@ import { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
-import { UnifiedLiquidationAsset } from '../../types/liquidation';
 import { UnifiedLiquidationRow } from './UnifiedLiquidationRow';
+
+// Interface local para dados unificados de liquidação
+interface UnifiedLiquidationAsset {
+  asset: string;
+  ticker: string;
+  price: number;
+  marketCap: 'high' | 'low';
+  longPositions: number;
+  longLiquidated: number;
+  shortPositions: number;
+  shortLiquidated: number;
+  totalPositions: number;
+  combinedTotal: number;
+  dominantType: 'long' | 'short';
+  lastUpdateTime: Date;
+  firstDetectionTime: Date;
+  volatility: number;
+  intensity: number;
+  liquidationHistory: Array<{
+    type: 'long' | 'short';
+    amount: number;
+    timestamp: Date;
+    change24h: number;
+  }>;
+}
 
 interface UnifiedLiquidationTableProps {
   title: string;

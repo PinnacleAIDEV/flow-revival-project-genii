@@ -2,8 +2,32 @@
 import React from 'react';
 import { TrendingDown, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import { UnifiedLiquidationAsset } from '../../types/liquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
+
+// Interface local para dados unificados de liquidação
+interface UnifiedLiquidationAsset {
+  asset: string;
+  ticker: string;
+  price: number;
+  marketCap: 'high' | 'low';
+  longPositions: number;
+  longLiquidated: number;
+  shortPositions: number;
+  shortLiquidated: number;
+  totalPositions: number;
+  combinedTotal: number;
+  dominantType: 'long' | 'short';
+  lastUpdateTime: Date;
+  firstDetectionTime: Date;
+  volatility: number;
+  intensity: number;
+  liquidationHistory: Array<{
+    type: 'long' | 'short';
+    amount: number;
+    timestamp: Date;
+    change24h: number;
+  }>;
+}
 
 interface UnifiedLiquidationRowProps {
   asset: UnifiedLiquidationAsset;
