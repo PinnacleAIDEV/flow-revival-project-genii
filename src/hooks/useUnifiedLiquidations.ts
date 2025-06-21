@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { UnifiedLiquidationAsset, TrendReversal, getMarketCapCategory } from '../types/liquidation';
 import { 
@@ -56,72 +55,65 @@ export const useUnifiedLiquidations = () => {
         const marketCap = getMarketCapCategory(data.ticker);
         const isHighMarketCap = marketCap === 'high';
         
-        // Detectar liquidações
-        const detection = detectLiquidations(data.ticker, volumeValue, priceChange, isHighMarketCap);
+        // CORRIGIDO: Detectar liquidações baseado na direção do preço
+        // LONG liquidations = preço CAINDO (negativo)
+        // SHORT liquidations = preço SUBINDO (positivo)
         
-        // Processar LONG liquidation se detectado
-        if (detection.longLiquidation) {
-          const assetName = data.ticker.replace('USDT', '');
+        let shouldCreateLiquidation = false;
+        let liquidationType: 'long' | 'short' = 'long';
+        
+        // Critérios de volume mínimo
+        const minVolume = isHighMarketCap ? 100000 : 25000;
+        const minPriceChange = isHighMarketCap ? 2 : 3;
+        
+        if (volumeValue > minVolume && Math.abs(priceChange) > minPriceChange) {
+          shouldCreateLiquidation = true;
           
-          const liquidation = {
-            id: `${data.ticker}-long-${now.getTime()}`,
-            asset: assetName,
-            type: 'long' as const,
-            amount: volumeValue,
-            price: data.price,
-            marketCap,
-            timestamp: safeCreateDate(data.timestamp),
-            intensity: detection.longLiquidation.intensity,
-            change24h: priceChange,
-            volume: data.volume,
-            lastUpdateTime: now,
-            totalLiquidated: volumeValue
-          };
-          
-          console.log(`🔴 LONG LIQUIDATION: ${assetName} - $${(volumeValue/1e6).toFixed(2)}M`);
-          
-          const unifiedAsset = createOrUpdateUnifiedAsset(updatedAssets, liquidation);
-          updatedAssets.set(assetName, unifiedAsset);
-          
-          saveLiquidation({
-            asset: liquidation.asset,
-            ticker: data.ticker,
-            type: liquidation.type,
-            amount: liquidation.amount,
-            price: liquidation.price,
-            market_cap: liquidation.marketCap,
-            intensity: liquidation.intensity,
-            change_24h: liquidation.change24h,
-            volume: liquidation.volume,
-            total_liquidated: liquidation.totalLiquidated,
-            volume_spike: 1
-          });
+          // CRUCIAL: Determinar tipo baseado na DIREÇÃO do preço
+          if (priceChange < 0) {
+            // Preço caindo = LONG positions sendo liquidadas
+            liquidationType = 'long';
+            console.log(`🔴 LONG LIQUIDATION detectada: ${data.ticker} (${priceChange.toFixed(2)}% queda)`);
+          } else {
+            // Preço subindo = SHORT positions sendo liquidadas  
+            liquidationType = 'short';
+            console.log(`🟢 SHORT LIQUIDATION detectada: ${data.ticker} (${priceChange.toFixed(2)}% alta)`);
+          }
         }
         
-        // Processar SHORT liquidation se detectado
-        if (detection.shortLiquidation) {
+        if (shouldCreateLiquidation) {
           const assetName = data.ticker.replace('USDT', '');
           
+          // Calcular intensidade baseada no volume e mudança de preço
+          const volumeRatio = volumeValue / minVolume;
+          const priceRatio = Math.abs(priceChange) / minPriceChange;
+          const combinedRatio = (volumeRatio + priceRatio) / 2;
+          
+          let intensity = 1;
+          if (combinedRatio >= 10) intensity = 5;
+          else if (combinedRatio >= 5) intensity = 4;
+          else if (combinedRatio >= 3) intensity = 3;
+          else if (combinedRatio >= 1.5) intensity = 2;
+          
           const liquidation = {
-            id: `${data.ticker}-short-${now.getTime()}`,
+            id: `${data.ticker}-${liquidationType}-${now.getTime()}`,
             asset: assetName,
-            type: 'short' as const,
+            type: liquidationType,
             amount: volumeValue,
             price: data.price,
             marketCap,
             timestamp: safeCreateDate(data.timestamp),
-            intensity: detection.shortLiquidation.intensity,
+            intensity,
             change24h: priceChange,
             volume: data.volume,
             lastUpdateTime: now,
             totalLiquidated: volumeValue
           };
           
-          console.log(`🟢 SHORT LIQUIDATION: ${assetName} - $${(volumeValue/1e6).toFixed(2)}M`);
-          
           const unifiedAsset = createOrUpdateUnifiedAsset(updatedAssets, liquidation);
           updatedAssets.set(assetName, unifiedAsset);
           
+          // Salvar no Supabase
           saveLiquidation({
             asset: liquidation.asset,
             ticker: data.ticker,
@@ -176,7 +168,7 @@ export const useUnifiedLiquidations = () => {
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // CORRIGIDO: Filtragem baseada no tipo DOMINANTE de cada asset
+  // CORRIGIDO: Filtragem rigorosa para separar Long e Short corretamente
   const { longLiquidations, shortLiquidations } = useMemo(() => {
     const assetsArray = Array.from(unifiedAssets.values());
     
@@ -189,9 +181,11 @@ export const useUnifiedLiquidations = () => {
                                  asset.longPositions >= filters.minPositions &&
                                  asset.intensity >= filters.minIntensity;
       
-      // Asset é considerado LONG se tem liquidações long E (não tem short OU long é dominante)
+      // Asset é considerado LONG se:
+      // 1. Tem liquidações long significativas E
+      // 2. (Não tem short OU long é pelo menos 2x maior que short)
       const isLongDominant = asset.longLiquidated > 0 && 
-                             (asset.shortLiquidated === 0 || asset.longLiquidated > asset.shortLiquidated * 1.5);
+                             (asset.shortLiquidated === 0 || asset.longLiquidated >= asset.shortLiquidated * 2);
       
       const shouldInclude = hasSignificantLong && isLongDominant;
       
@@ -209,9 +203,11 @@ export const useUnifiedLiquidations = () => {
                                   asset.shortPositions >= filters.minPositions &&
                                   asset.intensity >= filters.minIntensity;
       
-      // Asset é considerado SHORT se tem liquidações short E (não tem long OU short é dominante)
+      // Asset é considerado SHORT se:
+      // 1. Tem liquidações short significativas E
+      // 2. (Não tem long OU short é pelo menos 2x maior que long)
       const isShortDominant = asset.shortLiquidated > 0 && 
-                              (asset.longLiquidated === 0 || asset.shortLiquidated > asset.longLiquidated * 1.5);
+                              (asset.longLiquidated === 0 || asset.shortLiquidated >= asset.longLiquidated * 2);
       
       const shouldInclude = hasSignificantShort && isShortDominant;
       
@@ -226,7 +222,7 @@ export const useUnifiedLiquidations = () => {
     const sortedLong = sortAssetsByRelevance(pureLongAssets, 'long').slice(0, 50);
     const sortedShort = sortAssetsByRelevance(pureShortAssets, 'short').slice(0, 50);
     
-    console.log(`📊 RESULTADO: ${sortedLong.length} Long Dominantes / ${sortedShort.length} Short Dominantes`);
+    console.log(`📊 RESULTADO FINAL: ${sortedLong.length} Long Dominantes / ${sortedShort.length} Short Dominantes`);
     
     // Debug dos primeiros assets
     if (sortedLong.length > 0) {
@@ -258,7 +254,14 @@ export const useUnifiedLiquidations = () => {
     longLiquidations,
     shortLiquidations,
     trendReversals,
-    stats,
+    stats: {
+      totalLong: longLiquidations.length,
+      totalShort: shortLiquidations.length,
+      highCapLong: longLiquidations.filter(a => a.marketCap === 'high').length,
+      highCapShort: shortLiquidations.filter(a => a.marketCap === 'high').length,
+      lowCapLong: longLiquidations.filter(a => a.marketCap === 'low').length,
+      lowCapShort: shortLiquidations.filter(a => a.marketCap === 'low').length
+    },
     unifiedAssets
   };
 };
