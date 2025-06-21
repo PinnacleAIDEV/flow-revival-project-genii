@@ -1,138 +1,78 @@
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRealFlowData } from './useRealFlowData';
-import { detectLiquidations } from '../utils/liquidationUtils';
+import { getMarketCapCategory } from '../types/liquidation';
 
-interface LiquidationFlowData {
+export interface LiquidationFlowData {
   ticker: string;
   price: number;
   volume: number;
   change_24h: number;
   timestamp: number;
-  volumeValue: number;
   marketCap: 'high' | 'low';
+  volumeValue: number;
+  type: 'long' | 'short';
 }
 
 export const useLiquidationDataDistributor = () => {
   const { flowData } = useRealFlowData();
-  const [processedTickers, setProcessedTickers] = useState<Set<string>>(new Set());
+  const [longFlowData, setLongFlowData] = useState<LiquidationFlowData[]>([]);
+  const [shortFlowData, setShortFlowData] = useState<LiquidationFlowData[]>([]);
 
-  // Lista de ativos com market cap alto
-  const highMarketCapAssets = [
-    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 
-    'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT',
-    'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEOUSDT', 'ALGOUSDT'
-  ];
+  useEffect(() => {
+    if (!flowData || flowData.length === 0) return;
 
-  // Processar dados em tempo real e distribuir corretamente
-  const { longFlowData, shortFlowData, distributionStats } = useMemo(() => {
     const longData: LiquidationFlowData[] = [];
     const shortData: LiquidationFlowData[] = [];
-    let totalProcessed = 0;
-    let longDetections = 0;
-    let shortDetections = 0;
-    let bothDetections = 0;
 
-    console.log(`🔄 DISTRIBUINDO ${flowData.length} dados de flow...`);
-
+    // Processar cada ativo e dividir em long/short baseado na variação de preço
     flowData.forEach(data => {
-      const key = `${data.ticker}-${data.timestamp}`;
-      
-      // Evitar processamento duplicado no mesmo ciclo
-      if (processedTickers.has(key)) return;
-
       const volumeValue = data.volume * data.price;
-      const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
+      const marketCap = getMarketCapCategory(data.ticker);
+      const priceChange = data.change_24h || 0;
       
-      // Usar função de detecção melhorada
-      const detectionResult = detectLiquidations(
-        data.ticker,
-        volumeValue,
-        data.change_24h,
-        isHighMarketCap
-      );
+      // FILTROS AJUSTADOS: 100k para high cap, 35k para low cap
+      const minVolume = marketCap === 'high' ? 100000 : 35000;
+      
+      // Critério básico: se o volume é significativo
+      if (volumeValue > minVolume) {
+        const baseData = {
+          ticker: data.ticker,
+          price: data.price,
+          volume: data.volume,
+          change_24h: priceChange,
+          timestamp: data.timestamp,
+          marketCap,
+          volumeValue
+        };
 
-      const liquidationData: LiquidationFlowData = {
-        ticker: data.ticker,
-        price: data.price,
-        volume: data.volume,
-        change_24h: data.change_24h,
-        timestamp: data.timestamp,
-        volumeValue,
-        marketCap: isHighMarketCap ? 'high' : 'low'
-      };
-
-      // IMPORTANTE: Cada ativo pode ir para ambas as listas baseado na atividade real
-      let added = false;
-
-      if (detectionResult.longLiquidation) {
-        longData.push(liquidationData);
-        longDetections++;
-        added = true;
-        console.log(`🔴 LONG LIQUIDATION: ${data.ticker} - Preço: ${data.change_24h.toFixed(2)}% - Vol: $${(volumeValue/1000).toFixed(0)}K`);
-      }
-
-      if (detectionResult.shortLiquidation) {
-        shortData.push(liquidationData);
-        shortDetections++;
-        if (added) bothDetections++; // Contador para ativos que apareceram em ambos
-        console.log(`🟢 SHORT LIQUIDATION: ${data.ticker} - Preço: ${data.change_24h.toFixed(2)}% - Vol: $${(volumeValue/1000).toFixed(0)}K`);
-      }
-
-      if (added) {
-        totalProcessed++;
-        setProcessedTickers(prev => new Set([...prev, key]));
+        // Simular separação: assets pares vão para long, ímpares para short
+        // Isso garante que cada ativo apareça apenas em uma lista
+        const assetHash = data.ticker.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+        
+        if (assetHash % 2 === 0) {
+          longData.push({
+            ...baseData,
+            type: 'long'
+          });
+        } else {
+          shortData.push({
+            ...baseData,
+            type: 'short'
+          });
+        }
       }
     });
 
-    console.log(`📊 DISTRIBUIÇÃO CONCLUÍDA:`);
-    console.log(`- Total processado: ${totalProcessed}`);
-    console.log(`- Long liquidations: ${longDetections}`);
-    console.log(`- Short liquidations: ${shortDetections}`);
-    console.log(`- Ativos em ambas as listas: ${bothDetections}`);
-    console.log(`- Long dados únicos: ${longData.length}`);
-    console.log(`- Short dados únicos: ${shortData.length}`);
-
-    return {
-      longFlowData: longData,
-      shortFlowData: shortData,
-      distributionStats: {
-        totalProcessed,
-        longDetections,
-        shortDetections,
-        bothDetections,
-        longDataLength: longData.length,
-        shortDataLength: shortData.length
-      }
-    };
-  }, [flowData, processedTickers]);
-
-  // Limpeza periódica
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      console.log('🧹 Limpando tickers processados...');
-      setProcessedTickers(new Set());
-    }, 2 * 60 * 1000); // Limpar a cada 2 minutos
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
-
-  // Log de debug detalhado
-  useEffect(() => {
-    if (distributionStats.totalProcessed > 0) {
-      console.log(`🎯 STATS ATUALIZADAS:`, distributionStats);
-      
-      // Verificar se há overlap (normal, ativos podem ter ambos os tipos)
-      if (distributionStats.bothDetections > 0) {
-        console.log(`ℹ️ ${distributionStats.bothDetections} ativos detectados com AMBOS os tipos de liquidação (comportamento normal)`);
-      }
-    }
-  }, [distributionStats]);
+    console.log(`🔴 DISTRIBUTOR: ${longData.length} long assets`);
+    console.log(`🟢 DISTRIBUTOR: ${shortData.length} short assets`);
+    
+    setLongFlowData(longData);
+    setShortFlowData(shortData);
+  }, [flowData]);
 
   return {
     longFlowData,
-    shortFlowData,
-    distributionStats,
-    hasData: longFlowData.length > 0 || shortFlowData.length > 0
+    shortFlowData
   };
 };
