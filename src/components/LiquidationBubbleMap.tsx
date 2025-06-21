@@ -5,7 +5,8 @@ import { useTrading } from '../contexts/TradingContext';
 import { useLongLiquidations } from '../hooks/useLongLiquidations';
 import { useShortLiquidations } from '../hooks/useShortLiquidations';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
-import { UnifiedLiquidationTable } from './liquidation/UnifiedLiquidationTable';
+import { LongLiquidationTable } from './liquidation/LongLiquidationTable';
+import { ShortLiquidationTable } from './liquidation/ShortLiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
 
 export const LiquidationBubbleMap: React.FC = () => {
@@ -24,20 +25,18 @@ export const LiquidationBubbleMap: React.FC = () => {
       <LiquidationHeader />
 
       <div className="flex-1 flex gap-4 p-4 min-h-[800px]">
-        <UnifiedLiquidationTable
+        <LongLiquidationTable
           title="Long Liquidations"
           assets={longLiquidations}
-          type="long"
           icon={TrendingDown}
           bgColor="bg-red-600"
           textColor="text-red-700"
           onAssetClick={handleAssetClick}
         />
         
-        <UnifiedLiquidationTable
+        <ShortLiquidationTable
           title="Short Liquidations"
           assets={shortLiquidations}
-          type="short"
           icon={TrendingUp}
           bgColor="bg-green-600"
           textColor="text-green-700"

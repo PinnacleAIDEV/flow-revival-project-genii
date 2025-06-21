@@ -12,24 +12,24 @@ export const LiquidationStats: React.FC = () => {
   const { shortLiquidations } = useShortLiquidations();
 
   const stats = useMemo(() => {
-    // Calcular totais EXCLUSIVAMENTE de long liquidations
+    // APENAS dados LONG
     const totalLongAmount = longLiquidations.reduce((sum, asset) => sum + asset.longLiquidated, 0);
     const totalLongPositions = longLiquidations.reduce((sum, asset) => sum + asset.longPositions, 0);
     const highCapLong = longLiquidations.filter(a => a.marketCap === 'high').length;
     const lowCapLong = longLiquidations.filter(a => a.marketCap === 'low').length;
     
-    // Calcular totais EXCLUSIVAMENTE de short liquidations
+    // APENAS dados SHORT
     const totalShortAmount = shortLiquidations.reduce((sum, asset) => sum + asset.shortLiquidated, 0);
     const totalShortPositions = shortLiquidations.reduce((sum, asset) => sum + asset.shortPositions, 0);
     const highCapShort = shortLiquidations.filter(a => a.marketCap === 'high').length;
     const lowCapShort = shortLiquidations.filter(a => a.marketCap === 'low').length;
     
-    // Totais gerais (sem duplicação)
+    // Totais gerais (SEM duplicação)
     const totalCombined = totalLongAmount + totalShortAmount;
     const totalPositions = totalLongPositions + totalShortPositions;
     const totalAssets = longLiquidations.length + shortLiquidations.length;
     
-    // Dominância baseada APENAS nos valores específicos
+    // Dominância
     const longDominance = totalLongAmount > totalShortAmount;
     const dominanceRatio = totalLongAmount > 0 && totalShortAmount > 0 
       ? (longDominance 
@@ -72,7 +72,7 @@ export const LiquidationStats: React.FC = () => {
   return (
     <div className="p-4 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Long Liquidations Stats - APENAS DADOS LONG */}
+        {/* Long Stats - APENAS LONG */}
         <Card className="bg-red-950/50 border-red-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center space-x-2 text-red-300">
@@ -99,7 +99,7 @@ export const LiquidationStats: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Short Liquidations Stats - APENAS DADOS SHORT */}
+        {/* Short Stats - APENAS SHORT */}
         <Card className="bg-green-950/50 border-green-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center space-x-2 text-green-300">
