@@ -65,13 +65,13 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
           <span className="font-bold text-gray-900 text-sm">{asset.asset}</span>
           
           <Badge variant="outline" className="text-xs">
-            {relevantPositions} posições
+            {relevantPositions} pos {isLong ? 'LONG' : 'SHORT'}
           </Badge>
           
           {hasOtherType && (
             <Badge className="text-xs bg-purple-100 text-purple-800 border-purple-300">
               <Target className="w-3 h-3 mr-1" />
-              Ambos
+              Misto
             </Badge>
           )}
         </div>
@@ -94,7 +94,7 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div className="space-y-1">
           <div className="flex justify-between">
-            <span className="text-gray-600">Liquidado:</span>
+            <span className="text-gray-600">Liquidado {isLong ? 'LONG' : 'SHORT'}:</span>
             <span className={`font-bold ${isLong ? 'text-red-600' : 'text-green-600'}`}>
               {formatAmount(relevantAmount)}
             </span>
@@ -107,11 +107,10 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
         </div>
         
         <div className="space-y-1">
-          {/* CORRIGIDO: Mostrar apenas total do tipo específico */}
           <div className="flex justify-between">
-            <span className="text-gray-600">Total {isLong ? 'Long' : 'Short'}:</span>
+            <span className="text-gray-600">Intensidade:</span>
             <span className={`font-bold ${isLong ? 'text-red-600' : 'text-green-600'}`}>
-              {formatAmount(relevantAmount)}
+              {asset.intensity}/5
             </span>
           </div>
           
@@ -125,16 +124,19 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
         </div>
       </div>
       
-      <div className="mt-2 pt-2 border-t border-gray-200">
-        <div className="flex justify-between items-center text-xs text-gray-500">
-          <span>
-            Long: {asset.longPositions}pos/{formatAmount(asset.longLiquidated)}
-          </span>
-          <span>
-            Short: {asset.shortPositions}pos/{formatAmount(asset.shortLiquidated)}
-          </span>
+      {/* NOVA seção: Mostrar detalhamento separado apenas se houver ambos os tipos */}
+      {hasOtherType && (
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <div className="flex justify-between items-center text-xs text-gray-500">
+            <span className="text-red-600">
+              Long: {asset.longPositions}pos/${formatAmount(asset.longLiquidated)}
+            </span>
+            <span className="text-green-600">
+              Short: {asset.shortPositions}pos/${formatAmount(asset.shortLiquidated)}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
