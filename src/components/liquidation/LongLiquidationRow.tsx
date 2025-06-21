@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { TrendingDown, Clock } from 'lucide-react';
+import { TrendingDown, Clock, AlertTriangle } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { LongLiquidationAsset } from '../../types/separatedLiquidation';
 import { formatAmount } from '../../utils/liquidationUtils';

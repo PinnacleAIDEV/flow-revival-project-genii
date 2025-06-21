@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { TrendingUp, Clock } from 'lucide-react';
+import { TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { ShortLiquidationAsset } from '../../types/separatedLiquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
@@ -29,9 +29,9 @@ export const ShortLiquidationRow: React.FC<ShortLiquidationRowProps> = ({
   };
 
   const getIntensityColor = (intensity: number) => {
-    if (intensity >= 5) return 'bg-red-600 text-white';
-    if (intensity >= 4) return 'bg-red-500 text-white';
-    if (intensity >= 3) return 'bg-orange-500 text-white';
+    if (intensity >= 5) return 'bg-green-600 text-white';
+    if (intensity >= 4) return 'bg-green-500 text-white';
+    if (intensity >= 3) return 'bg-lime-500 text-white';
     if (intensity >= 2) return 'bg-yellow-500 text-white';
     return 'bg-gray-500 text-white';
   };

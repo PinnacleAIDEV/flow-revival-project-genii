@@ -18,6 +18,9 @@ export const LiquidationBubbleMap: React.FC = () => {
     console.log(`📈 Ativo selecionado: ${fullTicker}`);
   };
 
+  console.log(`🔴 Long Liquidations no BubbleMap: ${longLiquidations.length}`);
+  console.log(`🟢 Short Liquidations no BubbleMap: ${shortLiquidations.length}`);
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <LiquidationHeader />
