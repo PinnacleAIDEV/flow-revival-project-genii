@@ -27,15 +27,9 @@ export const useRealLiquidationData = () => {
   ];
 
   const handleRealLiquidation = useCallback((data: FlowData) => {
+    // APENAS dados REAIS do Force Order
     if (data.isLiquidation && data.liquidationType && data.liquidationAmount) {
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
-      
-      // FILTRO SIMPLES: Apenas valor mínimo
-      const minThreshold = isHighMarketCap ? 30000 : 15000; // $30K high cap, $15K low cap
-      
-      if (data.liquidationAmount < minThreshold) {
-        return; // Silently reject
-      }
       
       const realLiquidation: RealLiquidationData = {
         ticker: data.ticker,
@@ -45,14 +39,17 @@ export const useRealLiquidationData = () => {
         price: data.price,
         timestamp: data.timestamp,
         marketCap: isHighMarketCap ? 'high' : 'low',
-        intensity: Math.min(10, Math.floor(data.liquidationAmount / 10000)),
+        intensity: Math.min(10, Math.floor(data.liquidationAmount / 25000)),
         isReal: true,
         source: 'FORCE_ORDER'
       };
 
-      console.log(`🔥 LIQUIDATION: ${realLiquidation.asset} ${realLiquidation.type.toUpperCase()} $${(realLiquidation.amount/1000).toFixed(1)}K`);
+      console.log(`🔥 REAL LIQUIDATION PROCESSED: ${realLiquidation.asset} ${realLiquidation.type.toUpperCase()} $${(realLiquidation.amount/1000).toFixed(1)}K`);
       
-      setRealLiquidations(prev => [realLiquidation, ...prev.slice(0, 199)]);
+      setRealLiquidations(prev => {
+        const newLiquidations = [realLiquidation, ...prev.slice(0, 199)];
+        return newLiquidations;
+      });
     }
   }, []);
 
@@ -69,10 +66,10 @@ export const useRealLiquidationData = () => {
       
       binanceWebSocketService.onMessage(handleRealLiquidation);
       
-      console.log('✅ Connected to REAL liquidation data');
+      console.log('✅ Successfully connected to REAL professional liquidation data');
       
     } catch (error) {
-      console.error('❌ Failed to connect:', error);
+      console.error('❌ Failed to connect to professional liquidation data:', error);
       setIsConnected(false);
       setConnectionStatus('error');
       
@@ -103,6 +100,7 @@ export const useRealLiquidationData = () => {
     };
   }, [connectToRealData, disconnect]);
 
+  // Separar liquidações por tipo
   const longLiquidations = realLiquidations.filter(l => l.type === 'long');
   const shortLiquidations = realLiquidations.filter(l => l.type === 'short');
 
