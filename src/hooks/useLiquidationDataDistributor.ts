@@ -31,16 +31,16 @@ export const useLiquidationDataDistributor = () => {
 
     const processedData: LiquidationFlowData[] = [];
 
-    // ETAPA 1: Processar dados brutos com filtros básicos
+    // ETAPA 1: Processar dados brutos com filtros MUITO MENOS restritivos
     flowData.forEach(data => {
       const volumeValue = data.volume * data.price;
       const marketCap = getMarketCapCategory(data.ticker);
       const priceChange = data.change_24h || 0;
       
-      // Filtro INICIAL mais agressivo (antes mesmo dos filtros principais)
-      const initialMinVolume = marketCap === 'high' ? 75000 : 20000;
+      // Filtro INICIAL muito menos agressivo
+      const initialMinVolume = marketCap === 'high' ? 5000 : 2000; // Era 75k/20k, agora 5k/2k
       
-      if (volumeValue > initialMinVolume && Math.abs(priceChange) > 1) {
+      if (volumeValue > initialMinVolume && Math.abs(priceChange) > 0.1) { // Era 1%, agora 0.1%
         processedData.push({
           ticker: data.ticker,
           price: data.price,
@@ -54,20 +54,24 @@ export const useLiquidationDataDistributor = () => {
       }
     });
 
-    // ETAPA 2: Aplicar filtros otimizados (reduz drasticamente os dados)
+    console.log(`🔍 Dados após filtro inicial: ${processedData.length} (de ${flowData.length} originais)`);
+
+    // ETAPA 2: Aplicar filtros otimizados (agora menos restritivos)
     const filteredData = applyOptimizedFilters(processedData);
+    
+    console.log(`🔍 Dados após filtros otimizados: ${filteredData.length} (de ${processedData.length})`);
     
     // ETAPA 3: Separar em long/short com dados já filtrados
     const longData: LiquidationFlowData[] = [];
     const shortData: LiquidationFlowData[] = [];
 
     filteredData.forEach(data => {
-      // Usar hash para separação consistente
-      const assetHash = data.ticker.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-      
-      if (assetHash % 2 === 0) {
+      // Usar mudança de preço para determinar tipo de liquidação
+      if (data.change_24h < 0) {
+        // Preço caindo = Long liquidations (apostavam na alta)
         longData.push({ ...data, type: 'long' });
       } else {
+        // Preço subindo = Short liquidations (apostavam na queda)
         shortData.push({ ...data, type: 'short' });
       }
     });
@@ -80,9 +84,9 @@ export const useLiquidationDataDistributor = () => {
       reductionPercentage: stats.reduction
     });
 
-    console.log(`🔥 OTIMIZAÇÃO: ${processedData.length} → ${filteredData.length} (${stats.reduction} redução)`);
-    console.log(`🔴 LONG otimizado: ${longData.length} liquidations`);
-    console.log(`🟢 SHORT otimizado: ${shortData.length} liquidations`);
+    console.log(`🔥 OTIMIZAÇÃO CORRIGIDA: ${processedData.length} → ${filteredData.length} (${stats.reduction} redução)`);
+    console.log(`🔴 LONG detectado: ${longData.length} liquidations`);
+    console.log(`🟢 SHORT detectado: ${shortData.length} liquidations`);
     
     setLongFlowData(longData);
     setShortFlowData(shortData);
