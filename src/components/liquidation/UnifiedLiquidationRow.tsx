@@ -2,35 +2,15 @@
 import React from 'react';
 import { TrendingDown, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { LongLiquidationAsset } from '../../types/separatedLiquidation';
+import { ShortLiquidationAsset } from '../../types/separatedLiquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
 
-// Interface local para dados unificados de liquidação
-interface UnifiedLiquidationAsset {
-  asset: string;
-  ticker: string;
-  price: number;
-  marketCap: 'high' | 'low';
-  longPositions: number;
-  longLiquidated: number;
-  shortPositions: number;
-  shortLiquidated: number;
-  totalPositions: number;
-  combinedTotal: number;
-  dominantType: 'long' | 'short';
-  lastUpdateTime: Date;
-  firstDetectionTime: Date;
-  volatility: number;
-  intensity: number;
-  liquidationHistory: Array<{
-    type: 'long' | 'short';
-    amount: number;
-    timestamp: Date;
-    change24h: number;
-  }>;
-}
+// Tipo união para assets que podem ser long ou short
+type LiquidationAsset = LongLiquidationAsset | ShortLiquidationAsset;
 
 interface UnifiedLiquidationRowProps {
-  asset: UnifiedLiquidationAsset;
+  asset: LiquidationAsset;
   type: 'long' | 'short';
   onAssetClick: (asset: string) => void;
 }
@@ -42,9 +22,18 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
 }) => {
   const isLong = type === 'long';
   
-  // CORRIGIDO: Usar EXCLUSIVAMENTE valores do tipo específico
-  const relevantAmount = isLong ? asset.longLiquidated : asset.shortLiquidated;
-  const relevantPositions = isLong ? asset.longPositions : asset.shortPositions;
+  // Extrair valores baseado no tipo específico
+  const relevantAmount = isLong && 'longLiquidated' in asset 
+    ? asset.longLiquidated 
+    : !isLong && 'shortLiquidated' in asset 
+    ? asset.shortLiquidated 
+    : 0;
+    
+  const relevantPositions = isLong && 'longPositions' in asset 
+    ? asset.longPositions 
+    : !isLong && 'shortPositions' in asset 
+    ? asset.shortPositions 
+    : 0;
   
   const formatPrice = (price: number) => {
     if (price >= 1) return `$${price.toFixed(4)}`;
@@ -68,11 +57,6 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
     return 'bg-gray-500 text-white';
   };
 
-  // Verificar se há conflito de dados (debugging)
-  const hasConflictingData = isLong 
-    ? (asset.shortPositions > 0 || asset.shortLiquidated > 0)
-    : (asset.longPositions > 0 || asset.longLiquidated > 0);
-
   return (
     <div
       className={`p-3 rounded-lg cursor-pointer transition-all hover:shadow-md border-l-4 ${
@@ -94,13 +78,6 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
           <Badge variant="outline" className="text-xs">
             {relevantPositions} pos {isLong ? 'LONG' : 'SHORT'}
           </Badge>
-          
-          {hasConflictingData && (
-            <Badge className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              CONFLITO
-            </Badge>
-          )}
         </div>
         
         <div className="flex items-center space-x-2">
@@ -150,16 +127,6 @@ export const UnifiedLiquidationRow: React.FC<UnifiedLiquidationRowProps> = ({
           </div>
         </div>
       </div>
-      
-      {/* DEBUG: Mostrar dados conflitantes se existirem */}
-      {hasConflictingData && (
-        <div className="mt-2 pt-2 border-t border-yellow-200 bg-yellow-50 rounded p-2">
-          <div className="text-xs text-yellow-800">
-            <strong>DEBUG:</strong> L:{asset.longPositions}pos/${formatAmount(asset.longLiquidated)} | 
-            S:{asset.shortPositions}pos/${formatAmount(asset.shortLiquidated)}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

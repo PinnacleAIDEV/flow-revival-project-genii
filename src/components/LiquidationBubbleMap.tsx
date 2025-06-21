@@ -2,8 +2,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useTrading } from '../contexts/TradingContext';
-import { useLongLiquidations } from '../hooks/useLongLiquidations';
-import { useShortLiquidations } from '../hooks/useShortLiquidations';
+import { useSeparatedLiquidations } from '../hooks/useSeparatedLiquidations';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
 import { LongLiquidationTable } from './liquidation/LongLiquidationTable';
 import { ShortLiquidationTable } from './liquidation/ShortLiquidationTable';
@@ -11,8 +10,7 @@ import { LiquidationStats } from './liquidation/LiquidationStats';
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { setSelectedAsset } = useTrading();
-  const { longLiquidations } = useLongLiquidations();
-  const { shortLiquidations } = useShortLiquidations();
+  const { longLiquidations, shortLiquidations } = useSeparatedLiquidations();
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
@@ -21,7 +19,7 @@ export const LiquidationBubbleMap: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <LiquidationHeader />
 
       <div className="flex-1 flex gap-4 p-4 min-h-[800px]">

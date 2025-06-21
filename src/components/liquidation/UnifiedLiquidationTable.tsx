@@ -4,36 +4,16 @@ import { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
+import { LongLiquidationAsset } from '../../types/separatedLiquidation';
+import { ShortLiquidationAsset } from '../../types/separatedLiquidation';
 import { UnifiedLiquidationRow } from './UnifiedLiquidationRow';
 
-// Interface local para dados unificados de liquidação
-interface UnifiedLiquidationAsset {
-  asset: string;
-  ticker: string;
-  price: number;
-  marketCap: 'high' | 'low';
-  longPositions: number;
-  longLiquidated: number;
-  shortPositions: number;
-  shortLiquidated: number;
-  totalPositions: number;
-  combinedTotal: number;
-  dominantType: 'long' | 'short';
-  lastUpdateTime: Date;
-  firstDetectionTime: Date;
-  volatility: number;
-  intensity: number;
-  liquidationHistory: Array<{
-    type: 'long' | 'short';
-    amount: number;
-    timestamp: Date;
-    change24h: number;
-  }>;
-}
+// Tipo união para assets que podem ser long ou short
+type LiquidationAsset = LongLiquidationAsset | ShortLiquidationAsset;
 
 interface UnifiedLiquidationTableProps {
   title: string;
-  assets: UnifiedLiquidationAsset[];
+  assets: LiquidationAsset[];
   type: 'long' | 'short';
   icon: LucideIcon;
   bgColor: string;
@@ -53,14 +33,24 @@ export const UnifiedLiquidationTable: React.FC<UnifiedLiquidationTableProps> = (
   const highCapCount = assets.filter(a => a.marketCap === 'high').length;
   const lowCapCount = assets.filter(a => a.marketCap === 'low').length;
   
-  // CORRIGIDO: Usar APENAS dados do tipo específico (não mais unified)
-  const totalPositions = assets.reduce((sum, asset) => 
-    sum + (type === 'long' ? asset.longPositions : asset.shortPositions), 0
-  );
+  // Calcular totais baseado no tipo
+  const totalPositions = assets.reduce((sum, asset) => {
+    if (type === 'long' && 'longPositions' in asset) {
+      return sum + asset.longPositions;
+    } else if (type === 'short' && 'shortPositions' in asset) {
+      return sum + asset.shortPositions;
+    }
+    return sum;
+  }, 0);
   
-  const totalLiquidated = assets.reduce((sum, asset) => 
-    sum + (type === 'long' ? asset.longLiquidated : asset.shortLiquidated), 0
-  );
+  const totalLiquidated = assets.reduce((sum, asset) => {
+    if (type === 'long' && 'longLiquidated' in asset) {
+      return sum + asset.longLiquidated;
+    } else if (type === 'short' && 'shortLiquidated' in asset) {
+      return sum + asset.shortLiquidated;
+    }
+    return sum;
+  }, 0);
 
   return (
     <Card className="flex-1 bg-white/95 backdrop-blur-sm border-gray-200">
