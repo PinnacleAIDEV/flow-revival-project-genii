@@ -1,6 +1,5 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useLiquidationPatternDetector } from './useLiquidationPatternDetector';
 import { supabase } from '@/integrations/supabase/client';
 
 // Interface para trend reversal (dados combinados)
@@ -30,7 +29,7 @@ interface TrendReversalAsset {
 
 interface HybridPattern {
   asset: string;
-  pattern: string;
+  pattern: "flip" | "cascade" | "squeeze" | "hunt" | "vacuum";
   confidence: number;
   description: string;
   metrics: {
@@ -65,14 +64,6 @@ interface HybridAnalysis {
 }
 
 export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalAsset>) => {
-  const {
-    detectLocalPatterns,
-    getCachedAnalysis,
-    calculatePriority,
-    tokenUsageStats,
-    setAnalysisCache
-  } = useLiquidationPatternDetector();
-
   const [hybridAnalysis, setHybridAnalysis] = useState<HybridAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lastAnalysis, setLastAnalysis] = useState<number>(0);
@@ -83,7 +74,9 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
     cacheHits: 0,
     tokensUsed: 0,
     totalAnalyses: 0,
-    averageResponseTime: 0
+    tokensSaved: 0,
+    averageResponseTime: 0,
+    cacheHitRate: 0
   });
 
   // Preparar dados para análise
@@ -113,16 +106,66 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
         price: asset.price,
         avgLongs: Math.max(avgLongs, 1),
         avgShorts: Math.max(avgShorts, 1),
-        avgVelocity: Math.max(velocity * 0.5, 1), // Estimate baseline
-        avgVolume: Math.max(totalVolume * 0.6, 1), // Estimate baseline
+        avgVelocity: Math.max(velocity * 0.5, 1),
+        avgVolume: Math.max(totalVolume * 0.6, 1),
         longHistory: longHistory,
         shortHistory: shortHistory,
         timestamp: asset.lastUpdateTime,
-        previousVelocity: velocity * 0.8, // Estimate previous
-        acceleration: velocity * 0.2 // Estimate acceleration
+        previousVelocity: velocity * 0.8,
+        acceleration: velocity * 0.2
       };
     });
   }, []);
+
+  // Detecção local de padrões
+  const detectLocalPatterns = (data: any): HybridPattern | null => {
+    const { longs, shorts, velocity, ratio, volume } = data;
+    
+    // Detecção básica de padrões
+    if (velocity > 50 && ratio > 3) {
+      return {
+        asset: data.asset,
+        pattern: "flip" as const,
+        confidence: 0.7,
+        description: "Possível reversão detectada",
+        metrics: {
+          liquidationVelocity: velocity,
+          lsRatio: ratio,
+          cascadeProbability: 0.6,
+          volumeSpike: volume / 1000
+        },
+        timeframe: '5min',
+        severity: 'MEDIUM',
+        nextProbableDirection: 'SHORT_LIQUIDATIONS',
+        reasoning: "Alta velocidade de liquidação com ratio L/S elevado",
+        source: 'LOCAL',
+        alertType: 'iceberg'
+      };
+    }
+    
+    if (velocity > 100 && Math.abs(ratio - 1) < 0.5) {
+      return {
+        asset: data.asset,
+        pattern: "squeeze" as const,
+        confidence: 0.8,
+        description: "Squeeze bilateral detectado",
+        metrics: {
+          liquidationVelocity: velocity,
+          lsRatio: ratio,
+          cascadeProbability: 0.7,
+          volumeSpike: volume / 1000
+        },
+        timeframe: '5min',
+        severity: 'HIGH',
+        nextProbableDirection: 'BALANCED',
+        reasoning: "Liquidações equilibradas com alta velocidade",
+        source: 'LOCAL',
+        alertType: 'squeeze'
+      };
+    }
+    
+    return null;
+  };
 
   // Análise híbrida principal
   const analyzePatterns = useCallback(async () => {
@@ -150,10 +193,10 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
             confidence: 0
           },
           performance: {
-            localDetections: tokenUsageStats.localDetections,
-            aiCalls: tokenUsageStats.apiCalls,
-            cacheHits: tokenUsageStats.cacheHits,
-            tokensUsed: tokenUsageStats.tokensUsed,
+            localDetections: 0,
+            aiCalls: 0,
+            cacheHits: 0,
+            tokensUsed: 0,
             averageResponseTime: 0
           }
         });
@@ -162,83 +205,14 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
 
       const processedData = prepareAnalysisData(activeAssets);
       const detectedPatterns: HybridPattern[] = [];
-      let aiCallsThisRound = 0;
       let localDetectionsThisRound = 0;
-      let cacheHitsThisRound = 0;
 
       // Análise para cada asset
       for (const data of processedData) {
-        const priority = calculatePriority(data);
-        let pattern = null;
-        let source: 'LOCAL' | 'AI' | 'CACHED' = 'LOCAL';
-
-        // 1. Tentar detecção local primeiro
-        if (priority === 'low' || priority === 'medium') {
-          pattern = detectLocalPatterns(data);
-          if (pattern) {
-            localDetectionsThisRound++;
-            source = 'LOCAL';
-          }
-        }
-
-        // 2. Verificar cache se local não foi suficiente
-        if (!pattern || pattern.confidence < 0.75) {
-          const cachedPattern = getCachedAnalysis(data);
-          if (cachedPattern) {
-            pattern = cachedPattern;
-            source = 'CACHED';
-            cacheHitsThisRound++;
-          }
-        }
-
-        // 3. Usar IA apenas para casos complexos ou alta prioridade
-        if (!pattern && priority === 'high') {
-          try {
-            const aiResult = await callOptimizedAI(data);
-            if (aiResult) {
-              pattern = aiResult;
-              source = 'AI';
-              aiCallsThisRound++;
-              
-              // Adicionar ao cache
-              setAnalysisCache(prev => {
-                const newCache = new Map(prev);
-                newCache.set(`${data.asset}-${Date.now()}`, {
-                  data,
-                  result: pattern!,
-                  timestamp: Date.now()
-                });
-                return newCache;
-              });
-            }
-          } catch (error) {
-            console.error(`❌ Erro na análise IA para ${data.asset}:`, error);
-            // Fallback para detecção local
-            pattern = detectLocalPatterns(data);
-            if (pattern) {
-              localDetectionsThisRound++;
-              source = 'LOCAL';
-            }
-          }
-        }
-
-        // Adicionar padrão detectado
+        const pattern = detectLocalPatterns(data);
         if (pattern && pattern.confidence > 0.5) {
-          const hybridPattern: HybridPattern = {
-            asset: data.asset,
-            pattern: pattern.pattern,
-            confidence: pattern.confidence,
-            description: generateDescription(pattern, data),
-            metrics: pattern.metrics,
-            timeframe: '5min',
-            severity: pattern.severity,
-            nextProbableDirection: pattern.nextProbableDirection,
-            reasoning: pattern.reasoning,
-            source,
-            alertType: mapPatternToAlertType(pattern.pattern)
-          };
-
-          detectedPatterns.push(hybridPattern);
+          detectedPatterns.push(pattern);
+          localDetectionsThisRound++;
         }
       }
 
@@ -251,11 +225,13 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
       // Atualizar estatísticas de performance
       setPerformanceStats(prev => ({
         localDetections: prev.localDetections + localDetectionsThisRound,
-        aiCalls: prev.aiCalls + aiCallsThisRound,
-        cacheHits: prev.cacheHits + cacheHitsThisRound,
-        tokensUsed: prev.tokensUsed + (aiCallsThisRound * 25), // Estimativa
+        aiCalls: prev.aiCalls,
+        cacheHits: prev.cacheHits,
+        tokensUsed: prev.tokensUsed,
         totalAnalyses: prev.totalAnalyses + 1,
-        averageResponseTime: (prev.averageResponseTime + responseTime) / 2
+        tokensSaved: prev.tokensSaved + 85, // Estimativa de tokens salvos usando detecção local
+        averageResponseTime: (prev.averageResponseTime + responseTime) / 2,
+        cacheHitRate: prev.cacheHits > 0 ? (prev.cacheHits / prev.totalAnalyses) * 100 : 0
       }));
 
       setHybridAnalysis({
@@ -263,15 +239,15 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
         marketSummary,
         performance: {
           localDetections: localDetectionsThisRound,
-          aiCalls: aiCallsThisRound,
-          cacheHits: cacheHitsThisRound,
-          tokensUsed: aiCallsThisRound * 25,
+          aiCalls: 0,
+          cacheHits: 0,
+          tokensUsed: 0,
           averageResponseTime: responseTime
         }
       });
 
       setLastAnalysis(Date.now());
-      console.log(`✅ Análise híbrida concluída: ${detectedPatterns.length} padrões, ${localDetectionsThisRound} local, ${aiCallsThisRound} IA, ${cacheHitsThisRound} cache`);
+      console.log(`✅ Análise híbrida concluída: ${detectedPatterns.length} padrões, ${localDetectionsThisRound} local`);
 
     } catch (error) {
       console.error('❌ Erro na análise híbrida:', error);
@@ -279,58 +255,7 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
     } finally {
       setIsAnalyzing(false);
     }
-  }, [unifiedAssets, detectLocalPatterns, getCachedAnalysis, calculatePriority, tokenUsageStats, setAnalysisCache]);
-
-  // Chamada otimizada para IA
-  const callOptimizedAI = async (data: any) => {
-    const { data: result, error } = await supabase.functions.invoke('analyze-liquidation-patterns', {
-      body: {
-        unifiedAssets: [data],
-        timeWindowMinutes: 5
-      }
-    });
-
-    if (error) throw error;
-    
-    const patterns = result?.detectedPatterns || [];
-    if (patterns.length > 0) {
-      return patterns[0]; // Retorna primeiro padrão
-    }
-    
-    return null;
-  };
-
-  // Gerar descrição do padrão
-  const generateDescription = (pattern: any, data: any): string => {
-    const formatAmount = (amount: number) => `$${(amount / 1000).toFixed(0)}K`;
-    
-    switch (pattern.pattern) {
-      case 'flip':
-        return `LIQUIDATION FLIP: Após liquidações LONG pesadas, detectamos ${formatAmount(data.shorts)} em SHORT liquidations iniciando. Possível reversão bullish.`;
-      case 'cascade':
-        return `CASCATA DETECTADA: Liquidações acelerando ${(pattern.metrics.volumeSpike).toFixed(1)}x acima da média. Movimento em cadeia em progresso.`;
-      case 'squeeze':
-        return `SQUEEZE BILATERAL: LONGS ${formatAmount(data.longs)} + SHORTS ${formatAmount(data.shorts)} liquidados simultaneamente. Alta volatilidade.`;
-      case 'vacuum':
-        return `VÁCUO DE LIQUIDAÇÃO: ${formatAmount(data.longs + data.shorts)} liquidados com baixo volume de ordens. Movimento extremo provável.`;
-      case 'hunt':
-        return `HUNT & LIQUIDATE: Movimento rápido para liquidar posições, seguido de reversão. Padrão manipulativo detectado.`;
-      default:
-        return `Padrão ${pattern.pattern} detectado com ${(pattern.confidence * 100).toFixed(0)}% de confiança.`;
-    }
-  };
-
-  // Mapear padrão para tipo de alerta
-  const mapPatternToAlertType = (pattern: string): HybridPattern['alertType'] => {
-    switch (pattern) {
-      case 'flip': return 'iceberg';
-      case 'cascade': return 'cascade';
-      case 'squeeze': return 'squeeze';
-      case 'hunt': return 'hunt';
-      case 'vacuum': return 'vacuum';
-      default: return 'general';
-    }
-  };
+  }, [unifiedAssets, prepareAnalysisData]);
 
   // Calcular resumo do mercado
   const calculateMarketSummary = (patterns: HybridPattern[]) => {
@@ -357,7 +282,7 @@ export const useHybridTrendReversal = (unifiedAssets: Map<string, TrendReversalA
       recommendation = `${criticalCount} padrões críticos detectados. Atenção máxima recomendada.`;
     } else if (highCount > 2) {
       overallRisk = 'HIGH';
-      recommendation = `Múltip<Pattern>los padrões de alta severidade. Monitorar posições de perto.`;
+      recommendation = `Múltiplos padrões de alta severidade. Monitorar posições de perto.`;
     } else if (patterns.length > 3) {
       overallRisk = 'MEDIUM';
       recommendation = `Atividade moderada de liquidação. Cautela recomendada.`;
