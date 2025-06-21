@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { binanceWebSocketService, FlowData } from '../services/BinanceWebSocketService';
 
@@ -26,10 +25,26 @@ export const useRealLiquidationData = () => {
     'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'LTCUSDT', 'BCHUSDT'
   ];
 
+  // FILTROS MAIS RIGOROSOS NO CORE
+  const MINIMUM_LIQUIDATION_THRESHOLD = {
+    HIGH_CAP: 20000, // $20K mínimo para high cap
+    LOW_CAP: 6000,   // $6K mínimo para low cap
+  };
+
   const handleRealLiquidation = useCallback((data: FlowData) => {
     // APENAS dados REAIS do Force Order
     if (data.isLiquidation && data.liquidationType && data.liquidationAmount) {
       const isHighMarketCap = highMarketCapAssets.includes(data.ticker);
+      
+      // FILTRO PRINCIPAL: Valor mínimo mais rigoroso
+      const minThreshold = isHighMarketCap ? 
+        MINIMUM_LIQUIDATION_THRESHOLD.HIGH_CAP : 
+        MINIMUM_LIQUIDATION_THRESHOLD.LOW_CAP;
+      
+      if (data.liquidationAmount < minThreshold) {
+        console.log(`🚫 FILTERED OUT: ${data.ticker} - $${(data.liquidationAmount/1000).toFixed(1)}K (below ${minThreshold/1000}K threshold)`);
+        return; // Não processar liquidações pequenas
+      }
       
       const realLiquidation: RealLiquidationData = {
         ticker: data.ticker,
@@ -39,15 +54,15 @@ export const useRealLiquidationData = () => {
         price: data.price,
         timestamp: data.timestamp,
         marketCap: isHighMarketCap ? 'high' : 'low',
-        intensity: Math.min(10, Math.floor(data.liquidationAmount / 25000)),
+        intensity: Math.min(10, Math.floor(data.liquidationAmount / 30000)), // Intensidade mais rigorosa
         isReal: true,
         source: 'FORCE_ORDER'
       };
 
-      console.log(`🔥 REAL LIQUIDATION PROCESSED: ${realLiquidation.asset} ${realLiquidation.type.toUpperCase()} $${(realLiquidation.amount/1000).toFixed(1)}K`);
+      console.log(`🔥 REAL LIQUIDATION APPROVED: ${realLiquidation.asset} ${realLiquidation.type.toUpperCase()} $${(realLiquidation.amount/1000).toFixed(1)}K`);
       
       setRealLiquidations(prev => {
-        const newLiquidations = [realLiquidation, ...prev.slice(0, 199)];
+        const newLiquidations = [realLiquidation, ...prev.slice(0, 99)]; // Reduzido para 100 max
         return newLiquidations;
       });
     }
@@ -57,7 +72,7 @@ export const useRealLiquidationData = () => {
     try {
       setConnectionError(null);
       setConnectionStatus('connecting');
-      console.log('🚀 Connecting to REAL Force Order liquidation data...');
+      console.log('🚀 Connecting to REAL Force Order liquidation data with ENHANCED FILTERS...');
       
       await binanceWebSocketService.connect();
       
@@ -66,7 +81,7 @@ export const useRealLiquidationData = () => {
       
       binanceWebSocketService.onMessage(handleRealLiquidation);
       
-      console.log('✅ Successfully connected to REAL professional liquidation data');
+      console.log('✅ Successfully connected to REAL professional liquidation data with 50-80% filter reduction');
       
     } catch (error) {
       console.error('❌ Failed to connect to professional liquidation data:', error);
