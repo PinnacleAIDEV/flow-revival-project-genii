@@ -3,18 +3,14 @@ import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Target, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { UnifiedLiquidationAsset } from '../../types/liquidation';
 import { formatAmount } from '../../utils/liquidationUtils';
+import { useLongLiquidations } from '../../hooks/useLongLiquidations';
+import { useShortLiquidations } from '../../hooks/useShortLiquidations';
 
-interface LiquidationStatsProps {
-  longLiquidations: UnifiedLiquidationAsset[];
-  shortLiquidations: UnifiedLiquidationAsset[];
-}
+export const LiquidationStats: React.FC = () => {
+  const { longLiquidations } = useLongLiquidations();
+  const { shortLiquidations } = useShortLiquidations();
 
-export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
-  longLiquidations,
-  shortLiquidations
-}) => {
   const stats = useMemo(() => {
     // Calcular totais APENAS de long liquidations do tipo LONG
     const totalLongAmount = longLiquidations.reduce((sum, asset) => sum + asset.longLiquidated, 0);
@@ -172,4 +168,18 @@ export const LiquidationStats: React.FC<LiquidationStatsProps> = ({
       </div>
     </div>
   );
+
+  function getDominanceColor(ratio: number) {
+    if (ratio >= 3) return 'text-red-600';
+    if (ratio >= 2) return 'text-orange-600';
+    if (ratio >= 1.5) return 'text-yellow-600';
+    return 'text-gray-600';
+  }
+
+  function getDominanceIntensity(ratio: number) {
+    if (ratio >= 3) return 'EXTREMA';
+    if (ratio >= 2) return 'ALTA';
+    if (ratio >= 1.5) return 'MODERADA';
+    return 'EQUILIBRADA';
+  }
 };

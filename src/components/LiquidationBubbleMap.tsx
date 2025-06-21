@@ -45,10 +45,7 @@ export const LiquidationBubbleMap: React.FC = () => {
         />
       </div>
 
-      <LiquidationStats
-        longLiquidations={longLiquidations}
-        shortLiquidations={shortLiquidations}
-      />
+      <LiquidationStats />
     </div>
   );
 };
