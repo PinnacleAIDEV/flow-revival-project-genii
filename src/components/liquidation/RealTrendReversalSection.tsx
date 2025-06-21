@@ -1,11 +1,12 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, TrendingUp, TrendingDown, Zap } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Zap, Brain } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { formatAmount } from '../../utils/liquidationUtils';
 import { UnifiedTrendReversalAsset, TrendReversalData } from '../../types/trendReversal';
+import { useAITrendReversal } from '../../hooks/useAITrendReversal';
 
 interface RealTrendReversalSectionProps {
   unifiedAssets: Map<string, UnifiedTrendReversalAsset>;
@@ -22,6 +23,52 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
 }) => {
   const [realTrendReversals, setRealTrendReversals] = useState<TrendReversalData[]>([]);
   const [assetHistoryCache, setAssetHistoryCache] = useState<Map<string, UnifiedTrendReversalAsset[]>>(new Map());
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+
+  // Convert Map to TrendReversalAsset array for AI hook
+  const unifiedAssetsArray = useMemo(() => {
+    return Array.from(unifiedAssets.values()).map(asset => ({
+      asset: asset.asset,
+      ticker: asset.ticker,
+      price: asset.price,
+      marketCap: asset.marketCap,
+      longPositions: asset.longPositions,
+      longLiquidated: asset.longLiquidated,
+      shortPositions: asset.shortPositions,
+      shortLiquidated: asset.shortLiquidated,
+      totalPositions: asset.totalPositions,
+      combinedTotal: asset.combinedTotal,
+      dominantType: asset.dominantType,
+      lastUpdateTime: asset.lastUpdateTime,
+      firstDetectionTime: asset.firstDetectionTime,
+      volatility: 0,
+      intensity: asset.intensity,
+      liquidationHistory: asset.liquidationHistory.map(liq => ({
+        type: liq.type,
+        amount: liq.amount,
+        timestamp: liq.timestamp,
+        change24h: liq.change24h
+      }))
+    }));
+  }, [unifiedAssets]);
+
+  // Create Map for AI hook
+  const unifiedAssetsMap = useMemo(() => {
+    const map = new Map();
+    unifiedAssetsArray.forEach(asset => {
+      map.set(asset.asset, asset);
+    });
+    return map;
+  }, [unifiedAssetsArray]);
+
+  // AI Analysis hook
+  const { 
+    aiAnalysis, 
+    isAnalyzing, 
+    analysisError,
+    analyzePatterns,
+    hasData 
+  } = useAITrendReversal(unifiedAssetsMap);
 
   // Track asset history with optimized logic
   useEffect(() => {
@@ -189,10 +236,87 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
                 </p>
               </div>
             </div>
+            
+            {/* AI Analysis Button */}
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={() => {
+                  setShowAIAnalysis(!showAIAnalysis);
+                  if (!showAIAnalysis) {
+                    analyzePatterns();
+                  }
+                }}
+                disabled={isAnalyzing}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              >
+                <Brain className="w-4 h-4 mr-2" />
+                {isAnalyzing ? 'Analisando...' : 'Gerar Análise da IA'}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         
         <CardContent className="p-0 h-[calc(100%-120px)]">
+          {showAIAnalysis && (
+            <div className="p-4 border-b border-purple-500/30">
+              <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Brain className="w-5 h-5 text-purple-400" />
+                  <h4 className="text-lg font-semibold text-purple-300">Análise da IA</h4>
+                </div>
+                
+                {isAnalyzing && (
+                  <div className="flex items-center space-x-2 text-purple-400">
+                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span>Analisando padrões de liquidação...</span>
+                  </div>
+                )}
+                
+                {analysisError && (
+                  <div className="text-red-400 text-sm">
+                    Erro na análise: {analysisError}
+                  </div>
+                )}
+                
+                {hasData && aiAnalysis && (
+                  <div className="space-y-3">
+                    <div className="text-sm text-purple-300">
+                      <strong>Padrões Detectados:</strong> {aiAnalysis.detectedPatterns.length}
+                    </div>
+                    
+                    {aiAnalysis.detectedPatterns.slice(0, 3).map((pattern, index) => (
+                      <div key={index} className="bg-purple-800/20 rounded p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-purple-200">{pattern.asset}</span>
+                          <Badge className="bg-purple-600 text-white">
+                            {pattern.confidence}% confiança
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-purple-300 mb-1">
+                          <strong>{pattern.pattern}</strong>
+                        </div>
+                        <div className="text-xs text-purple-400">
+                          {pattern.description}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {aiAnalysis.marketSummary && (
+                      <div className="bg-blue-800/20 rounded p-3">
+                        <div className="text-sm font-bold text-blue-300 mb-1">
+                          Resumo do Mercado
+                        </div>
+                        <div className="text-xs text-blue-400">
+                          {aiAnalysis.marketSummary.recommendation}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {realTrendReversals.length > 0 ? (
             <ScrollArea className="h-full">
               <div className="space-y-3 p-4">
