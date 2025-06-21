@@ -2,14 +2,14 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useTrading } from '../contexts/TradingContext';
-import { useUnifiedLiquidations } from '../hooks/useUnifiedLiquidations';
+import { useSeparatedLiquidations } from '../hooks/useSeparatedLiquidations';
 import { LiquidationHeader } from './liquidation/LiquidationHeader';
 import { UnifiedLiquidationTable } from './liquidation/UnifiedLiquidationTable';
 import { LiquidationStats } from './liquidation/LiquidationStats';
 
 export const LiquidationBubbleMap: React.FC = () => {
   const { setSelectedAsset } = useTrading();
-  const { longLiquidations, shortLiquidations } = useUnifiedLiquidations();
+  const { longLiquidations, shortLiquidations } = useSeparatedLiquidations();
 
   const handleAssetClick = (asset: string) => {
     const fullTicker = asset.includes('USDT') ? asset : `${asset}USDT`;
