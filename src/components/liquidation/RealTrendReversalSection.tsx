@@ -1,49 +1,14 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
 import { formatAmount } from '../../utils/liquidationUtils';
-
-interface RealTrendReversalAsset {
-  asset: string;
-  ticker: string;
-  price: number;
-  marketCap: 'high' | 'low';
-  longPositions: number;
-  longLiquidated: number;
-  shortPositions: number;
-  shortLiquidated: number;
-  totalPositions: number;
-  combinedTotal: number;
-  dominantType: 'long' | 'short';
-  lastUpdateTime: Date;
-  firstDetectionTime: Date;
-  intensity: number;
-  liquidationHistory: Array<{
-    type: 'long' | 'short';
-    amount: number;
-    timestamp: Date;
-    change24h: number;
-  }>;
-}
-
-interface RealTrendReversal {
-  asset: string;
-  previousType: 'long' | 'short';
-  currentType: 'long' | 'short';
-  previousVolume: number;
-  currentVolume: number;
-  reversalRatio: number;
-  timestamp: Date;
-  intensity: number;
-  price: number;
-  marketCap: 'high' | 'low';
-  timeframe: string;
-}
+import { UnifiedTrendReversalAsset, TrendReversalData } from '../../types/trendReversal';
 
 interface RealTrendReversalSectionProps {
-  unifiedAssets: Map<string, RealTrendReversalAsset>;
+  unifiedAssets: Map<string, UnifiedTrendReversalAsset>;
   onAssetClick: (asset: string) => void;
   isRealData: boolean;
   professionalData: boolean;
@@ -55,90 +20,109 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
   isRealData,
   professionalData
 }) => {
-  const [realTrendReversals, setRealTrendReversals] = useState<RealTrendReversal[]>([]);
-  const [liquidationHistory, setLiquidationHistory] = useState<Map<string, RealTrendReversalAsset[]>>(new Map());
+  const [realTrendReversals, setRealTrendReversals] = useState<TrendReversalData[]>([]);
+  const [assetHistoryCache, setAssetHistoryCache] = useState<Map<string, UnifiedTrendReversalAsset[]>>(new Map());
 
-  // Track REAL liquidation history
+  // Track asset history with throttling
   useEffect(() => {
-    const updateRealHistory = () => {
-      const newHistory = new Map(liquidationHistory);
-      
+    const updateAssetHistory = () => {
+      const newCache = new Map(assetHistoryCache);
+      const now = new Date();
+      const cutoffTime = new Date(now.getTime() - 30 * 60 * 1000); // 30 minutes
+
       unifiedAssets.forEach((asset, assetName) => {
-        const assetHistory = newHistory.get(assetName) || [];
-        const exists = assetHistory.some(h => 
-          h.lastUpdateTime.getTime() === asset.lastUpdateTime.getTime()
-        );
+        const history = newCache.get(assetName) || [];
         
-        if (!exists) {
-          assetHistory.push(asset);
-          // Keep last 15 REAL liquidation snapshots per asset
-          if (assetHistory.length > 15) {
-            assetHistory.splice(0, assetHistory.length - 15);
-          }
-          newHistory.set(assetName, assetHistory);
+        // Check if this is a new update (avoid duplicates)
+        const lastHistoryItem = history[history.length - 1];
+        const isNewUpdate = !lastHistoryItem || 
+          lastHistoryItem.lastUpdateTime.getTime() !== asset.lastUpdateTime.getTime() ||
+          lastHistoryItem.combinedTotal !== asset.combinedTotal;
+
+        if (isNewUpdate) {
+          // Add new snapshot and limit history size
+          const updatedHistory = [...history, asset]
+            .filter(h => h.lastUpdateTime > cutoffTime)
+            .slice(-10); // Keep only last 10 snapshots per asset
+          
+          newCache.set(assetName, updatedHistory);
         }
       });
-      
-      setLiquidationHistory(newHistory);
+
+      setAssetHistoryCache(newCache);
     };
 
     if (unifiedAssets.size > 0) {
-      updateRealHistory();
+      // Throttle updates to every 5 seconds
+      const throttleTimer = setTimeout(updateAssetHistory, 5000);
+      return () => clearTimeout(throttleTimer);
     }
-  }, [unifiedAssets, liquidationHistory]);
+  }, [unifiedAssets, assetHistoryCache]);
 
-  // Detect REAL trend reversals
-  useEffect(() => {
-    const detectRealReversals = () => {
-      const reversals: RealTrendReversal[] = [];
-      const now = new Date();
-      const twentyMinutesAgo = new Date(now.getTime() - 20 * 60 * 1000);
+  // Detect REAL trend reversals with improved algorithm
+  const detectedReversals = useMemo(() => {
+    const reversals: TrendReversalData[] = [];
+    const now = new Date();
+    const analysisWindow = new Date(now.getTime() - 20 * 60 * 1000); // 20 minutes
 
-      liquidationHistory.forEach((history, asset) => {
-        if (history.length < 4) return; // Need at least 4 REAL data points
+    assetHistoryCache.forEach((history, assetName) => {
+      if (history.length < 4) return; // Need at least 4 data points
 
-        // Filter recent REAL history
-        const recentHistory = history.filter(h => h.lastUpdateTime > twentyMinutesAgo);
-        if (recentHistory.length < 4) return;
+      // Filter recent history within analysis window
+      const recentHistory = history
+        .filter(h => h.lastUpdateTime > analysisWindow)
+        .sort((a, b) => a.lastUpdateTime.getTime() - b.lastUpdateTime.getTime());
 
-        // Sort by timestamp
-        recentHistory.sort((a, b) => a.lastUpdateTime.getTime() - b.lastUpdateTime.getTime());
+      if (recentHistory.length < 4) return;
 
-        // Split into periods for REAL reversal analysis
-        const midPoint = Math.floor(recentHistory.length / 2);
-        const firstPeriod = recentHistory.slice(0, midPoint);
-        const secondPeriod = recentHistory.slice(midPoint);
+      // Split into two periods for trend analysis
+      const midPoint = Math.floor(recentHistory.length / 2);
+      const firstPeriod = recentHistory.slice(0, midPoint);
+      const secondPeriod = recentHistory.slice(midPoint);
 
-        if (firstPeriod.length === 0 || secondPeriod.length === 0) return;
+      if (firstPeriod.length === 0 || secondPeriod.length === 0) return;
 
-        // Calculate REAL dominant type in each period
-        const firstLongVolume = firstPeriod.reduce((sum, h) => sum + h.longLiquidated, 0);
-        const firstShortVolume = firstPeriod.reduce((sum, h) => sum + h.shortLiquidated, 0);
-        const secondLongVolume = secondPeriod.reduce((sum, h) => sum + h.longLiquidated, 0);
-        const secondShortVolume = secondPeriod.reduce((sum, h) => sum + h.shortLiquidated, 0);
+      // Calculate dominant liquidation type in each period
+      const firstPeriodLongVol = firstPeriod.reduce((sum, h) => sum + h.longLiquidated, 0);
+      const firstPeriodShortVol = firstPeriod.reduce((sum, h) => sum + h.shortLiquidated, 0);
+      const secondPeriodLongVol = secondPeriod.reduce((sum, h) => sum + h.longLiquidated, 0);
+      const secondPeriodShortVol = secondPeriod.reduce((sum, h) => sum + h.shortLiquidated, 0);
 
-        const firstPeriodType = firstLongVolume > firstShortVolume ? 'long' : 'short';
-        const secondPeriodType = secondLongVolume > secondShortVolume ? 'long' : 'short';
+      const firstDominantType = firstPeriodLongVol > firstPeriodShortVol ? 'long' : 'short';
+      const secondDominantType = secondPeriodLongVol > secondPeriodShortVol ? 'long' : 'short';
 
-        // Detect REAL reversal
-        if (firstPeriodType !== secondPeriodType) {
-          const previousVolume = firstPeriodType === 'long' ? firstLongVolume : firstShortVolume;
-          const currentVolume = secondPeriodType === 'long' ? secondLongVolume : secondShortVolume;
+      // Detect reversal with improved criteria
+      if (firstDominantType !== secondDominantType) {
+        const previousVolume = firstDominantType === 'long' ? firstPeriodLongVol : firstPeriodShortVol;
+        const currentVolume = secondDominantType === 'long' ? secondPeriodLongVol : secondPeriodShortVol;
+        
+        // Enhanced reversal validation
+        if (currentVolume > 0 && previousVolume > 0) {
+          const reversalRatio = currentVolume / previousVolume;
+          const minReversalThreshold = 1.2; // Must be at least 20% stronger
           
-          if (currentVolume >= previousVolume && previousVolume > 0) {
-            const reversalRatio = currentVolume / previousVolume;
+          if (reversalRatio >= minReversalThreshold) {
             const latestAsset = recentHistory[recentHistory.length - 1];
             
+            // Calculate confidence and intensity
             let intensity = 1;
-            if (reversalRatio >= 4) intensity = 5;
-            else if (reversalRatio >= 3) intensity = 4;
-            else if (reversalRatio >= 2.5) intensity = 3;
-            else if (reversalRatio >= 1.8) intensity = 2;
+            let confidence = 50;
             
-            const realReversal: RealTrendReversal = {
-              asset,
-              previousType: firstPeriodType,
-              currentType: secondPeriodType,
+            if (reversalRatio >= 4) { intensity = 5; confidence = 95; }
+            else if (reversalRatio >= 3) { intensity = 4; confidence = 85; }
+            else if (reversalRatio >= 2.5) { intensity = 3; confidence = 75; }
+            else if (reversalRatio >= 1.8) { intensity = 2; confidence = 65; }
+            else { confidence = Math.round(40 + (reversalRatio - 1) * 25); }
+
+            // Additional confidence boost for high-cap assets
+            if (latestAsset.marketCap === 'high') {
+              confidence = Math.min(95, confidence + 10);
+            }
+
+            const reversal: TrendReversalData = {
+              asset: assetName,
+              previousType: firstDominantType,
+              currentType: secondDominantType,
               previousVolume,
               currentVolume,
               reversalRatio,
@@ -146,28 +130,34 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
               intensity,
               price: latestAsset.price,
               marketCap: latestAsset.marketCap,
-              timeframe: '20min'
+              timeframe: '20min',
+              confidence
             };
             
-            reversals.push(realReversal);
-            
-            console.log(`🔄 REAL TREND REVERSAL: ${asset} - ${firstPeriodType.toUpperCase()} -> ${secondPeriodType.toUpperCase()} - Ratio: ${reversalRatio.toFixed(2)}x`);
+            // Only include high-confidence reversals
+            if (confidence >= 60) {
+              reversals.push(reversal);
+              console.log(`🔄 REAL TREND REVERSAL: ${assetName} - ${firstDominantType.toUpperCase()} -> ${secondDominantType.toUpperCase()} - Ratio: ${reversalRatio.toFixed(2)}x - Confidence: ${confidence}%`);
+            }
           }
         }
-      });
+      }
+    });
 
-      // Sort by REAL reversal ratio and limit to 25
-      const sortedReversals = reversals
-        .sort((a, b) => b.reversalRatio - a.reversalRatio)
-        .slice(0, 25);
+    // Sort by confidence and reversal ratio, limit to top 25
+    return reversals
+      .sort((a, b) => {
+        const aScore = a.confidence * a.reversalRatio;
+        const bScore = b.confidence * b.reversalRatio;
+        return bScore - aScore;
+      })
+      .slice(0, 25);
+  }, [assetHistoryCache]);
 
-      setRealTrendReversals(sortedReversals);
-    };
-
-    if (liquidationHistory.size > 0) {
-      detectRealReversals();
-    }
-  }, [liquidationHistory]);
+  // Update state with detected reversals
+  useEffect(() => {
+    setRealTrendReversals(detectedReversals);
+  }, [detectedReversals]);
 
   const formatPrice = (price: number) => {
     if (!price || isNaN(price)) return '$0.00';
@@ -184,6 +174,13 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
       5: 'bg-purple-100 text-purple-800'
     };
     return colors[intensity as keyof typeof colors] || colors[1];
+  };
+
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 85) return 'text-green-600 font-bold';
+    if (confidence >= 70) return 'text-blue-600 font-semibold';
+    if (confidence >= 60) return 'text-orange-600';
+    return 'text-gray-600';
   };
 
   return (
@@ -208,7 +205,7 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
                   )}
                 </CardTitle>
                 <p className="text-sm text-gray-400 font-mono">
-                  Detecta REAL reversões via Force Order data - droplet 157.245.240.29
+                  Detecta REAL reversões via Force Order - Algoritmo Otimizado v2.0
                 </p>
               </div>
             </div>
@@ -247,8 +244,11 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
                       </div>
                       
                       <div className="flex items-center space-x-2">
+                        <span className={`text-xs font-bold ${getConfidenceColor(reversal.confidence)}`}>
+                          {reversal.confidence}% conf
+                        </span>
                         <span className={`px-2 py-1 rounded text-xs font-bold ${getIntensityColor(reversal.intensity)}`}>
-                          Intensidade {reversal.intensity}
+                          Int {reversal.intensity}
                         </span>
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                           reversal.marketCap === 'high' 
@@ -318,12 +318,17 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
                 <div>
                   <h4 className="text-lg font-medium text-gray-700 mb-2">Analisando REAL Reversões</h4>
                   <p className="text-gray-500 text-sm max-w-xs mx-auto">
-                    Monitorando mudanças REAIS via Force Order para identificar reversões profissionais...
+                    Aguardando dados suficientes para detectar reversões de tendência profissionais...
                   </p>
                   {professionalData && (
-                    <p className="text-purple-600 text-xs mt-2 font-semibold">
-                      $90/mês • 157.245.240.29 • Professional Data
-                    </p>
+                    <div className="mt-3 space-y-1">
+                      <p className="text-purple-600 text-xs font-semibold">
+                        Professional Force Order Data
+                      </p>
+                      <p className="text-gray-400 text-xs">
+                        Algoritmo v2.0 • Confiança: 60%+ • Cache: {assetHistoryCache.size} assets
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>

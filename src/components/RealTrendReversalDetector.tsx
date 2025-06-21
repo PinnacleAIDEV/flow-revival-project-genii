@@ -1,39 +1,10 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { useRealLongLiquidations } from '../hooks/useRealLongLiquidations';
 import { useRealShortLiquidations } from '../hooks/useRealShortLiquidations';
 import { useTrading } from '../contexts/TradingContext';
 import { RealTrendReversalSection } from './liquidation/RealTrendReversalSection';
-
-interface RealTrendReversalAsset {
-  asset: string;
-  ticker: string;
-  price: number;
-  marketCap: 'high' | 'low';
-  
-  // REAL combined data for analysis
-  longPositions: number;
-  longLiquidated: number;
-  shortPositions: number;
-  shortLiquidated: number;
-  totalPositions: number;
-  combinedTotal: number;
-  dominantType: 'long' | 'short';
-  
-  // Temporal data
-  lastUpdateTime: Date;
-  firstDetectionTime: Date;
-  
-  // Analysis metrics
-  intensity: number;
-  
-  // REAL combined history
-  liquidationHistory: Array<{
-    type: 'long' | 'short';
-    amount: number;
-    timestamp: Date;
-    change24h: number;
-  }>;
-}
+import { UnifiedTrendReversalAsset } from '../types/trendReversal';
 
 export const RealTrendReversalDetector: React.FC = () => {
   const { longLiquidations } = useRealLongLiquidations();
@@ -47,69 +18,95 @@ export const RealTrendReversalDetector: React.FC = () => {
     console.log(`🔄 REAL Trend Reversal selected: ${fullTicker}`);
   };
 
-  // Create unified REAL assets map
-  const unifiedAssetsMap = new Map<string, RealTrendReversalAsset>();
-  
-  // Process REAL long liquidations
-  longLiquidations.forEach(asset => {
-    const trendAsset: RealTrendReversalAsset = {
-      asset: asset.asset,
-      ticker: asset.ticker,
-      price: asset.price,
-      marketCap: asset.marketCap,
-      longPositions: asset.longPositions,
-      longLiquidated: asset.longLiquidated,
-      shortPositions: 0,
-      shortLiquidated: 0,
-      totalPositions: asset.longPositions,
-      combinedTotal: asset.longLiquidated,
-      dominantType: 'long',
-      lastUpdateTime: asset.lastUpdateTime,
-      firstDetectionTime: asset.firstDetectionTime,
-      intensity: asset.intensity,
-      liquidationHistory: asset.liquidationHistory
-    };
-    unifiedAssetsMap.set(asset.asset, trendAsset);
-  });
-  
-  // Process REAL short liquidations and merge if necessary
-  shortLiquidations.forEach(asset => {
-    const existing = unifiedAssetsMap.get(asset.asset);
-    if (existing) {
-      // MERGE: Keep data separated but create unified view
-      const merged: RealTrendReversalAsset = {
-        ...existing,
-        shortPositions: asset.shortPositions,
-        shortLiquidated: asset.shortLiquidated,
-        totalPositions: existing.longPositions + asset.shortPositions,
-        combinedTotal: existing.longLiquidated + asset.shortLiquidated,
-        dominantType: existing.longLiquidated > asset.shortLiquidated ? 'long' : 'short',
-        liquidationHistory: [...existing.liquidationHistory, ...asset.liquidationHistory],
-        lastUpdateTime: existing.lastUpdateTime > asset.lastUpdateTime ? existing.lastUpdateTime : asset.lastUpdateTime
-      };
-      unifiedAssetsMap.set(asset.asset, merged);
-    } else {
-      // Add SHORT-only asset
-      const trendAsset: RealTrendReversalAsset = {
+  // Create unified assets map with optimized processing
+  const unifiedAssetsMap = useMemo(() => {
+    const assetsMap = new Map<string, UnifiedTrendReversalAsset>();
+    
+    // Process REAL long liquidations
+    longLiquidations.forEach(asset => {
+      const unifiedAsset: UnifiedTrendReversalAsset = {
         asset: asset.asset,
         ticker: asset.ticker,
         price: asset.price,
         marketCap: asset.marketCap,
-        longPositions: 0,
-        longLiquidated: 0,
-        shortPositions: asset.shortPositions,
-        shortLiquidated: asset.shortLiquidated,
-        totalPositions: asset.shortPositions,
-        combinedTotal: asset.shortLiquidated,
-        dominantType: 'short',
+        longPositions: asset.longPositions,
+        longLiquidated: asset.longLiquidated,
+        shortPositions: 0,
+        shortLiquidated: 0,
+        totalPositions: asset.longPositions,
+        combinedTotal: asset.longLiquidated,
+        dominantType: 'long',
         lastUpdateTime: asset.lastUpdateTime,
         firstDetectionTime: asset.firstDetectionTime,
         intensity: asset.intensity,
-        liquidationHistory: asset.liquidationHistory
+        liquidationHistory: asset.liquidationHistory.map((liq, index) => ({
+          id: `${asset.asset}-long-${index}-${liq.timestamp.getTime()}`,
+          type: liq.type,
+          amount: liq.amount,
+          timestamp: liq.timestamp,
+          change24h: liq.change24h
+        }))
       };
-      unifiedAssetsMap.set(asset.asset, trendAsset);
-    }
-  });
+      assetsMap.set(asset.asset, unifiedAsset);
+    });
+    
+    // Process REAL short liquidations and merge
+    shortLiquidations.forEach(asset => {
+      const existing = assetsMap.get(asset.asset);
+      if (existing) {
+        // Merge with existing long data
+        const merged: UnifiedTrendReversalAsset = {
+          ...existing,
+          shortPositions: asset.shortPositions,
+          shortLiquidated: asset.shortLiquidated,
+          totalPositions: existing.longPositions + asset.shortPositions,
+          combinedTotal: existing.longLiquidated + asset.shortLiquidated,
+          dominantType: existing.longLiquidated > asset.shortLiquidated ? 'long' : 'short',
+          lastUpdateTime: existing.lastUpdateTime > asset.lastUpdateTime ? existing.lastUpdateTime : asset.lastUpdateTime,
+          liquidationHistory: [
+            ...existing.liquidationHistory,
+            ...asset.liquidationHistory.map((liq, index) => ({
+              id: `${asset.asset}-short-${index}-${liq.timestamp.getTime()}`,
+              type: liq.type,
+              amount: liq.amount,
+              timestamp: liq.timestamp,
+              change24h: liq.change24h
+            }))
+          ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 20) // Keep only recent 20 liquidations
+        };
+        assetsMap.set(asset.asset, merged);
+      } else {
+        // Add SHORT-only asset
+        const unifiedAsset: UnifiedTrendReversalAsset = {
+          asset: asset.asset,
+          ticker: asset.ticker,
+          price: asset.price,
+          marketCap: asset.marketCap,
+          longPositions: 0,
+          longLiquidated: 0,
+          shortPositions: asset.shortPositions,
+          shortLiquidated: asset.shortLiquidated,
+          totalPositions: asset.shortPositions,
+          combinedTotal: asset.shortLiquidated,
+          dominantType: 'short',
+          lastUpdateTime: asset.lastUpdateTime,
+          firstDetectionTime: asset.firstDetectionTime,
+          intensity: asset.intensity,
+          liquidationHistory: asset.liquidationHistory.map((liq, index) => ({
+            id: `${asset.asset}-short-${index}-${liq.timestamp.getTime()}`,
+            type: liq.type,
+            amount: liq.amount,
+            timestamp: liq.timestamp,
+            change24h: liq.change24h
+          }))
+        };
+        assetsMap.set(asset.asset, unifiedAsset);
+      }
+    });
+
+    console.log(`🔄 REAL Unified Assets processed: ${assetsMap.size}`);
+    return assetsMap;
+  }, [longLiquidations, shortLiquidations]);
 
   const getCardHeight = () => {
     switch (cardHeight) {
