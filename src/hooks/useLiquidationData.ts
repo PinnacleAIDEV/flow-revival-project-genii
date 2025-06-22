@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { LiquidationBubble, getMarketCapCategory, LiquidationStats } from '../types/liquidation';
 import { 

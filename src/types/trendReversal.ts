@@ -3,7 +3,7 @@ export interface UnifiedTrendReversalAsset {
   asset: string;
   ticker: string;
   price: number;
-  marketCap: 'high' | 'low';
+  marketCap: 'high' | 'mid' | 'low';
   
   // Separated liquidation data
   longPositions: number;
@@ -43,7 +43,7 @@ export interface TrendReversalData {
   timestamp: Date;
   intensity: number;
   price: number;
-  marketCap: 'high' | 'low';
+  marketCap: 'high' | 'mid' | 'low';
   timeframe: string;
   confidence: number;
 }
