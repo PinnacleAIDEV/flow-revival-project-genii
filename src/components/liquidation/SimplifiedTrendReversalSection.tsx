@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, TrendingUp, TrendingDown, Zap, Activity, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -6,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
 import { formatAmount } from '../../utils/liquidationUtils';
 import { UnifiedTrendReversalAsset } from '../../types/trendReversal';
+import { signalThrottleManager } from '../../utils/signalThrottling';
 
 interface LiquidationPattern {
   id: string;
@@ -74,7 +74,7 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
     });
   }, [unifiedAssets]);
 
-  // Detectar padrões de liquidação (SEM IA)
+  // Detectar padrões de liquidação com THROTTLING
   const detectLiquidationPatterns = useMemo(() => {
     const patterns: LiquidationPattern[] = [];
     const now = new Date();
@@ -86,13 +86,15 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
       const previous = history[history.length - 2];
       const beforePrevious = history.length >= 3 ? history[history.length - 3] : null;
 
-      // 1. LIQUIDATION FLIP (Iceberg Pattern)
+      // 1. LIQUIDATION FLIP (Iceberg Pattern) - COM THROTTLING
       if (previous.dominantType !== current.dominantType) {
         const prevVolume = previous.dominantType === 'long' ? previous.longLiquidated : previous.shortLiquidated;
         const currVolume = current.dominantType === 'long' ? current.longLiquidated : current.shortLiquidated;
         
-        if (prevVolume > 25000 && currVolume > 25000) { // Mínimo $25K em cada lado
-          patterns.push({
+        if (prevVolume > 25000 && currVolume > 25000 && 
+            signalThrottleManager.canGenerateSignal(assetName, 'FLIP')) {
+          
+          const pattern: LiquidationPattern = {
             id: `${assetName}-flip-${now.getTime()}`,
             asset: assetName,
             patternType: 'FLIP',
@@ -104,11 +106,16 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
               longVolume: current.longLiquidated,
               shortVolume: current.shortLiquidated
             }
-          });
+          };
+
+          patterns.push(pattern);
+          signalThrottleManager.recordSignal(assetName, 'FLIP');
+          
+          console.log(`🔄 FLIP detectado: ${assetName} - ${previous.dominantType.toUpperCase()} → ${current.dominantType.toUpperCase()}`);
         }
       }
 
-      // 2. LIQUIDATION CASCADE (mesma direção crescente)
+      // 2. LIQUIDATION CASCADE (mesma direção crescente) - COM THROTTLING
       if (beforePrevious && 
           beforePrevious.dominantType === previous.dominantType && 
           previous.dominantType === current.dominantType) {
@@ -117,8 +124,10 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
         const vol2 = previous.dominantType === 'long' ? previous.longLiquidated : previous.shortLiquidated;
         const vol3 = current.dominantType === 'long' ? current.longLiquidated : current.shortLiquidated;
         
-        if (vol1 < vol2 && vol2 < vol3 && vol3 > 30000) { // Cascata crescente > $30K
-          patterns.push({
+        if (vol1 < vol2 && vol2 < vol3 && vol3 > 30000 && 
+            signalThrottleManager.canGenerateSignal(assetName, 'CASCADE')) {
+          
+          const pattern: LiquidationPattern = {
             id: `${assetName}-cascade-${now.getTime()}`,
             asset: assetName,
             patternType: 'CASCADE',
@@ -130,16 +139,21 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
               longVolume: current.longLiquidated,
               shortVolume: current.shortLiquidated
             }
-          });
+          };
+
+          patterns.push(pattern);
+          signalThrottleManager.recordSignal(assetName, 'CASCADE');
+          
+          console.log(`⚡ CASCADE detectado: ${assetName} - ${current.dominantType.toUpperCase()} acelerando`);
         }
       }
 
-      // 3. SQUEEZE PATTERN (high volume em ambos os lados)
+      // 3. SQUEEZE PATTERN (high volume em ambos os lados) - COM THROTTLING
       if (current.longLiquidated > 40000 && current.shortLiquidated > 40000) {
         const ratio = Math.min(current.longLiquidated, current.shortLiquidated) / Math.max(current.longLiquidated, current.shortLiquidated);
         
-        if (ratio > 0.6) { // Volumes equilibrados (diferença < 40%)
-          patterns.push({
+        if (ratio > 0.6 && signalThrottleManager.canGenerateSignal(assetName, 'SQUEEZE')) {
+          const pattern: LiquidationPattern = {
             id: `${assetName}-squeeze-${now.getTime()}`,
             asset: assetName,
             patternType: 'SQUEEZE',
@@ -151,14 +165,19 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
               longVolume: current.longLiquidated,
               shortVolume: current.shortLiquidated
             }
-          });
+          };
+
+          patterns.push(pattern);
+          signalThrottleManager.recordSignal(assetName, 'SQUEEZE');
+          
+          console.log(`🤏 SQUEEZE detectado: ${assetName} - Bilateral intenso`);
         }
       }
 
-      // 4. WHALE LIQUIDATION (volume extremo de uma vez)
+      // 4. WHALE LIQUIDATION (volume extremo de uma vez) - COM THROTTLING
       const maxVolume = Math.max(current.longLiquidated, current.shortLiquidated);
-      if (maxVolume > 500000) { // Whale = $500K+
-        patterns.push({
+      if (maxVolume > 500000 && signalThrottleManager.canGenerateSignal(assetName, 'WHALE')) {
+        const pattern: LiquidationPattern = {
           id: `${assetName}-whale-${now.getTime()}`,
           asset: assetName,
           patternType: 'WHALE',
@@ -170,7 +189,12 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
             longVolume: current.longLiquidated,
             shortVolume: current.shortLiquidated
           }
-        });
+        };
+
+        patterns.push(pattern);
+        signalThrottleManager.recordSignal(assetName, 'WHALE');
+        
+        console.log(`🐋 WHALE detectado: ${assetName} - ${maxVolume === current.longLiquidated ? 'LONG' : 'SHORT'} massiva`);
       }
     });
 
@@ -236,7 +260,7 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
                   )}
                 </CardTitle>
                 <p className="text-sm text-gray-400 font-mono">
-                  Detecta padrões de liquidação sem IA - Algoritmo Nativo v1.0
+                  Detecta padrões únicos - 1 sinal por ativo a cada 5min
                 </p>
               </div>
             </div>
@@ -334,7 +358,7 @@ export const SimplifiedTrendReversalSection: React.FC<SimplifiedTrendReversalSec
                         Real Force Order Data
                       </p>
                       <p className="text-gray-400 text-xs">
-                        Assets: {unifiedAssets.size} • Timeline: {assetTimeline.size} • Filtro: $20K-50K+
+                        Assets: {unifiedAssets.size} • Timeline: {assetTimeline.size} • Filtro: 5min throttle
                       </p>
                     </div>
                   )}
