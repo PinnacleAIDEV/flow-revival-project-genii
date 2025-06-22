@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useKlineVolumeDetector } from '../../hooks/useKlineVolumeDetector';
 
 interface ProcessedVolumeData {
@@ -45,8 +45,8 @@ export const VolumeDataProcessor: React.FC<VolumeDataProcessorProps> = ({
 }) => {
   const { spotAlerts, futuresAlerts } = useKlineVolumeDetector();
 
-  useEffect(() => {
-    // Converter alertas para o formato esperado
+  // Memorizar a função de processamento para evitar loops infinitos
+  const processData = useCallback(() => {
     const spotVolume = spotAlerts.map(alert => ({
       id: alert.id,
       symbol: alert.asset,
@@ -82,12 +82,15 @@ export const VolumeDataProcessor: React.FC<VolumeDataProcessorProps> = ({
     onDataProcessed({
       spotVolume,
       futuresVolume,
-      microcaps: [] // Removido para economizar recursos
+      microcaps: []
     });
 
     console.log(`📊 Kline Volume Updated: Spot=${spotVolume.length}, Futures=${futuresVolume.length}`);
-    
   }, [spotAlerts, futuresAlerts, onDataProcessed]);
+
+  useEffect(() => {
+    processData();
+  }, [processData]);
 
   return null;
 };

@@ -1,16 +1,15 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Database, RefreshCw, Activity, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Database, RefreshCw, Activity, BarChart3, Timer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { useRealFlowData } from '../hooks/useRealFlowData';
 import { VolumeTable } from '../components/volume/VolumeTable';
-import { VolumeDataProcessor } from '../components/volume/VolumeDataProcessor';
 import { ErrorBoundary } from '../components/ui/error-boundary';
 import { NotificationManager } from '../components/notifications/NotificationManager';
 import { EnhancedLoading } from '../components/ui/enhanced-loading';
-import { useKlineVolumeDetector } from '../hooks/useKlineVolumeDetector';
+import { useAlternatingVolumeDetector } from '../hooks/useAlternatingVolumeDetector';
 
 interface VolumeData {
   id: string;
@@ -28,34 +27,51 @@ interface VolumeData {
   priceMovement?: number;
 }
 
-interface ProcessedVolumeData {
-  spotVolume: VolumeData[];
-  futuresVolume: VolumeData[];
-  microcaps: VolumeData[];
-}
-
 const UnusualVolume: React.FC = () => {
   const navigate = useNavigate();
-  const { flowData, isConnected, connectionStatus } = useRealFlowData();
-  const { totalAlerts, spotAlerts, futuresAlerts } = useKlineVolumeDetector();
+  const { isConnected, connectionStatus } = useRealFlowData();
+  const { totalAlerts, spotAlerts, futuresAlerts, currentMode } = useAlternatingVolumeDetector();
   
-  const [processedData, setProcessedData] = useState<ProcessedVolumeData>({
-    spotVolume: [],
-    futuresVolume: [],
-    microcaps: []
-  });
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [lastUpdate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
-
-  const handleDataProcessed = (data: ProcessedVolumeData) => {
-    setProcessedData(data);
-    setLastUpdate(new Date());
-  };
 
   const handleRefresh = () => {
     setLoading(true);
     setTimeout(() => setLoading(false), 1000);
   };
+
+  // Converter alertas para formato da tabela
+  const processedSpotData: VolumeData[] = spotAlerts.map(alert => ({
+    id: alert.id,
+    symbol: alert.asset,
+    volume: alert.volume,
+    volumeSpike: alert.volumeSpike,
+    price: alert.price,
+    change24h: alert.change24h,
+    exchange: 'Binance',
+    timestamp: alert.timestamp.toISOString(),
+    ticker: alert.ticker,
+    trades_count: 0,
+    type: alert.type,
+    strength: alert.strength,
+    priceMovement: alert.priceMovement
+  }));
+
+  const processedFuturesData: VolumeData[] = futuresAlerts.map(alert => ({
+    id: alert.id,
+    symbol: alert.asset,
+    volume: alert.volume,
+    volumeSpike: alert.volumeSpike,
+    price: alert.price,
+    change24h: alert.change24h,
+    exchange: 'Binance',
+    timestamp: alert.timestamp.toISOString(),
+    ticker: alert.ticker,
+    trades_count: 0,
+    type: alert.type,
+    strength: alert.strength,
+    priceMovement: alert.priceMovement
+  }));
 
   return (
     <ErrorBoundary>
@@ -79,12 +95,15 @@ const UnusualVolume: React.FC = () => {
                     <div className="absolute inset-0 bg-[#00E0FF]/20 rounded-lg animate-pulse"></div>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-[#F5F5F5] font-mono">KLINE VOLUME MONITOR 📊</h2>
+                    <h2 className="text-xl font-bold text-[#F5F5F5] font-mono">ALTERNATING VOLUME SCANNER 🔄</h2>
                     <div className="flex items-center space-x-4 text-sm text-[#AAAAAA]">
-                      <span>Rastreando candlesticks 3min com volume 3x+ acima da média diária</span>
-                      <span>Última atualização: {lastUpdate.toLocaleTimeString()}</span>
+                      <span>Busca alternada a cada 30s entre Spot e Futures</span>
+                      <div className="flex items-center space-x-1">
+                        <Timer className="w-3 h-3" />
+                        <span>Modo atual: <span className={`font-bold ${currentMode === 'spot' ? 'text-[#A6FF00]' : 'text-[#00E0FF]'}`}>{currentMode.toUpperCase()}</span></span>
+                      </div>
                       <Badge className={`${isConnected ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-                        {connectionStatus === 'connected' ? 'LIVE KLINES' : connectionStatus.toUpperCase()}
+                        {connectionStatus === 'connected' ? 'LIVE DATA' : connectionStatus.toUpperCase()}
                       </Badge>
                     </div>
                   </div>
@@ -117,20 +136,24 @@ const UnusualVolume: React.FC = () => {
             </div>
           </div>
 
-          {/* Data Processor */}
-          <VolumeDataProcessor onDataProcessed={handleDataProcessed} />
-
           {/* Loading State */}
           {connectionStatus === 'connecting' && (
             <EnhancedLoading 
               type="connection" 
-              message="Conectando ao stream de klines da Binance..."
+              message="Conectando ao stream de dados da Binance..."
             />
           )}
 
           {/* Statistics Summary */}
           {connectionStatus === 'connected' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
+                <div className="text-[#AAAAAA] text-sm">MODO ATUAL</div>
+                <div className={`text-2xl font-mono font-bold ${currentMode === 'spot' ? 'text-[#A6FF00]' : 'text-[#00E0FF]'}`}>
+                  {currentMode.toUpperCase()}
+                </div>
+                <div className="text-[#AAAAAA] text-xs">Alternando a cada 30s</div>
+              </div>
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
                 <div className="text-[#AAAAAA] text-sm">SPOT ALERTS</div>
                 <div className="text-[#F5F5F5] text-2xl font-mono font-bold">{spotAlerts.length}</div>
@@ -146,14 +169,14 @@ const UnusualVolume: React.FC = () => {
                 </div>
               </div>
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
-                <div className="text-[#AAAAAA] text-sm">TIMEFRAME</div>
-                <div className="text-[#F5F5F5] text-2xl font-mono font-bold">3MIN</div>
-                <div className="text-[#FF4D4D] text-xs">CANDLESTICK ANALYSIS</div>
-              </div>
-              <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
                 <div className="text-[#AAAAAA] text-sm">THRESHOLD</div>
                 <div className="text-[#F5F5F5] text-2xl font-mono font-bold">3X+</div>
                 <div className="text-[#A6FF00] text-xs">VOLUME MULTIPLIER</div>
+              </div>
+              <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
+                <div className="text-[#AAAAAA] text-sm">INTERVAL</div>
+                <div className="text-[#F5F5F5] text-2xl font-mono font-bold">30S</div>
+                <div className="text-[#FF4D4D] text-xs">ALTERNATING SCAN</div>
               </div>
             </div>
           )}
@@ -161,12 +184,12 @@ const UnusualVolume: React.FC = () => {
           {/* Volume Tables */}
           {connectionStatus === 'connected' ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <VolumeTable data={processedData.spotVolume} title="SPOT KLINE VOLUME ANOMALIES" />
-              <VolumeTable data={processedData.futuresVolume} title="FUTURES KLINE VOLUME ANOMALIES" />
+              <VolumeTable data={processedSpotData} title="SPOT VOLUME ANOMALIES" />
+              <VolumeTable data={processedFuturesData} title="FUTURES VOLUME ANOMALIES" />
             </div>
           ) : connectionStatus === 'error' ? (
             <div className="text-center py-12 text-red-400">
-              <p>Erro na conexão com dados de kline em tempo real</p>
+              <p>Erro na conexão com dados em tempo real</p>
               <Button onClick={handleRefresh} className="mt-4">Tentar Novamente</Button>
             </div>
           ) : (
@@ -178,14 +201,14 @@ const UnusualVolume: React.FC = () => {
             <div className="text-sm text-[#AAAAAA] space-y-2">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4 text-[#00E0FF]" />
-                <span className="text-[#00E0FF] font-semibold">COMO FUNCIONA:</span>
+                <span className="text-[#00E0FF] font-semibold">ESTRATÉGIA DE BUSCA ALTERNADA:</span>
               </div>
               <ul className="space-y-1 ml-6 text-xs">
-                <li>• Análise de candlesticks de 3 minutos em tempo real</li>
-                <li>• Detecção de volume 3x+ acima da média diária</li>
-                <li>• Classificação automática: SPOT (Buy/Sell) e FUTURES (Long/Short)</li>
-                <li>• Throttling de 3 minutos por ativo para evitar spam</li>
-                <li>• Força do sinal baseada no multiplicador de volume</li>
+                <li>• <strong>30 segundos SPOT</strong>: Detecta volume anormal em mercado à vista (Buy/Sell)</li>
+                <li>• <strong>30 segundos FUTURES</strong>: Detecta volume anormal em mercado futuro (Long/Short)</li>
+                <li>• <strong>Threshold</strong>: Volume 3x+ acima da média histórica de 20 períodos</li>
+                <li>• <strong>Dados Reais</strong>: WebSocket Binance em tempo real</li>
+                <li>• <strong>Anti-spam</strong>: Throttling de 2 minutos por ativo</li>
               </ul>
             </div>
           </div>
