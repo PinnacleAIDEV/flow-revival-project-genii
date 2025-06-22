@@ -18,18 +18,18 @@ export const useLiquidationData = () => {
   const { flowData } = useRealFlowData();
   const { saveLiquidation } = useSupabaseStorage();
   
-  // Usar dados persistidos - removendo o tipo genérico para evitar conflito
+  // Use raw persisted data without generic type constraint
   const { 
-    data: persistedLongLiquidations, 
-    addData: addLongLiquidations 
+    data: persistedLongData, 
+    addData: addLongData 
   } = usePersistedData({
     key: 'liquidations_long',
     maxAgeMinutes: 5
   });
   
   const { 
-    data: persistedShortLiquidations, 
-    addData: addShortLiquidations 
+    data: persistedShortData, 
+    addData: addShortData 
   } = usePersistedData({
     key: 'liquidations_short',
     maxAgeMinutes: 5
@@ -49,14 +49,18 @@ export const useLiquidationData = () => {
     lowCapShort: 0
   });
 
-  // Inicializar com dados persistidos - fazendo cast para o tipo correto
+  // Cast persisted data to correct type
+  const persistedLongLiquidations = persistedLongData as LiquidationBubble[];
+  const persistedShortLiquidations = persistedShortData as LiquidationBubble[];
+
+  // Initialize with persisted data
   useEffect(() => {
     console.log(`📊 Inicializando liquidações com dados persistidos:`);
     console.log(`- Long liquidations: ${persistedLongLiquidations.length}`);
     console.log(`- Short liquidations: ${persistedShortLiquidations.length}`);
     
-    setLongLiquidations(persistedLongLiquidations as LiquidationBubble[]);
-    setShortLiquidations(persistedShortLiquidations as LiquidationBubble[]);
+    setLongLiquidations(persistedLongLiquidations);
+    setShortLiquidations(persistedShortLiquidations);
   }, [persistedLongLiquidations, persistedShortLiquidations]);
 
   // NOVA: Função de priorização por relevância atual (substitui balanceLiquidations)
@@ -308,7 +312,7 @@ export const useLiquidationData = () => {
         
         // NOVA: Priorizar por relevância ao invés de totalLiquidated
         const prioritized = prioritizeLiquidationsByRelevance(updated);
-        addLongLiquidations(newLongLiquidations);
+        addLongData(newLongLiquidations);
         
         return prioritized;
       });
@@ -330,12 +334,12 @@ export const useLiquidationData = () => {
         
         // NOVA: Priorizar por relevância ao invés de totalLiquidated
         const prioritized = prioritizeLiquidationsByRelevance(updated);
-        addShortLiquidations(newShortLiquidations);
+        addShortData(newShortLiquidations);
         
         return prioritized;
       });
     }
-  }, [flowData, processedTickers, saveLiquidation, addLongLiquidations, addShortLiquidations]);
+  }, [flowData, processedTickers, saveLiquidation, addLongData, addShortData]);
 
   // Atualizar stats quando liquidações mudarem
   useEffect(() => {
