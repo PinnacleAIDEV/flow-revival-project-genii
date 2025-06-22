@@ -1,303 +1,109 @@
-// Helper function to safely create dates
-export const safeCreateDate = (timestamp: any): Date => {
-  if (!timestamp) return new Date();
-  
-  let dateValue: Date;
-  
-  if (timestamp instanceof Date) {
-    dateValue = timestamp;
-  } else if (typeof timestamp === 'number') {
-    dateValue = new Date(timestamp);
-  } else if (typeof timestamp === 'string') {
-    dateValue = new Date(timestamp);
-  } else {
-    console.warn('Invalid timestamp format:', timestamp);
-    return new Date();
+import { LiquidationBubble } from '../types/liquidation';
+
+export const safeCreateDate = (dateInput: any): Date => {
+  if (dateInput instanceof Date) return dateInput;
+  if (typeof dateInput === 'string' || typeof dateInput === 'number') {
+    const date = new Date(dateInput);
+    return isNaN(date.getTime()) ? new Date() : date;
   }
-  
-  // Check if the date is valid
-  if (isNaN(dateValue.getTime())) {
-    console.warn('Invalid date created from timestamp:', timestamp);
-    return new Date();
-  }
-  
-  return dateValue;
+  return new Date();
 };
 
-export const formatAmount = (amount: number) => {
-  if (!amount || isNaN(amount)) return '$0.00';
+export const formatAmount = (amount: number): string => {
   if (amount >= 1e9) return `$${(amount / 1e9).toFixed(2)}B`;
   if (amount >= 1e6) return `$${(amount / 1e6).toFixed(2)}M`;
   if (amount >= 1e3) return `$${(amount / 1e3).toFixed(2)}K`;
   return `$${amount.toFixed(2)}`;
 };
 
-// CORRIGIDO: Thresholds mais sensíveis e lógica mais clara
-export const calculateLongLiquidationThreshold = (
-  ticker: string, 
-  isHighMarketCap: boolean, 
-  currentVolume: number
-) => {
-  // Long liquidations: detectar QUEDAS (preços negativos)
-  const baseThresholds = {
-    highCap: { volume: 30000, priceChange: -1.5 }, // Reduzido para ser mais sensível
-    lowCap: { volume: 10000, priceChange: -2.5 }   // Reduzido para ser mais sensível
-  };
-  
-  const threshold = isHighMarketCap ? baseThresholds.highCap : baseThresholds.lowCap;
-  
-  // Ajustar threshold baseado no volume atual (mais sensível)
-  const volumeMultiplier = Math.min(Math.max(currentVolume / 50000, 0.3), 1.5);
-  
-  return {
-    volume: threshold.volume * volumeMultiplier,
-    priceChange: threshold.priceChange * volumeMultiplier // Quedas proporcionais ao volume
-  };
-};
-
-export const calculateShortLiquidationThreshold = (
-  ticker: string, 
-  isHighMarketCap: boolean, 
-  currentVolume: number
-) => {
-  // Short liquidations: detectar ALTAS (preços positivos)  
-  const baseThresholds = {
-    highCap: { volume: 30000, priceChange: 1.5 }, // Reduzido para ser mais sensível
-    lowCap: { volume: 10000, priceChange: 2.5 }   // Reduzido para ser mais sensível
-  };
-  
-  const threshold = isHighMarketCap ? baseThresholds.highCap : baseThresholds.lowCap;
-  
-  // Ajustar threshold baseado no volume atual (mais sensível)
-  const volumeMultiplier = Math.min(Math.max(currentVolume / 50000, 0.3), 1.5);
-  
-  return {
-    volume: threshold.volume * volumeMultiplier,
-    priceChange: threshold.priceChange * volumeMultiplier // Altas proporcionais ao volume
-  };
-};
-
-export const calculateIntensity = (
-  volumeValue: number, 
-  priceChange: number, 
-  threshold: { volume: number; priceChange: number }
-) => {
-  const volumeRatio = volumeValue / threshold.volume;
-  const priceRatio = Math.abs(priceChange) / Math.abs(threshold.priceChange);
-  const combinedRatio = (volumeRatio + priceRatio) / 2;
-  
-  if (combinedRatio >= 10) return 5;
-  if (combinedRatio >= 5) return 4;
-  if (combinedRatio >= 3) return 3;
-  if (combinedRatio >= 1.5) return 2;
-  return 1;
-};
-
-// CORRIGIDO: Lógica clara - LONG liquidations em QUEDAS
-export const shouldDetectLongLiquidation = (
-  volumeValue: number,
-  priceChange: number,
-  threshold: { volume: number; priceChange: number }
-) => {
-  const volumeOk = volumeValue > threshold.volume;
-  const priceOk = priceChange <= threshold.priceChange; // <= para quedas (negativos)
-  
-  return volumeOk && priceOk;
-};
-
-// CORRIGIDO: Lógica clara - SHORT liquidations em ALTAS
-export const shouldDetectShortLiquidation = (
-  volumeValue: number,
-  priceChange: number,
-  threshold: { volume: number; priceChange: number }
-) => {
-  const volumeOk = volumeValue > threshold.volume;
-  const priceOk = priceChange >= threshold.priceChange; // >= para altas (positivos)
-  
-  return volumeOk && priceOk;
-};
-
-// CORRIGIDO: Logging mais claro para debug
-export const logLongLiquidationDetection = (
-  ticker: string,
-  volumeValue: number,
-  priceChange: number,
-  threshold: { volume: number; priceChange: number },
-  detected: boolean
-) => {
-  const status = detected ? '🔴 LONG LIQUIDATION' : '❌ LONG SKIPPED';
-  console.log(`${status} ${ticker}: Vol=${(volumeValue/1000).toFixed(0)}K (needs >${(threshold.volume/1000).toFixed(0)}K), Price=${priceChange.toFixed(2)}% (needs <=${threshold.priceChange.toFixed(1)}%)`);
-};
-
-export const logShortLiquidationDetection = (
-  ticker: string,
-  volumeValue: number,
-  priceChange: number,
-  threshold: { volume: number; priceChange: number },
-  detected: boolean
-) => {
-  const status = detected ? '🟢 SHORT LIQUIDATION' : '❌ SHORT SKIPPED';
-  console.log(`${status} ${ticker}: Vol=${(volumeValue/1000).toFixed(0)}K (needs >${(threshold.volume/1000).toFixed(0)}K), Price=${priceChange.toFixed(2)}% (needs >=${threshold.priceChange.toFixed(1)}%)`);
-};
-
-// PRINCIPAL: Função que detecta AMBOS os tipos corretamente
 export const detectLiquidations = (
   ticker: string,
   volumeValue: number,
   priceChange: number,
   isHighMarketCap: boolean
 ) => {
-  const longThreshold = calculateLongLiquidationThreshold(ticker, isHighMarketCap, volumeValue);
-  const shortThreshold = calculateShortLiquidationThreshold(ticker, isHighMarketCap, volumeValue);
-  
-  const longDetected = shouldDetectLongLiquidation(volumeValue, priceChange, longThreshold);
-  const shortDetected = shouldDetectShortLiquidation(volumeValue, priceChange, shortThreshold);
-  
-  // Log TODAS as tentativas para debug
-  logLongLiquidationDetection(ticker, volumeValue, priceChange, longThreshold, longDetected);
-  logShortLiquidationDetection(ticker, volumeValue, priceChange, shortThreshold, shortDetected);
-  
-  // CRUCIAL: NUNCA retornar ambos - priorizar pelo tipo mais forte
-  if (longDetected && shortDetected) {
-    console.warn(`⚠️ CONFLITO DETECTADO: ${ticker} - Priorizando por distância do threshold.`);
-    
-    // Calcular distância dos thresholds para decidir qual é mais forte
-    const longDistance = Math.abs(priceChange - longThreshold.priceChange);
-    const shortDistance = Math.abs(priceChange - shortThreshold.priceChange);
-    
-    if (longDistance < shortDistance) {
-      // Long é mais forte (está mais próximo do threshold)
-      console.log(`📍 PRIORIDADE LONG: ${ticker} - Distance=${longDistance.toFixed(2)} vs ${shortDistance.toFixed(2)}`);
-      return {
-        longLiquidation: {
-          type: 'long' as const,
-          threshold: longThreshold,
-          intensity: calculateIntensity(volumeValue, priceChange, longThreshold)
-        },
-        shortLiquidation: null
-      };
-    } else {
-      // Short é mais forte (está mais próximo do threshold)
-      console.log(`📍 PRIORIDADE SHORT: ${ticker} - Distance=${shortDistance.toFixed(2)} vs ${longDistance.toFixed(2)}`);
-      return {
-        longLiquidation: null,
-        shortLiquidation: {
-          type: 'short' as const,
-          threshold: shortThreshold,
-          intensity: calculateIntensity(volumeValue, priceChange, shortThreshold)
-        }
-      };
-    }
-  }
-  
-  // Casos normais (apenas um tipo detectado)
-  return {
-    longLiquidation: longDetected ? {
-      type: 'long' as const,
-      threshold: longThreshold,
-      intensity: calculateIntensity(volumeValue, priceChange, longThreshold)
-    } : null,
-    shortLiquidation: shortDetected ? {
-      type: 'short' as const,
-      threshold: shortThreshold,
-      intensity: calculateIntensity(volumeValue, priceChange, shortThreshold)
-    } : null
-  };
+  // Long liquidation detection (price falling)
+  const longLiquidation = priceChange <= -2.5 && volumeValue > 50000 ? {
+    intensity: Math.min(5, Math.abs(priceChange) / 2)
+  } : null;
+
+  // Short liquidation detection (price rising)
+  const shortLiquidation = priceChange >= 2.5 && volumeValue > 50000 ? {
+    intensity: Math.min(5, priceChange / 2)
+  } : null;
+
+  return { longLiquidation, shortLiquidation };
 };
 
-// NOVA: Função para calcular score de relevância atual
 export const calculateRelevanceScore = (liquidation: LiquidationBubble): number => {
-  const now = new Date();
-  const lastUpdateTime = safeCreateDate(liquidation.lastUpdateTime); // FIX: Use safeCreateDate
-  const minutesAgo = (now.getTime() - lastUpdateTime.getTime()) / 60000;
+  let score = 0;
   
-  // Decay temporal: menos relevante com o tempo (0% relevância após 15min)
-  const timeDecay = Math.max(0, 1 - (minutesAgo / 15));
+  // Market cap scoring
+  if (liquidation.marketCap === 'high') score += 50;
+  else if (liquidation.marketCap === 'mid') score += 30;
+  else score += 10;
   
-  // Score baseado em fatores ATUAIS
-  const intensityScore = liquidation.intensity * 20; // 20-100 pontos
-  const currentAmountScore = Math.log10(Math.max(liquidation.amount, 1)) * 10; // Log scale
-  const volatilityScore = Math.abs(liquidation.change24h) * 2; // Volatilidade atual
+  // Volume scoring
+  score += Math.min(30, liquidation.amount / 1000000);
   
-  const finalScore = (intensityScore + currentAmountScore + volatilityScore) * timeDecay;
+  // Price change scoring
+  score += Math.min(20, Math.abs(liquidation.change24h));
   
-  return Math.max(0, finalScore);
+  return score;
 };
 
-// NOVA: Logging detalhado para decisões de filtro
 export const logFilteringDecision = (
-  liquidation: LiquidationBubble, 
-  score: number, 
-  included: boolean,
-  reason: string = ''
-) => {
-  const status = included ? '✅ INCLUDED' : '❌ FILTERED';
-  const lastUpdateTime = safeCreateDate(liquidation.lastUpdateTime); // FIX: Use safeCreateDate
-  const minutesAgo = Math.round((Date.now() - lastUpdateTime.getTime()) / 60000);
-  
-  console.log(`${status} ${liquidation.asset}: Score=${score.toFixed(1)} ` +
-             `(Current=${formatAmount(liquidation.amount)}, ` +
-             `Intensity=${liquidation.intensity}, ` +
-             `Age=${minutesAgo}min, ` +
-             `Total=${formatAmount(liquidation.totalLiquidated)}) ${reason}`);
+  liquidation: LiquidationBubble,
+  score: number,
+  isSelected: boolean,
+  reason: string
+): void => {
+  console.log(`🎯 ${liquidation.asset} (${liquidation.marketCap.toUpperCase()}) - Score: ${score.toFixed(1)} - ${isSelected ? '✅ SELECTED' : '❌ FILTERED'} - ${reason}`);
 };
 
-// NOVA: Análise de balanceamento
-export const analyzeBalance = (longLiquidations: LiquidationBubble[], shortLiquidations: LiquidationBubble[]) => {
-  const longHighCapCurrent = longLiquidations.filter(l => l.marketCap === 'high')
-    .reduce((sum, l) => sum + l.amount, 0);
-  const longLowCapCurrent = longLiquidations.filter(l => l.marketCap === 'low')
-    .reduce((sum, l) => sum + l.amount, 0);
+export const analyzeBalance = (
+  longLiquidations: LiquidationBubble[],
+  shortLiquidations: LiquidationBubble[]
+): void => {
+  const longByMarketCap = {
+    high: longLiquidations.filter(l => l.marketCap === 'high').length,
+    mid: longLiquidations.filter(l => l.marketCap === 'mid').length,
+    low: longLiquidations.filter(l => l.marketCap === 'low').length
+  };
   
-  const shortHighCapCurrent = shortLiquidations.filter(l => l.marketCap === 'high')
-    .reduce((sum, l) => sum + l.amount, 0);
-  const shortLowCapCurrent = shortLiquidations.filter(l => l.marketCap === 'low')
-    .reduce((sum, l) => sum + l.amount, 0);
+  const shortByMarketCap = {
+    high: shortLiquidations.filter(l => l.marketCap === 'high').length,
+    mid: shortLiquidations.filter(l => l.marketCap === 'mid').length,
+    low: shortLiquidations.filter(l => l.marketCap === 'low').length
+  };
   
-  console.log(`💰 BALANCE CHECK ATUAL:`);
-  console.log(`- Long: High Cap ${formatAmount(longHighCapCurrent)} | Low Cap ${formatAmount(longLowCapCurrent)}`);
-  console.log(`- Short: High Cap ${formatAmount(shortHighCapCurrent)} | Low Cap ${formatAmount(shortLowCapCurrent)}`);
-  
-  const totalCurrent = longHighCapCurrent + longLowCapCurrent + shortHighCapCurrent + shortLowCapCurrent;
-  console.log(`- Total liquidado atual: ${formatAmount(totalCurrent)}`);
+  console.log('📊 BALANCE ANALYSIS:');
+  console.log(`- Long: High=${longByMarketCap.high}, Mid=${longByMarketCap.mid}, Low=${longByMarketCap.low}`);
+  console.log(`- Short: High=${shortByMarketCap.high}, Mid=${shortByMarketCap.mid}, Low=${shortByMarketCap.low}`);
 };
 
-// NOVA: Atualização com janela deslizante (30min máximo)
 export const updateLiquidationWithTimeLimit = (
-  existing: LiquidationBubble, 
+  existing: LiquidationBubble,
   newAmount: number
 ): LiquidationBubble => {
   const now = new Date();
-  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
-  const lastUpdateTime = safeCreateDate(existing.lastUpdateTime); // FIX: Use safeCreateDate
+  const timeWindow = 5 * 60 * 1000; // 5 minutes
   
-  // Reset acumulação se muito antiga
-  const shouldReset = lastUpdateTime < thirtyMinutesAgo;
-  
-  if (shouldReset) {
-    const minutesOld = Math.round((now.getTime() - lastUpdateTime.getTime()) / 60000);
-    console.log(`🔄 RESET ACUMULAÇÃO: ${existing.asset} (${minutesOld}min antiga)`);
+  // If the existing liquidation is within the time window, accumulate
+  if (now.getTime() - existing.lastUpdateTime.getTime() < timeWindow) {
+    return {
+      ...existing,
+      amount: newAmount,
+      totalLiquidated: existing.totalLiquidated + newAmount,
+      lastUpdateTime: now
+    };
   }
   
+  // Otherwise, reset with new amount
   return {
     ...existing,
-    amount: newAmount, // SEMPRE o valor atual da liquidação
-    totalLiquidated: shouldReset ? newAmount : existing.totalLiquidated + newAmount,
+    amount: newAmount,
+    totalLiquidated: newAmount,
     lastUpdateTime: now
   };
 };
-
-interface LiquidationBubble {
-  id: string;
-  asset: string;
-  type: 'long' | 'short';
-  amount: number;
-  price: number;
-  marketCap: 'high' | 'low';
-  timestamp: Date;
-  intensity: number;
-  change24h: number;
-  volume: number;
-  lastUpdateTime: Date;
-  totalLiquidated: number;
-}
