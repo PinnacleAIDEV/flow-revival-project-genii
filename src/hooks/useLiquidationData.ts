@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { LiquidationBubble, getMarketCapCategory, LiquidationStats } from '../types/liquidation';
 import { 
@@ -17,11 +18,11 @@ export const useLiquidationData = () => {
   const { flowData } = useRealFlowData();
   const { saveLiquidation } = useSupabaseStorage();
   
-  // Usar dados persistidos
+  // Usar dados persistidos - removendo o tipo genérico para evitar conflito
   const { 
     data: persistedLongLiquidations, 
     addData: addLongLiquidations 
-  } = usePersistedData<LiquidationBubble>({
+  } = usePersistedData({
     key: 'liquidations_long',
     maxAgeMinutes: 5
   });
@@ -29,7 +30,7 @@ export const useLiquidationData = () => {
   const { 
     data: persistedShortLiquidations, 
     addData: addShortLiquidations 
-  } = usePersistedData<LiquidationBubble>({
+  } = usePersistedData({
     key: 'liquidations_short',
     maxAgeMinutes: 5
   });
@@ -48,14 +49,14 @@ export const useLiquidationData = () => {
     lowCapShort: 0
   });
 
-  // Inicializar com dados persistidos
+  // Inicializar com dados persistidos - fazendo cast para o tipo correto
   useEffect(() => {
     console.log(`📊 Inicializando liquidações com dados persistidos:`);
     console.log(`- Long liquidations: ${persistedLongLiquidations.length}`);
     console.log(`- Short liquidations: ${persistedShortLiquidations.length}`);
     
-    setLongLiquidations(persistedLongLiquidations);
-    setShortLiquidations(persistedShortLiquidations);
+    setLongLiquidations(persistedLongLiquidations as LiquidationBubble[]);
+    setShortLiquidations(persistedShortLiquidations as LiquidationBubble[]);
   }, [persistedLongLiquidations, persistedShortLiquidations]);
 
   // NOVA: Função de priorização por relevância atual (substitui balanceLiquidations)
