@@ -43,6 +43,8 @@ export const useLiquidationData = () => {
     totalShort: 0,
     highCapLong: 0,
     highCapShort: 0,
+    midCapLong: 0,
+    midCapShort: 0,
     lowCapLong: 0,
     lowCapShort: 0
   });
@@ -60,35 +62,43 @@ export const useLiquidationData = () => {
   // NOVA: Função de priorização por relevância atual (substitui balanceLiquidations)
   const prioritizeLiquidationsByRelevance = (liquidations: LiquidationBubble[]): LiquidationBubble[] => {
     const highCap = liquidations.filter(liq => liq.marketCap === 'high');
+    const midCap = liquidations.filter(liq => liq.marketCap === 'mid');
     const lowCap = liquidations.filter(liq => liq.marketCap === 'low');
     
     console.log(`🎯 PRIORIZANDO POR RELEVÂNCIA:`);
     console.log(`- High Cap total: ${highCap.length} liquidações`);
+    console.log(`- Mid Cap total: ${midCap.length} liquidações`);
     console.log(`- Low Cap total: ${lowCap.length} liquidações`);
     
     // NOVA ORDENAÇÃO: Por relevância atual (não totalLiquidated)
     const sortedHighCap = highCap
       .map(liq => ({ liq, score: calculateRelevanceScore(liq) }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 25);
+      .slice(0, 20);
+    
+    const sortedMidCap = midCap
+      .map(liq => ({ liq, score: calculateRelevanceScore(liq) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20);
     
     const sortedLowCap = lowCap
       .map(liq => ({ liq, score: calculateRelevanceScore(liq) }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 25);
+      .slice(0, 10);
     
     // Log decisões de filtro
-    [...sortedHighCap, ...sortedLowCap].forEach(({ liq, score }, index) => {
+    [...sortedHighCap, ...sortedMidCap, ...sortedLowCap].forEach(({ liq, score }, index) => {
       logFilteringDecision(liq, score, index < 50, index < 50 ? 'TOP_50' : 'FILTERED_OUT');
     });
     
     // Mesclar e ordenar final por relevância
-    const finalResult = [...sortedHighCap.map(s => s.liq), ...sortedLowCap.map(s => s.liq)]
+    const finalResult = [...sortedHighCap.map(s => s.liq), ...sortedMidCap.map(s => s.liq), ...sortedLowCap.map(s => s.liq)]
       .sort((a, b) => calculateRelevanceScore(b) - calculateRelevanceScore(a))
       .slice(0, 50);
     
     console.log(`🏆 RESULTADO FINAL: ${finalResult.length} liquidações selecionadas por relevância`);
     console.log(`- High Cap selecionadas: ${finalResult.filter(l => l.marketCap === 'high').length}`);
+    console.log(`- Mid Cap selecionadas: ${finalResult.filter(l => l.marketCap === 'mid').length}`);
     console.log(`- Low Cap selecionadas: ${finalResult.filter(l => l.marketCap === 'low').length}`);
     
     return finalResult;
@@ -104,7 +114,7 @@ export const useLiquidationData = () => {
       
       setLongLiquidations(prev => {
         const filtered = prev.filter(liq => {
-          const lastUpdateTime = safeCreateDate(liq.lastUpdateTime); // FIX: Use safeCreateDate
+          const lastUpdateTime = safeCreateDate(liq.lastUpdateTime);
           return lastUpdateTime > fifteenMinutesAgo;
         });
         const removed = prev.length - filtered.length;
@@ -116,7 +126,7 @@ export const useLiquidationData = () => {
       
       setShortLiquidations(prev => {
         const filtered = prev.filter(liq => {
-          const lastUpdateTime = safeCreateDate(liq.lastUpdateTime); // FIX: Use safeCreateDate
+          const lastUpdateTime = safeCreateDate(liq.lastUpdateTime);
           return lastUpdateTime > fifteenMinutesAgo;
         });
         const removed = prev.length - filtered.length;
@@ -139,6 +149,8 @@ export const useLiquidationData = () => {
       totalShort: shorts.length,
       highCapLong: longs.filter(l => l.marketCap === 'high').length,
       highCapShort: shorts.filter(l => l.marketCap === 'high').length,
+      midCapLong: longs.filter(l => l.marketCap === 'mid').length,
+      midCapShort: shorts.filter(l => l.marketCap === 'mid').length,
       lowCapLong: longs.filter(l => l.marketCap === 'low').length,
       lowCapShort: shorts.filter(l => l.marketCap === 'low').length
     };
@@ -153,6 +165,9 @@ export const useLiquidationData = () => {
     
     if (newStats.highCapLong === 0 || newStats.highCapShort === 0) {
       console.warn('⚠️ DESEQUILÍBRIO: Faltam liquidações HIGH CAP em algum tipo');
+    }
+    if (newStats.midCapLong === 0 || newStats.midCapShort === 0) {
+      console.warn('⚠️ DESEQUILÍBRIO: Faltam liquidações MID CAP em algum tipo');
     }
     if (newStats.lowCapLong === 0 || newStats.lowCapShort === 0) {
       console.warn('⚠️ DESEQUILÍBRIO: Faltam liquidações LOW CAP em algum tipo');

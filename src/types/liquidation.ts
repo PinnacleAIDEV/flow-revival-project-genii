@@ -1,4 +1,5 @@
 
+
 export interface LiquidationBubble {
   id: string;
   asset: string;
@@ -85,3 +86,4 @@ export const defaultDetectionConfig: DetectionConfig = {
   midCapRatio: 0.3,
   lowCapRatio: 0.3
 };
+

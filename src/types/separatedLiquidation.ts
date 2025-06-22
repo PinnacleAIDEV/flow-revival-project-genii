@@ -1,55 +1,50 @@
 
-// Interfaces específicas para Long e Short liquidations
 export interface LongLiquidationAsset {
   asset: string;
   ticker: string;
   price: number;
-  marketCap: 'high' | 'low';
-  
-  // Apenas dados LONG
+  marketCap: 'high' | 'mid' | 'low';
   longPositions: number;
   longLiquidated: number;
-  
-  // Dados temporais
   lastUpdateTime: Date;
   firstDetectionTime: Date;
-  
-  // Métricas de análise
   volatility: number;
   intensity: number;
-  
-  // Histórico apenas LONG
-  liquidationHistory: Array<{
-    type: 'long';
-    amount: number;
-    timestamp: Date;
-    change24h: number;
-  }>;
+  liquidationHistory: LiquidationHistoryEntry[];
 }
 
 export interface ShortLiquidationAsset {
   asset: string;
   ticker: string;
   price: number;
-  marketCap: 'high' | 'low';
-  
-  // Apenas dados SHORT
+  marketCap: 'high' | 'mid' | 'low';
   shortPositions: number;
   shortLiquidated: number;
-  
-  // Dados temporais
   lastUpdateTime: Date;
   firstDetectionTime: Date;
-  
-  // Métricas de análise
   volatility: number;
   intensity: number;
-  
-  // Histórico apenas SHORT
-  liquidationHistory: Array<{
-    type: 'short';
-    amount: number;
-    timestamp: Date;
-    change24h: number;
-  }>;
+  liquidationHistory: LiquidationHistoryEntry[];
+}
+
+export interface LiquidationHistoryEntry {
+  type: 'long' | 'short';
+  amount: number;
+  timestamp: Date;
+  change24h: number;
+}
+
+// Estatísticas para liquidações separadas
+export interface SeparatedLiquidationStats {
+  totalLongAssets: number;
+  totalShortAssets: number;
+  highCapLongAssets: number;
+  highCapShortAssets: number;
+  midCapLongAssets: number;
+  midCapShortAssets: number;
+  lowCapLongAssets: number;
+  lowCapShortAssets: number;
+  totalLongVolume: number;
+  totalShortVolume: number;
+  avgIntensity: number;
 }
