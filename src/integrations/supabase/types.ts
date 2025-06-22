@@ -252,6 +252,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_unused_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_active_assets_optimized: {
         Args: { limit_count?: number }
         Returns: {

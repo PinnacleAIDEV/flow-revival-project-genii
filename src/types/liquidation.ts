@@ -5,7 +5,7 @@ export interface LiquidationBubble {
   type: 'long' | 'short';
   amount: number;
   price: number;
-  marketCap: 'high' | 'low';
+  marketCap: 'high' | 'mid' | 'low';
   timestamp: Date;
   intensity: number;
   change24h: number;
@@ -24,9 +24,8 @@ export interface TrendReversal {
   timestamp: Date;
   intensity: number;
   price: number;
-  marketCap: 'high' | 'low';
+  marketCap: 'high' | 'mid' | 'low';
   
-  // NOVOS campos para melhor análise
   positionsCount: {
     previousPeriod: { long: number; short: number; };
     currentPeriod: { long: number; short: number; };
@@ -39,57 +38,25 @@ export interface TrendReversal {
   timeframe: string;
 }
 
-// Lista expandida de ativos high market cap (Top 100+)
-export const highMarketCapAssets = [
-  // Top 20 principais
-  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'TRXUSDT', 
-  'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'DOTUSDT', 'SHIBUSDT', 'LTCUSDT', 'BCHUSDT', 
-  'UNIUSDT', 'WBTCUSDT', 'NEARUSDT', 'ATOMUSDT', 'XLMUSDT',
+// ATUALIZADO: Classificação de market cap baseada em valores reais de mercado
+// HIGH CAP: >= $10B | MID CAP: $1B-$10B | LOW CAP: < $1B
+export const getMarketCapCategory = (ticker: string): 'high' | 'mid' | 'low' => {
+  // Esta função agora é apenas fallback - usar marketCapService para dados reais
+  const symbol = ticker.replace('USDT', '').replace('USDC', '').replace('BUSD', '');
   
-  // Top 21-50
-  'VETUSDT', 'FILUSDT', 'ETCUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 
-  'CHZUSDT', 'GALAUSDT', 'ENJUSDT', 'QNTUSDT', 'FLOWUSDT', 'ICPUSDT', 'THETAUSDT', 
-  'XTZUSDT', 'MKRUSDT', 'FTMUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT', 'COMPUSDT',
-  
-  // Top 51-80
-  'SUSHIUSDT', 'YFIUSDT', 'ZRXUSDT', 'BATUSDT', 'RENUSDT', 'KNCUSDT', 'LRCUSDT', 
-  'ALPHAUSDT', 'ZENUSDT', 'RUNEUSDT', 'OCEANUSDT', 'RSRUSDT', 'KAVAUSDT', 'IOTAUSDT',
-  'ONTUSDT', 'ZILUSDT', 'QTMUSDT', 'WAVESUSDT', 'ICXUSDT', 'SCUSDT',
-  
-  // DeFi e L2s importantes
-  'ARBUSDT', 'OPUSDT', 'LDOUSDT', 'RPLRUSDT', 'GMXUSDT', 'PEPEUSDT', 'INJUSDT',
-  'SUIUSDT', 'APTUSDT', 'STXUSDT', 'MINAUSDT', 'CFXUSDT', 'KASUSDT',
-  
-  // Adicionais para maior cobertura
-  'TONUSDT', 'HBARUSDT', 'RENDERUSDT', 'IMXUSDT', 'FETUSDT', 'GRTUSDT', 'SANDUSDT',
-  'ROSEUSDT', 'DYDXUSDT', 'ENSUSDT', '1INCHUSDT', 'PERPUSDT', 'MASKUSDT', 'CTSIUSDT'
-];
+  const highCapSymbols = new Set([
+    'BTC', 'ETH', 'BNB', 'XRP', 'ADA', 'SOL', 'DOGE', 'DOT', 'LINK', 'MATIC', 'AVAX', 'LTC', 'BCH'
+  ]);
 
-// Assets considerados low market cap para contraste
-export const lowMarketCapAssets = [
-  // Memecoins e tokens menores
-  'FLOKIUSDT', 'BONKUSDT', 'WIFUSDT', 'MEMEUSDT', 'TURBOUSDT', 'BOMEUSDT',
-  '1000RATSUSDT', 'ORDIUSDT', '1000SATSUSDT', 'JUPUSDT', 'WUSDT', 'MYRORUSDT',
-  
-  // Tokens emergentes e de menor market cap
-  'NKNUSDT', 'STORJUSDT', 'RAYUSDT', 'SPELLUSDT', 'JASMYUSDT', 'HIGHUSDT',
-  'PORTALUSDT', 'PIXELUSDT', 'STRKUSDT', 'WUSDT', 'ACEUSDT', 'NFPUSDT',
-  'AIUSDT', 'XAIUSDT', 'MANTAUSDT', 'ALTUSDT', 'PYTHUSDT', 'RONINUSDT',
-  
-  // Gaming e NFT tokens menores
-  'YGGUSDT', 'ALICEUSDT', 'TLMUSDT', 'DEGOUSDT', 'SUPERUSDT', 'GHSTUSDT',
-  'MCUSDT', 'PROSUSDT', 'FTTUSDT', 'LOOMUSDT', 'COMBOUSDT', 'MAVUSDT'
-];
+  const midCapSymbols = new Set([
+    'UNI', 'ATOM', 'XLM', 'VET', 'FIL', 'ETC', 'MANA', 'SAND', 'AXS', 'APE', 'CHZ', 'GALA', 
+    'ENJ', 'FLOW', 'ICP', 'THETA', 'XTZ', 'MKR', 'FTM', 'AAVE', 'SNX', 'CRV', 'COMP',
+    'ARB', 'OP', 'LDO', 'INJ', 'SUI', 'APT', 'STX', 'MINA', 'TON', 'HBAR', 'RENDER', 'IMX', 'FET', 'GRT'
+  ]);
 
-export const getMarketCapCategory = (ticker: string): 'high' | 'low' => {
-  if (highMarketCapAssets.includes(ticker)) return 'high';
-  if (lowMarketCapAssets.includes(ticker)) return 'low';
-  
-  // Classificação automática baseada no ticker
-  // Tokens com nomes muito específicos ou números tendem a ser low cap
-  if (ticker.includes('1000') || ticker.length > 8) return 'low';
-  
-  return 'high'; // Default para high cap se não identificado
+  if (highCapSymbols.has(symbol)) return 'high';
+  if (midCapSymbols.has(symbol)) return 'mid';
+  return 'low';
 };
 
 export interface LiquidationStats {
@@ -97,21 +64,24 @@ export interface LiquidationStats {
   totalShort: number;
   highCapLong: number;
   highCapShort: number;
+  midCapLong: number;
+  midCapShort: number;
   lowCapLong: number;
   lowCapShort: number;
 }
 
-// Configurações para detecção balanceada
 export interface DetectionConfig {
   minLiquidationsPerType: number;
   maxLiquidationsPerType: number;
-  highCapRatio: number; // Percentual de high cap (0.5 = 50%)
-  lowCapRatio: number;  // Percentual de low cap (0.5 = 50%)
+  highCapRatio: number;
+  midCapRatio: number;
+  lowCapRatio: number;
 }
 
 export const defaultDetectionConfig: DetectionConfig = {
-  minLiquidationsPerType: 5,
-  maxLiquidationsPerType: 15,
-  highCapRatio: 0.5,
-  lowCapRatio: 0.5
+  minLiquidationsPerType: 3, // Reduzido para economizar dados
+  maxLiquidationsPerType: 10, // Reduzido para economizar dados
+  highCapRatio: 0.4,
+  midCapRatio: 0.3,
+  lowCapRatio: 0.3
 };

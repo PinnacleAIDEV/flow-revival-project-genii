@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { LongLiquidationAsset } from '../types/separatedLiquidation';
 import { useRealLiquidationData } from './useRealLiquidationData';
 import { safeCreateDate } from '../utils/liquidationUtils';
+import { marketCapService } from '../services/MarketCapService';
 
 export const useRealLongLiquidations = () => {
   const { longLiquidations } = useRealLiquidationData();
@@ -11,72 +11,74 @@ export const useRealLongLiquidations = () => {
   useEffect(() => {
     if (!longLiquidations || longLiquidations.length === 0) return;
 
-    const now = new Date();
-    const updatedAssets = new Map(longAssets);
+    const processLiquidations = async () => {
+      const now = new Date();
+      const updatedAssets = new Map(longAssets);
 
-    console.log(`🔴 PROCESSING ${longLiquidations.length} REAL LONG liquidations...`);
+      console.log(`🔴 PROCESSING ${longLiquidations.length} REAL LONG liquidations...`);
 
-    longLiquidations.forEach(liquidation => {
-      try {
-        // NOVO FILTRO: Aplicar thresholds específicos
-        const minThreshold = liquidation.marketCap === 'high' ? 50000 : 20000; // $50K high cap, $20K low cap
-        
-        if (liquidation.amount < minThreshold) {
-          return; // Skip liquidações abaixo do threshold
-        }
-
-        const assetName = liquidation.asset;
-        
-        const existing = updatedAssets.get(assetName);
-        if (existing) {
-          const updated: LongLiquidationAsset = {
-            ...existing,
-            price: liquidation.price,
-            longPositions: existing.longPositions + 1,
-            longLiquidated: existing.longLiquidated + liquidation.amount,
-            lastUpdateTime: now,
-            intensity: Math.max(existing.intensity, liquidation.intensity),
-            volatility: 0,
-            liquidationHistory: [
-              ...existing.liquidationHistory.slice(-19),
-              {
+      for (const liquidation of longLiquidations) {
+        try {
+          // Obter market cap real
+          const realMarketCap = await marketCapService.getMarketCapCategory(liquidation.ticker);
+          
+          // NOVOS FILTROS: Apenas liquidações puras sem análise de preço
+          const assetName = liquidation.asset;
+          
+          const existing = updatedAssets.get(assetName);
+          if (existing) {
+            const updated: LongLiquidationAsset = {
+              ...existing,
+              price: liquidation.price,
+              marketCap: realMarketCap,
+              longPositions: existing.longPositions + 1,
+              longLiquidated: existing.longLiquidated + liquidation.amount,
+              lastUpdateTime: now,
+              intensity: Math.max(existing.intensity, liquidation.intensity),
+              volatility: 0,
+              liquidationHistory: [
+                ...existing.liquidationHistory.slice(-19),
+                {
+                  type: 'long',
+                  amount: liquidation.amount,
+                  timestamp: now,
+                  change24h: 0
+                }
+              ]
+            };
+            updatedAssets.set(assetName, updated);
+          } else {
+            const newAsset: LongLiquidationAsset = {
+              asset: assetName,
+              ticker: liquidation.ticker,
+              price: liquidation.price,
+              marketCap: realMarketCap,
+              longPositions: 1,
+              longLiquidated: liquidation.amount,
+              lastUpdateTime: now,
+              firstDetectionTime: now,
+              volatility: 0,
+              intensity: liquidation.intensity,
+              liquidationHistory: [{
                 type: 'long',
                 amount: liquidation.amount,
                 timestamp: now,
                 change24h: 0
-              }
-            ]
-          };
-          updatedAssets.set(assetName, updated);
-        } else {
-          const newAsset: LongLiquidationAsset = {
-            asset: assetName,
-            ticker: liquidation.ticker,
-            price: liquidation.price,
-            marketCap: liquidation.marketCap,
-            longPositions: 1,
-            longLiquidated: liquidation.amount,
-            lastUpdateTime: now,
-            firstDetectionTime: now,
-            volatility: 0,
-            intensity: liquidation.intensity,
-            liquidationHistory: [{
-              type: 'long',
-              amount: liquidation.amount,
-              timestamp: now,
-              change24h: 0
-            }]
-          };
-          updatedAssets.set(assetName, newAsset);
+              }]
+            };
+            updatedAssets.set(assetName, newAsset);
+          }
+
+          console.log(`🔴 REAL LONG: ${assetName} - $${(liquidation.amount/1000).toFixed(1)}K (${realMarketCap} cap)`);
+        } catch (error) {
+          console.error('❌ Error processing REAL LONG liquidation:', error, liquidation);
         }
-
-        console.log(`🔴 REAL LONG FILTERED: ${assetName} - $${(liquidation.amount/1000).toFixed(1)}K (${liquidation.marketCap} cap)`);
-      } catch (error) {
-        console.error('❌ Error processing REAL LONG liquidation:', error, liquidation);
       }
-    });
 
-    setLongAssets(updatedAssets);
+      setLongAssets(updatedAssets);
+    };
+
+    processLiquidations();
   }, [longLiquidations]);
 
   // Auto cleanup
