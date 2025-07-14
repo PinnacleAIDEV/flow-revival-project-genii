@@ -168,7 +168,7 @@ export const useAlternatingVolumeDetector = () => {
       (now.getTime() - alert.timestamp.getTime()) < 15 * 60 * 1000
     ));
 
-  }, [flowData, currentMode, detectVolumeAnomaly, alerts]);
+  }, [flowData, currentMode, detectVolumeAnomaly]);
 
   const getSpotAlerts = () => alerts.filter(a => a.type.startsWith('spot_'));
   const getFuturesAlerts = () => alerts.filter(a => a.type.startsWith('futures_'));

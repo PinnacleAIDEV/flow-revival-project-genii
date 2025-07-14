@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SimplifiedTrendReversalSection } from './SimplifiedTrendReversalSection';
+import { OptimizedTrendReversalSection } from './OptimizedTrendReversalSection';
 import { UnifiedTrendReversalAsset } from '../../types/trendReversal';
 
 interface RealTrendReversalSectionProps {
@@ -16,14 +16,11 @@ export const RealTrendReversalSection: React.FC<RealTrendReversalSectionProps> =
   isRealData,
   professionalData
 }) => {
-  console.log(`🔄 REAL TREND REVERSAL usando detector simplificado - ${unifiedAssets.size} assets`);
+  console.log(`🔄 REAL TREND REVERSAL usando detector otimizado - Sistema novo implementado`);
   
   return (
-    <SimplifiedTrendReversalSection 
-      unifiedAssets={unifiedAssets}
+    <OptimizedTrendReversalSection 
       onAssetClick={onAssetClick}
-      isRealData={isRealData}
-      professionalData={professionalData}
     />
   );
 };
