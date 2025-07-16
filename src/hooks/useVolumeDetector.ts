@@ -128,12 +128,12 @@ export const useVolumeDetector = () => {
     
     console.log(`🌊 WEBSOCKET REAL-TIME: ${flowData.length} streams ativos | Status: ${connectionStatus}`);
 
-    // Filtrar apenas dados de preço recentes (últimos 5 segundos) para volume analysis
-    const now = Date.now();
+    // Processar todos os dados de preço não-liquidação disponíveis
     const recentData = flowData.filter(data => 
       !data.isLiquidation && 
-      data.timestamp && 
-      (now - data.timestamp) < 5000 // Últimos 5 segundos
+      data.ticker && 
+      data.volume && 
+      data.price
     );
     
     console.log(`📊 Dados recentes para análise: ${recentData.length}/${flowData.length}`);

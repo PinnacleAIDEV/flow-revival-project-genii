@@ -101,19 +101,12 @@ const UnusualVolume: React.FC = () => {
                         <Timer className="w-3 h-3" />
                         <span>Modo: <span className={`font-bold ${currentMode === 'spot' ? 'text-[#A6FF00]' : 'text-[#00E0FF]'}`}>{currentMode.toUpperCase()}</span> Focus</span>
                       </div>
-                      <Badge className={`${isConnected ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-                        {connectionStatus === 'connected' ? 'WEBSOCKET LIVE' : connectionStatus.toUpperCase()}
-                      </Badge>
                     </div>
                   </div>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
                 <NotificationManager />
-                <div className="flex items-center space-x-2 px-3 py-2 bg-[#2E2E2E]/50 rounded-lg">
-                  <BarChart3 className="w-4 h-4 text-[#00E0FF]" />
-                  <span className="text-[#F5F5F5] font-mono text-sm">{totalAlerts} Alertas Ativos</span>
-                </div>
                 <Button
                   onClick={handleRefresh}
                   disabled={loading}
@@ -147,11 +140,11 @@ const UnusualVolume: React.FC = () => {
           {connectionStatus === 'connected' && (
             <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
-                <div className="text-[#AAAAAA] text-sm">WEBSOCKET</div>
-                <div className={`text-2xl font-mono font-bold ${isConnected ? 'text-[#A6FF00]' : 'text-[#FF4D4D]'}`}>
-                  {isConnected ? 'LIVE' : 'OFF'}
+                <div className="text-[#AAAAAA] text-sm">VOLUME DATA</div>
+                <div className="text-2xl font-mono font-bold text-[#A6FF00]">
+                  REAL-TIME
                 </div>
-                <div className="text-[#AAAAAA] text-xs">Real-time Stream</div>
+                <div className="text-[#AAAAAA] text-xs">Continuous Stream</div>
               </div>
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
                 <div className="text-[#AAAAAA] text-sm">FOCUS MODE</div>
@@ -185,9 +178,9 @@ const UnusualVolume: React.FC = () => {
                 <div className="text-[#00E0FF] text-xs">REAL-TIME STREAM</div>
               </div>
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
-                <div className="text-[#AAAAAA] text-sm">TOTAL ALERTS</div>
+                <div className="text-[#AAAAAA] text-sm">VOLUME SPIKES</div>
                 <div className="text-[#F5F5F5] text-2xl font-mono font-bold">{totalAlerts}</div>
-                <div className="text-[#FF4D4D] text-xs">ACTIVE SIGNALS</div>
+                <div className="text-[#A6FF00] text-xs">DETECTED</div>
               </div>
             </div>
           )}
