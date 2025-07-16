@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRealFlowData } from './useRealFlowData';
 
 interface VolumeAlert {
   id: string;
@@ -17,20 +18,11 @@ interface VolumeAlert {
 
 type MarketMode = 'spot' | 'futures';
 
-interface BinanceTickerData {
-  symbol: string;
-  volume: string;
-  quoteVolume: string;
-  priceChangePercent: string;
-  lastPrice: string;
-  count: number;
-}
-
 export const useVolumeDetector = () => {
+  const { flowData, isConnected, connectionStatus } = useRealFlowData();
   const [alerts, setAlerts] = useState<VolumeAlert[]>([]);
   const [currentMode, setCurrentMode] = useState<MarketMode>('spot');
   const [volumeHistory] = useState<Map<string, number[]>>(new Map());
-  const [isConnected, setIsConnected] = useState(false);
   
   // Lista expandida de ativos para altcoin season
   const spotAssets = [
@@ -64,29 +56,6 @@ export const useVolumeDetector = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchVolumeData = useCallback(async (mode: MarketMode) => {
-    try {
-      const targetAssets = mode === 'spot' ? spotAssets : futuresAssets;
-      const baseUrl = mode === 'spot' 
-        ? 'https://api.binance.com/api/v3/ticker/24hr'
-        : 'https://fapi.binance.com/fapi/v1/ticker/24hr';
-
-      const response = await fetch(baseUrl);
-      if (!response.ok) throw new Error('Failed to fetch data');
-
-      const data: BinanceTickerData[] = await response.json();
-      const filteredData = data.filter(item => targetAssets.includes(item.symbol));
-      
-      console.log(`📡 Fetched ${filteredData.length} assets for ${mode.toUpperCase()} mode`);
-      setIsConnected(true);
-      return filteredData;
-    } catch (error) {
-      console.error('❌ Erro ao buscar dados de volume:', error);
-      setIsConnected(false);
-      return [];
-    }
-  }, [spotAssets, futuresAssets]);
-
   const detectVolumeAnomaly = useCallback((
     ticker: string,
     volume: number,
@@ -94,6 +63,10 @@ export const useVolumeDetector = () => {
     priceChange: number,
     mode: MarketMode
   ): VolumeAlert | null => {
+    // Filtrar apenas ativos do modo atual
+    const targetAssets = mode === 'spot' ? spotAssets : futuresAssets;
+    if (!targetAssets.includes(ticker)) return null;
+
     // Histórico de volume para calcular média
     const history = volumeHistory.get(ticker) || [];
     history.push(volume);
@@ -145,61 +118,59 @@ export const useVolumeDetector = () => {
       strength,
       avgVolume
     };
-  }, [volumeHistory]);
+  }, [volumeHistory, spotAssets, futuresAssets]);
 
-  // Buscar dados baseado no modo atual
+  // Processar dados em tempo real do WebSocket
   useEffect(() => {
-    const fetchData = async () => {
-      const data = await fetchVolumeData(currentMode);
-      
-      if (data.length === 0) return;
+    if (!flowData || flowData.length === 0) return;
 
-      const newAlerts: VolumeAlert[] = [];
-      
-      console.log(`📊 ALTCOIN SEASON: Processando ${data.length} ativos no modo ${currentMode.toUpperCase()}`);
-      console.log(`📈 Samples dos volumes:`, data.slice(0, 3).map(d => ({ symbol: d.symbol, vol: d.quoteVolume, change: d.priceChangePercent })));
+    const newAlerts: VolumeAlert[] = [];
+    
+    console.log(`📊 WEBSOCKET: Processando ${flowData.length} ativos em tempo real - modo ${currentMode.toUpperCase()}`);
 
-      data.forEach(item => {
-        const volume = parseFloat(item.quoteVolume);
-        const price = parseFloat(item.lastPrice);
-        const priceChange = parseFloat(item.priceChangePercent);
+    // Filtrar apenas dados de preço (não liquidações) para volume analysis
+    const priceData = flowData.filter(data => !data.isLiquidation);
+    
+    priceData.forEach(data => {
+      if (!data.ticker || !data.volume || !data.price) return;
 
-        console.log(`🔍 Checking ${item.symbol}: vol=${volume.toFixed(0)}, price=${price}, change=${priceChange.toFixed(2)}%`);
+      // Calcular volume em USD para comparação
+      const volumeUSD = data.volume * data.price;
 
-        if (isNaN(volume) || isNaN(price)) return;
+      console.log(`🔍 WebSocket ${data.ticker}: vol=${volumeUSD.toFixed(0)} USD, price=${data.price}, change=${data.change_24h?.toFixed(2)}%`);
 
-        const alert = detectVolumeAnomaly(
-          item.symbol,
-          volume,
-          price,
-          priceChange,
-          currentMode
-        );
+      const alert = detectVolumeAnomaly(
+        data.ticker,
+        volumeUSD,
+        data.price,
+        data.change_24h || 0,
+        currentMode
+      );
 
-        if (alert) {
-          newAlerts.push(alert);
-          console.log(`🚨 ALTCOIN ALERT: ${alert.type.toUpperCase()} - ${alert.asset} - ${alert.volumeSpike.toFixed(2)}x spike | Price: ${alert.priceMovement.toFixed(2)}% | Strength: ${alert.strength}/5`);
-        }
-      });
-
-      console.log(`📋 Total alertas gerados: ${newAlerts.length}`);
-
-      if (newAlerts.length > 0) {
-        setAlerts(prev => {
-          const combined = [...newAlerts, ...prev];
-          return combined
-            .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-            .slice(0, 100);
-        });
+      if (alert) {
+        newAlerts.push(alert);
+        console.log(`🚨 WEBSOCKET ALERT: ${alert.type.toUpperCase()} - ${alert.asset} - ${alert.volumeSpike.toFixed(2)}x spike | Price: ${alert.priceMovement.toFixed(2)}% | Strength: ${alert.strength}/5`);
       }
-    };
+    });
 
-    // Buscar dados imediatamente e depois a cada 5 segundos (mais responsivo)
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
+    console.log(`📋 WebSocket alertas gerados: ${newAlerts.length}`);
 
-    return () => clearInterval(interval);
-  }, [currentMode, fetchVolumeData, detectVolumeAnomaly]);
+    // Adicionar novos alertas apenas se houver dados novos
+    if (newAlerts.length > 0) {
+      setAlerts(prev => {
+        // Filtrar alertas duplicados
+        const existingIds = new Set(prev.map(a => a.id));
+        const uniqueNewAlerts = newAlerts.filter(alert => !existingIds.has(alert.id));
+        
+        if (uniqueNewAlerts.length === 0) return prev;
+        
+        const combined = [...uniqueNewAlerts, ...prev];
+        return combined
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .slice(0, 100);
+      });
+    }
+  }, [flowData, currentMode, detectVolumeAnomaly]);
 
   // Limpeza automática de alertas antigos
   useEffect(() => {
@@ -223,6 +194,6 @@ export const useVolumeDetector = () => {
     currentMode,
     totalAlerts: alerts.length,
     isConnected,
-    connectionStatus: isConnected ? 'connected' : 'disconnected'
+    connectionStatus: connectionStatus || 'disconnected'
   };
 };
