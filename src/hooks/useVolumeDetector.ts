@@ -23,35 +23,29 @@ export const useVolumeDetector = () => {
   const [alerts, setAlerts] = useState<VolumeAlert[]>([]);
   const [currentMode, setCurrentMode] = useState<MarketMode>('spot');
   const [volumeHistory] = useState<Map<string, number[]>>(new Map());
+  const [lastProcessedTimestamp, setLastProcessedTimestamp] = useState<number>(0);
   
-  // Lista expandida de ativos para altcoin season
-  const spotAssets = [
+  // Lista expandida de ativos para WebSocket real-time
+  const webSocketAssets = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 
     'DOGEUSDT', 'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT',
     'UNIUSDT', 'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT', 'TRXUSDT',
     'SHIBUSDT', 'PEPEUSDT', 'WIFUSDT', 'BONKUSDT', 'FETUSDT', 'AIUSDT',
     'NEARUSDT', 'RNDRUSDT', 'SUIUSDT', 'ARUSDT', 'JUPUSDT', 'PYUSDT',
-    'WLDUSDT', 'INJUSDT', 'FILUSDT', 'GALAUSDT', 'MANTAUSDT', 'RUNEUSDT'
+    'WLDUSDT', 'INJUSDT', 'FILUSDT', 'GALAUSDT', 'MANTAUSDT', 'RUNEUSDT',
+    'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'APEUSDT', 'CHZUSDT', 'ENJUSDT',
+    'QNTUSDT', 'FLOWUSDT', 'ICPUSDT', 'THETAUSDT', 'XTZUSDT', 'MKRUSDT'
   ];
 
-  const futuresAssets = [
-    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'SOLUSDT', 'ADAUSDT',
-    'DOGEUSDT', 'LINKUSDT', 'AVAXUSDT', 'MATICUSDT', 'DOTUSDT', 'UNIUSDT',
-    'LTCUSDT', 'BCHUSDT', 'XLMUSDT', 'VETUSDT', 'TRXUSDT', 'MANAUSDT',
-    'SHIBUSDT', 'PEPEUSDT', 'WIFUSDT', 'BONKUSDT', 'FETUSDT', 'AIUSDT',
-    'NEARUSDT', 'RNDRUSDT', 'SUIUSDT', 'ARUSDT', 'JUPUSDT', 'PYUSDT',
-    'WLDUSDT', 'INJUSDT', 'FILUSDT', 'GALAUSDT', 'MANTAUSDT', 'RUNEUSDT'
-  ];
-
-  // Alternar entre spot e futures a cada 30 segundos
+  // WebSocket não precisa alternar - monitora tudo simultaneamente
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentMode(prev => {
         const newMode = prev === 'spot' ? 'futures' : 'spot';
-        console.log(`🔄 VOLUME DETECTOR: Alternando para modo ${newMode.toUpperCase()}`);
+        console.log(`🔄 WEBSOCKET MODE: Focando em ${newMode.toUpperCase()} (mas monitorando ambos)`);
         return newMode;
       });
-    }, 30000);
+    }, 20000); // Reduzido para 20s por ser WebSocket
 
     return () => clearInterval(interval);
   }, []);
@@ -63,46 +57,46 @@ export const useVolumeDetector = () => {
     priceChange: number,
     mode: MarketMode
   ): VolumeAlert | null => {
-    // Filtrar apenas ativos do modo atual
-    const targetAssets = mode === 'spot' ? spotAssets : futuresAssets;
-    if (!targetAssets.includes(ticker)) return null;
+    // Filtrar ativos que estão no WebSocket
+    if (!webSocketAssets.includes(ticker)) return null;
 
-    // Histórico de volume para calcular média
-    const history = volumeHistory.get(ticker) || [];
+    // Para WebSocket, consideramos todos os dados como válidos (spot/futures determinado pelo contexto)
+    const volumeKey = `${ticker}_${mode}`;
+    const history = volumeHistory.get(volumeKey) || [];
     history.push(volume);
     
     // Manter apenas últimos 20 valores
     if (history.length > 20) {
       history.shift();
     }
-    volumeHistory.set(ticker, history);
+    volumeHistory.set(volumeKey, history);
 
-    // Apenas 3 pontos necessários para altcoin season (mais sensível)
-    if (history.length < 3) return null;
+    // WebSocket permite detecção mais agressiva - apenas 2 pontos
+    if (history.length < 2) return null;
 
     const avgVolume = history.reduce((sum, v) => sum + v, 0) / history.length;
     const volumeSpike = volume / avgVolume;
 
-    // Threshold reduzido para altcoin season: 1.5x+ acima da média
-    if (volumeSpike < 1.5) return null;
+    // Threshold ainda mais baixo para WebSocket real-time: 1.2x
+    if (volumeSpike < 1.2) return null;
 
-    // Determinar tipo baseado no modo e movimento de preço
+    // WebSocket permite detectar todos os tipos simultaneamente
     let alertType: VolumeAlert['type'];
-    if (mode === 'spot') {
-      alertType = priceChange >= 0 ? 'spot_buy' : 'spot_sell';
+    if (priceChange >= 0) {
+      alertType = Math.abs(priceChange) > 5 ? 'futures_long' : 'spot_buy';
     } else {
-      alertType = priceChange >= 0 ? 'futures_long' : 'futures_short';
+      alertType = Math.abs(priceChange) > 5 ? 'futures_short' : 'spot_sell';
     }
 
-    // Força ajustada para altcoin season
+    // Força otimizada para WebSocket real-time
     let strength = 1;
-    if (volumeSpike >= 5) strength = 5;
-    else if (volumeSpike >= 3) strength = 4;
-    else if (volumeSpike >= 2) strength = 3;
-    else if (volumeSpike >= 1.5) strength = 2;
+    if (volumeSpike >= 3) strength = 5;
+    else if (volumeSpike >= 2) strength = 4;
+    else if (volumeSpike >= 1.5) strength = 3;
+    else if (volumeSpike >= 1.2) strength = 2;
 
-    // Bonus por movimento de preço significativo (reduzido de 2% para 1%)
-    if (Math.abs(priceChange) >= 1) strength = Math.min(5, strength + 1);
+    // Bonus WebSocket: movimento de preço > 0.5%
+    if (Math.abs(priceChange) >= 0.5) strength = Math.min(5, strength + 1);
 
     return {
       id: `${ticker}-${mode}-${Date.now()}-${Math.random()}`,
@@ -118,30 +112,44 @@ export const useVolumeDetector = () => {
       strength,
       avgVolume
     };
-  }, [volumeHistory, spotAssets, futuresAssets]);
+  }, [volumeHistory, webSocketAssets]);
 
-  // Processar dados em tempo real do WebSocket
+  // Processar dados WebSocket em tempo real - otimizado
   useEffect(() => {
     if (!flowData || flowData.length === 0) return;
 
+    // Filtrar apenas dados novos para evitar reprocessamento
+    const currentTimestamp = Date.now();
+    if (currentTimestamp - lastProcessedTimestamp < 1000) return; // Throttle 1s
+    
+    setLastProcessedTimestamp(currentTimestamp);
+
     const newAlerts: VolumeAlert[] = [];
     
-    console.log(`📊 WEBSOCKET: Processando ${flowData.length} ativos em tempo real - modo ${currentMode.toUpperCase()}`);
+    console.log(`🌊 WEBSOCKET REAL-TIME: ${flowData.length} streams ativos | Status: ${connectionStatus}`);
 
-    // Filtrar apenas dados de preço (não liquidações) para volume analysis
-    const priceData = flowData.filter(data => !data.isLiquidation);
+    // Filtrar apenas dados de preço recentes (últimos 5 segundos) para volume analysis
+    const now = Date.now();
+    const recentData = flowData.filter(data => 
+      !data.isLiquidation && 
+      data.timestamp && 
+      (now - data.timestamp) < 5000 // Últimos 5 segundos
+    );
     
-    priceData.forEach(data => {
+    console.log(`📊 Dados recentes para análise: ${recentData.length}/${flowData.length}`);
+    
+    recentData.forEach(data => {
       if (!data.ticker || !data.volume || !data.price) return;
 
-      // Calcular volume em USD para comparação
+      // Volume em USD + Volume de trades
       const volumeUSD = data.volume * data.price;
+      const combinedVolume = volumeUSD + (data.trades_count || 0) * 100; // Weight trades
 
-      console.log(`🔍 WebSocket ${data.ticker}: vol=${volumeUSD.toFixed(0)} USD, price=${data.price}, change=${data.change_24h?.toFixed(2)}%`);
+      console.log(`⚡ Real-time ${data.ticker}: $${volumeUSD.toFixed(0)} | ${data.change_24h?.toFixed(2)}% | Trades: ${data.trades_count}`);
 
       const alert = detectVolumeAnomaly(
         data.ticker,
-        volumeUSD,
+        combinedVolume,
         data.price,
         data.change_24h || 0,
         currentMode
@@ -149,37 +157,38 @@ export const useVolumeDetector = () => {
 
       if (alert) {
         newAlerts.push(alert);
-        console.log(`🚨 WEBSOCKET ALERT: ${alert.type.toUpperCase()} - ${alert.asset} - ${alert.volumeSpike.toFixed(2)}x spike | Price: ${alert.priceMovement.toFixed(2)}% | Strength: ${alert.strength}/5`);
+        console.log(`🚨 WEBSOCKET ALERT: ${alert.type.toUpperCase()} - ${alert.asset} - ${alert.volumeSpike.toFixed(2)}x | $${alert.priceMovement.toFixed(2)}% | ⭐${alert.strength}`);
       }
     });
 
-    console.log(`📋 WebSocket alertas gerados: ${newAlerts.length}`);
+    console.log(`📈 Real-time alertas: ${newAlerts.length} gerados`);
 
-    // Adicionar novos alertas apenas se houver dados novos
+    // Sistema de alertas WebSocket otimizado
     if (newAlerts.length > 0) {
       setAlerts(prev => {
-        // Filtrar alertas duplicados
-        const existingIds = new Set(prev.map(a => a.id));
-        const uniqueNewAlerts = newAlerts.filter(alert => !existingIds.has(alert.id));
+        // Anti-spam: Filtrar alertas do mesmo ativo nos últimos 30 segundos
+        const now = new Date();
+        const validPrev = prev.filter(alert => 
+          (now.getTime() - alert.timestamp.getTime()) > 30000 || 
+          !newAlerts.some(newAlert => newAlert.asset === alert.asset)
+        );
         
-        if (uniqueNewAlerts.length === 0) return prev;
-        
-        const combined = [...uniqueNewAlerts, ...prev];
+        const combined = [...newAlerts, ...validPrev];
         return combined
           .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-          .slice(0, 100);
+          .slice(0, 150); // Mais alertas para WebSocket
       });
     }
-  }, [flowData, currentMode, detectVolumeAnomaly]);
+  }, [flowData, currentMode, detectVolumeAnomaly, lastProcessedTimestamp]);
 
-  // Limpeza automática de alertas antigos
+  // Limpeza automática otimizada para WebSocket
   useEffect(() => {
     const cleanup = setInterval(() => {
       const now = new Date();
       setAlerts(prev => prev.filter(alert => 
-        (now.getTime() - alert.timestamp.getTime()) < 15 * 60 * 1000
+        (now.getTime() - alert.timestamp.getTime()) < 10 * 60 * 1000 // 10 minutos para WebSocket
       ));
-    }, 60000);
+    }, 30000); // Limpeza a cada 30 segundos
 
     return () => clearInterval(cleanup);
   }, []);

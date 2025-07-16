@@ -94,15 +94,15 @@ const UnusualVolume: React.FC = () => {
                     <div className="absolute inset-0 bg-[#00E0FF]/20 rounded-lg animate-pulse"></div>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-[#F5F5F5] font-mono">ALTERNATING VOLUME SCANNER 🔄</h2>
+                    <h2 className="text-xl font-bold text-[#F5F5F5] font-mono">WEBSOCKET VOLUME SCANNER ⚡</h2>
                     <div className="flex items-center space-x-4 text-sm text-[#AAAAAA]">
-                      <span>Busca alternada a cada 30s entre Spot e Futures</span>
+                      <span>WebSocket real-time via Digital Ocean droplet</span>
                       <div className="flex items-center space-x-1">
                         <Timer className="w-3 h-3" />
-                        <span>Modo atual: <span className={`font-bold ${currentMode === 'spot' ? 'text-[#A6FF00]' : 'text-[#00E0FF]'}`}>{currentMode.toUpperCase()}</span></span>
+                        <span>Modo: <span className={`font-bold ${currentMode === 'spot' ? 'text-[#A6FF00]' : 'text-[#00E0FF]'}`}>{currentMode.toUpperCase()}</span> Focus</span>
                       </div>
                       <Badge className={`${isConnected ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-                        {connectionStatus === 'connected' ? 'LIVE DATA' : connectionStatus.toUpperCase()}
+                        {connectionStatus === 'connected' ? 'WEBSOCKET LIVE' : connectionStatus.toUpperCase()}
                       </Badge>
                     </div>
                   </div>
@@ -139,19 +139,26 @@ const UnusualVolume: React.FC = () => {
           {connectionStatus === 'connecting' && (
             <EnhancedLoading 
               type="connection" 
-              message="Conectando ao stream de dados da Binance..."
+              message="Conectando ao WebSocket Binance via Digital Ocean..."
             />
           )}
 
           {/* Statistics Summary */}
           {connectionStatus === 'connected' && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
-                <div className="text-[#AAAAAA] text-sm">MODO ATUAL</div>
+                <div className="text-[#AAAAAA] text-sm">WEBSOCKET</div>
+                <div className={`text-2xl font-mono font-bold ${isConnected ? 'text-[#A6FF00]' : 'text-[#FF4D4D]'}`}>
+                  {isConnected ? 'LIVE' : 'OFF'}
+                </div>
+                <div className="text-[#AAAAAA] text-xs">Real-time Stream</div>
+              </div>
+              <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
+                <div className="text-[#AAAAAA] text-sm">FOCUS MODE</div>
                 <div className={`text-2xl font-mono font-bold ${currentMode === 'spot' ? 'text-[#A6FF00]' : 'text-[#00E0FF]'}`}>
                   {currentMode.toUpperCase()}
                 </div>
-                <div className="text-[#AAAAAA] text-xs">Alternando a cada 30s</div>
+                <div className="text-[#AAAAAA] text-xs">Alterna a cada 20s</div>
               </div>
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
                 <div className="text-[#AAAAAA] text-sm">SPOT ALERTS</div>
@@ -169,27 +176,32 @@ const UnusualVolume: React.FC = () => {
               </div>
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
                 <div className="text-[#AAAAAA] text-sm">THRESHOLD</div>
-                <div className="text-[#F5F5F5] text-2xl font-mono font-bold">3X+</div>
-                <div className="text-[#A6FF00] text-xs">VOLUME MULTIPLIER</div>
+                <div className="text-[#F5F5F5] text-2xl font-mono font-bold">1.2X+</div>
+                <div className="text-[#A6FF00] text-xs">WEBSOCKET SENSITIVE</div>
               </div>
               <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
-                <div className="text-[#AAAAAA] text-sm">INTERVAL</div>
-                <div className="text-[#F5F5F5] text-2xl font-mono font-bold">30S</div>
-                <div className="text-[#FF4D4D] text-xs">ALTERNATING SCAN</div>
+                <div className="text-[#AAAAAA] text-sm">LATENCY</div>
+                <div className="text-[#F5F5F5] text-2xl font-mono font-bold">&lt;1S</div>
+                <div className="text-[#00E0FF] text-xs">REAL-TIME STREAM</div>
+              </div>
+              <div className="bg-[#1C1C1E] border-[#2E2E2E] border rounded-lg p-4">
+                <div className="text-[#AAAAAA] text-sm">TOTAL ALERTS</div>
+                <div className="text-[#F5F5F5] text-2xl font-mono font-bold">{totalAlerts}</div>
+                <div className="text-[#FF4D4D] text-xs">ACTIVE SIGNALS</div>
               </div>
             </div>
           )}
 
-          {/* Volume Tables */}
+          {/* WebSocket Volume Tables */}
           {connectionStatus === 'connected' ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <EnhancedVolumeTable data={processedSpotData} title="SPOT VOLUME ANOMALIES" />
-              <EnhancedVolumeTable data={processedFuturesData} title="FUTURES VOLUME ANOMALIES" />
+              <EnhancedVolumeTable data={processedSpotData} title="WEBSOCKET SPOT ANOMALIES" />
+              <EnhancedVolumeTable data={processedFuturesData} title="WEBSOCKET FUTURES ANOMALIES" />
             </div>
           ) : connectionStatus === 'error' ? (
             <div className="text-center py-12 text-red-400">
-              <p>Erro na conexão com dados em tempo real</p>
-              <Button onClick={handleRefresh} className="mt-4">Tentar Novamente</Button>
+              <p>Erro na conexão WebSocket com Digital Ocean</p>
+              <Button onClick={handleRefresh} className="mt-4">Reconectar WebSocket</Button>
             </div>
           ) : (
             <EnhancedLoading type="data" />
@@ -200,14 +212,16 @@ const UnusualVolume: React.FC = () => {
             <div className="text-sm text-[#AAAAAA] space-y-2">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4 text-[#00E0FF]" />
-                <span className="text-[#00E0FF] font-semibold">ESTRATÉGIA DE BUSCA ALTERNADA:</span>
+                <span className="text-[#00E0FF] font-semibold">WEBSOCKET REAL-TIME STRATEGY:</span>
               </div>
               <ul className="space-y-1 ml-6 text-xs">
-                <li>• <strong>30 segundos SPOT</strong>: Detecta volume anormal em mercado à vista (Buy/Sell)</li>
-                <li>• <strong>30 segundos FUTURES</strong>: Detecta volume anormal em mercado futuro (Long/Short)</li>
-                <li>• <strong>Threshold</strong>: Volume 3x+ acima da média histórica de 20 períodos</li>
-                <li>• <strong>Dados Reais</strong>: WebSocket Binance em tempo real</li>
-                <li>• <strong>Anti-spam</strong>: Throttling de 2 minutos por ativo</li>
+                <li>• <strong>WebSocket Stream</strong>: Conexão direta via Digital Ocean droplet</li>
+                <li>• <strong>Latência &lt;1s</strong>: Dados instantâneos sem delay de API calls</li>
+                <li>• <strong>Threshold 1.2x</strong>: Ultra sensível para capturar micromovimentos</li>
+                <li>• <strong>Smart Detection</strong>: Combina volume USD + contagem de trades</li>
+                <li>• <strong>Anti-spam</strong>: Throttling de 30 segundos por ativo</li>
+                <li>• <strong>Focus Mode</strong>: Alterna entre Spot/Futures a cada 20 segundos</li>
+                <li>• <strong>Altcoin Season</strong>: 48+ ativos including PEPE, WIF, BONK</li>
               </ul>
             </div>
           </div>
