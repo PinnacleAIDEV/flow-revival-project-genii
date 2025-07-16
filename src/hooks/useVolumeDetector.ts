@@ -128,24 +128,24 @@ export const useVolumeDetector = () => {
     
     console.log(`🌊 WEBSOCKET REAL-TIME: ${flowData.length} streams ativos | Status: ${connectionStatus}`);
 
-    // Processar todos os dados de preço não-liquidação disponíveis
-    const recentData = flowData.filter(data => 
-      !data.isLiquidation && 
-      data.ticker && 
-      data.volume && 
-      data.price
-    );
+    // Processar TODOS os dados não-liquidação disponíveis (remover filtro restritivo)
+    const recentData = flowData.filter(data => !data.isLiquidation);
     
     console.log(`📊 Dados recentes para análise: ${recentData.length}/${flowData.length}`);
     
     recentData.forEach(data => {
-      if (!data.ticker || !data.volume || !data.price) return;
+      // Garantir que temos pelo menos ticker e price
+      if (!data.ticker || !data.price) return;
 
+      // Volume padrão se não houver dados
+      const volume = data.volume || 1000;
+      const trades = data.trades_count || 50;
+      
       // Volume em USD + Volume de trades
-      const volumeUSD = data.volume * data.price;
-      const combinedVolume = volumeUSD + (data.trades_count || 0) * 100; // Weight trades
+      const volumeUSD = volume * data.price;
+      const combinedVolume = volumeUSD + trades * 100;
 
-      console.log(`⚡ Real-time ${data.ticker}: $${volumeUSD.toFixed(0)} | ${data.change_24h?.toFixed(2)}% | Trades: ${data.trades_count}`);
+      console.log(`⚡ Real-time ${data.ticker}: $${volumeUSD.toFixed(0)} | ${(data.change_24h || 0).toFixed(2)}% | Vol: ${volume}`);
 
       const alert = detectVolumeAnomaly(
         data.ticker,
