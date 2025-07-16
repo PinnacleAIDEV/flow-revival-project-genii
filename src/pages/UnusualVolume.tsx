@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { useRealFlowData } from '../hooks/useRealFlowData';
-import { VolumeTable } from '../components/volume/VolumeTable';
+import { EnhancedVolumeTable } from '../components/volume/EnhancedVolumeTable';
 import { ErrorBoundary } from '../components/ui/error-boundary';
 import { NotificationManager } from '../components/notifications/NotificationManager';
 import { EnhancedLoading } from '../components/ui/enhanced-loading';
@@ -184,8 +184,8 @@ const UnusualVolume: React.FC = () => {
           {/* Volume Tables */}
           {connectionStatus === 'connected' ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <VolumeTable data={processedSpotData} title="SPOT VOLUME ANOMALIES" />
-              <VolumeTable data={processedFuturesData} title="FUTURES VOLUME ANOMALIES" />
+              <EnhancedVolumeTable data={processedSpotData} title="SPOT VOLUME ANOMALIES" />
+              <EnhancedVolumeTable data={processedFuturesData} title="FUTURES VOLUME ANOMALIES" />
             </div>
           ) : connectionStatus === 'error' ? (
             <div className="text-center py-12 text-red-400">

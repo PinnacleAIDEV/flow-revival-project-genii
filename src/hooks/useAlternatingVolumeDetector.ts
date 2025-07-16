@@ -139,36 +139,39 @@ export const useAlternatingVolumeDetector = () => {
       );
 
       if (alert) {
-        // Verificar se não existe alerta similar recente (mesmo ativo, últimos 2 minutos)
-        const recentAlert = alerts.find(a => 
-          a.asset === alert.asset && 
-          a.type === alert.type &&
-          (now.getTime() - a.timestamp.getTime()) < 2 * 60 * 1000
-        );
-
-        if (!recentAlert) {
-          newAlerts.push(alert);
-          console.log(`🚨 ${alert.type.toUpperCase()}: ${alert.asset} - Volume: ${alert.volumeSpike.toFixed(1)}x - Price: ${alert.priceMovement.toFixed(2)}%`);
-        }
+        newAlerts.push(alert);
+        console.log(`🚨 ${alert.type.toUpperCase()}: ${alert.asset} - Volume: ${alert.volumeSpike.toFixed(1)}x - Price: ${alert.priceMovement.toFixed(2)}%`);
       }
     });
 
-    // Adicionar novos alertas e manter apenas os últimos 50
+    // Adicionar novos alertas apenas se houver dados novos
     if (newAlerts.length > 0) {
       setAlerts(prev => {
-        const combined = [...newAlerts, ...prev];
+        // Filtrar alertas duplicados antes de adicionar
+        const existingIds = new Set(prev.map(a => a.id));
+        const uniqueNewAlerts = newAlerts.filter(alert => !existingIds.has(alert.id));
+        
+        if (uniqueNewAlerts.length === 0) return prev;
+        
+        const combined = [...uniqueNewAlerts, ...prev];
         return combined
           .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
           .slice(0, 50);
       });
     }
+  }, [flowData, currentMode]);
 
-    // Limpeza automática de alertas antigos (mais de 15 minutos)
-    setAlerts(prev => prev.filter(alert => 
-      (now.getTime() - alert.timestamp.getTime()) < 15 * 60 * 1000
-    ));
+  // Limpeza automática separada para evitar loops
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const now = new Date();
+      setAlerts(prev => prev.filter(alert => 
+        (now.getTime() - alert.timestamp.getTime()) < 15 * 60 * 1000
+      ));
+    }, 60000); // Limpeza a cada minuto
 
-  }, [flowData, currentMode, detectVolumeAnomaly]);
+    return () => clearInterval(cleanup);
+  }, []);
 
   const getSpotAlerts = () => alerts.filter(a => a.type.startsWith('spot_'));
   const getFuturesAlerts = () => alerts.filter(a => a.type.startsWith('futures_'));
