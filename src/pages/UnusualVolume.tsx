@@ -4,12 +4,12 @@ import { ArrowLeft, Database, RefreshCw, Activity, BarChart3, Timer } from 'luci
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { useRealFlowData } from '../hooks/useRealFlowData';
+
 import { EnhancedVolumeTable } from '../components/volume/EnhancedVolumeTable';
 import { ErrorBoundary } from '../components/ui/error-boundary';
 import { NotificationManager } from '../components/notifications/NotificationManager';
 import { EnhancedLoading } from '../components/ui/enhanced-loading';
-import { useAlternatingVolumeDetector } from '../hooks/useAlternatingVolumeDetector';
+import { useVolumeDetector } from '../hooks/useVolumeDetector';
 
 interface VolumeData {
   id: string;
@@ -29,8 +29,7 @@ interface VolumeData {
 
 const UnusualVolume: React.FC = () => {
   const navigate = useNavigate();
-  const { isConnected, connectionStatus } = useRealFlowData();
-  const { totalAlerts, spotAlerts, futuresAlerts, currentMode } = useAlternatingVolumeDetector();
+  const { totalAlerts, spotAlerts, futuresAlerts, currentMode, isConnected, connectionStatus } = useVolumeDetector();
   
   const [lastUpdate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
