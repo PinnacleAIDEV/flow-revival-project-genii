@@ -102,9 +102,9 @@ class RealKlineVolumeService {
   }
 
   private async connectSpotKlines(): Promise<void> {
-    // Criar streams para múltiplos símbolos spot - klines 1m
+    // BINANCE STREAM API CORRETO - Combined streams
     const streams = this.spotSymbols.map(symbol => `${symbol.toLowerCase()}@kline_1m`);
-    const wsUrl = `wss://stream.binance.com:9443/ws/${streams.join('/')}`;
+    const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams.join('/')}`;
     
     console.log(`🔗 SPOT KLINES: Connecting to ${this.spotSymbols.length} symbols`);
     
@@ -117,6 +117,7 @@ class RealKlineVolumeService {
     this.spotWs.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('📨 SPOT MESSAGE:', data.stream || 'no-stream', data.data?.e || 'no-event');
         if (data.stream && data.data && data.data.e === 'kline') {
           this.processKlineData(data.data, 'spot');
         }
@@ -136,9 +137,9 @@ class RealKlineVolumeService {
   }
 
   private async connectFuturesKlines(): Promise<void> {
-    // Crear streams para múltiplos símbolos futures - klines 1m
+    // BINANCE FUTURES STREAM API CORRETO - Combined streams
     const streams = this.futuresSymbols.map(symbol => `${symbol.toLowerCase()}@kline_1m`);
-    const wsUrl = `wss://fstream.binance.com/ws/${streams.join('/')}`;
+    const wsUrl = `wss://fstream.binance.com/stream?streams=${streams.join('/')}`;
     
     console.log(`🔗 FUTURES KLINES: Connecting to ${this.futuresSymbols.length} symbols`);
     
@@ -151,6 +152,7 @@ class RealKlineVolumeService {
     this.futuresWs.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('📨 FUTURES MESSAGE:', data.stream || 'no-stream', data.data?.e || 'no-event');
         if (data.stream && data.data && data.data.e === 'kline') {
           this.processKlineData(data.data, 'futures');
         }
