@@ -246,8 +246,8 @@ class MultiTimeframeVolumeService {
 
     const volumeMultiplier = volume / baseline.average;
     
-    // Threshold 2x para detectar anomalias
-    if (volumeMultiplier < 2.0) return null;
+    // Threshold mais restritivo: mínimo 3x para detectar anomalias significativas
+    if (volumeMultiplier < 3.0) return null;
 
     // Determinar tipo de alerta baseado no market type e price movement
     let alertType: 'buy' | 'sell' | 'long' | 'short';
