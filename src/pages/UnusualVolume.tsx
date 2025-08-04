@@ -207,4 +207,5 @@ const UnusualVolume = () => {
   );
 };
 
+// Export default corrigido
 export default UnusualVolume;
