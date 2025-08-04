@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
@@ -248,6 +248,63 @@ export type Database = {
         }
         Relationships: []
       }
+      unusual_volume_alerts: {
+        Row: {
+          alert_type: string
+          asset: string
+          created_at_utc: string
+          expires_at: string
+          id: string
+          market_type: string
+          price: number
+          price_movement: number
+          session_region: string | null
+          strength: number
+          ticker: string
+          timeframe: string
+          trades_count: number | null
+          volume_baseline: number
+          volume_current: number
+          volume_multiplier: number
+        }
+        Insert: {
+          alert_type: string
+          asset: string
+          created_at_utc?: string
+          expires_at?: string
+          id?: string
+          market_type: string
+          price?: number
+          price_movement?: number
+          session_region?: string | null
+          strength?: number
+          ticker: string
+          timeframe: string
+          trades_count?: number | null
+          volume_baseline?: number
+          volume_current?: number
+          volume_multiplier?: number
+        }
+        Update: {
+          alert_type?: string
+          asset?: string
+          created_at_utc?: string
+          expires_at?: string
+          id?: string
+          market_type?: string
+          price?: number
+          price_movement?: number
+          session_region?: string | null
+          strength?: number
+          ticker?: string
+          timeframe?: string
+          trades_count?: number | null
+          volume_baseline?: number
+          volume_current?: number
+          volume_multiplier?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -261,6 +318,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_unusual_volume_alerts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_active_assets_optimized: {
         Args: { limit_count?: number }
         Returns: {
@@ -270,6 +331,24 @@ export type Database = {
           is_trending: boolean
           last_activity: string
         }[]
+      }
+      save_unusual_volume_alert: {
+        Args: {
+          p_ticker: string
+          p_asset: string
+          p_timeframe: string
+          p_market_type: string
+          p_alert_type: string
+          p_volume_baseline: number
+          p_volume_current: number
+          p_volume_multiplier: number
+          p_price_movement: number
+          p_price: number
+          p_strength: number
+          p_session_region?: string
+          p_trades_count?: number
+        }
+        Returns: string
       }
       update_asset_statistics: {
         Args: { asset_name: string }
