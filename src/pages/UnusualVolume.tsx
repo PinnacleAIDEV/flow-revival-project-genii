@@ -107,9 +107,9 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">Total Alertas</p>
-                        <p className="text-2xl font-bold">{stats.total}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.total || 0}</p>
                       </div>
                       <Activity className="h-8 w-8 text-primary" />
                     </div>
@@ -119,11 +119,11 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">Spot Buy</p>
-                        <p className="text-2xl font-bold">{stats.spotBuy}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.spotBuy}</p>
                       </div>
-                      <TrendingUp className="h-8 w-8 text-green-500" />
+                      <TrendingUp className="h-8 w-8 text-emerald-500" />
                     </div>
                   </CardContent>
                 </Card>
@@ -131,11 +131,11 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">Spot Sell</p>
-                        <p className="text-2xl font-bold">{stats.spotSell}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.spotSell}</p>
                       </div>
-                      <TrendingUp className="h-8 w-8 text-red-500" />
+                      <TrendingUp className="h-8 w-8 text-rose-500" />
                     </div>
                   </CardContent>
                 </Card>
@@ -143,11 +143,11 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">Futures Long</p>
-                        <p className="text-2xl font-bold">{stats.futuresLong}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.futuresLong}</p>
                       </div>
-                      <BarChart3 className="h-8 w-8 text-blue-500" />
+                      <BarChart3 className="h-8 w-8 text-sky-500" />
                     </div>
                   </CardContent>
                 </Card>
@@ -155,11 +155,11 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">Futures Short</p>
-                        <p className="text-2xl font-bold">{stats.futuresShort}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.futuresShort}</p>
                       </div>
-                      <BarChart3 className="h-8 w-8 text-orange-500" />
+                      <BarChart3 className="h-8 w-8 text-amber-500" />
                     </div>
                   </CardContent>
                 </Card>
@@ -167,9 +167,9 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">High Strength</p>
-                        <p className="text-2xl font-bold">{stats.strong}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.strong}</p>
                       </div>
                       <Zap className="h-8 w-8 text-yellow-500" />
                     </div>
@@ -182,9 +182,9 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">1 Minuto</p>
-                        <p className="text-2xl font-bold">{stats.timeframes['1m']}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.timeframes['1m'] || 0}</p>
                       </div>
                       <Clock className="h-8 w-8 text-indigo-500" />
                     </div>
@@ -194,9 +194,9 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">3 Minutos</p>
-                        <p className="text-2xl font-bold">{stats.timeframes['3m']}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.timeframes['3m'] || 0}</p>
                       </div>
                       <Clock className="h-8 w-8 text-cyan-500" />
                     </div>
@@ -206,9 +206,9 @@ const UnusualVolume = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-muted-foreground">15 Minutos</p>
-                        <p className="text-2xl font-bold">{stats.timeframes['15m']}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.timeframes['15m'] || 0}</p>
                       </div>
                       <Clock className="h-8 w-8 text-teal-500" />
                     </div>
