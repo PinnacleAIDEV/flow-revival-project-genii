@@ -222,12 +222,19 @@ class MultiTimeframeVolumeService {
         samples: 1,
         lastUpdate: Date.now()
       };
+      console.log(`🆕 NEW BASELINE: ${symbol} ${timeframe} | Inicial: ${volume.toFixed(2)}`);
     } else {
       const baseline = this.volumeBaselines[symbol][timeframe];
       const alpha = 0.1; // Weight for exponential moving average
+      const oldAverage = baseline.average;
       baseline.average = baseline.average * (1 - alpha) + volume * alpha;
       baseline.samples = Math.min(baseline.samples + 1, 100); // Max 100 samples
       baseline.lastUpdate = Date.now();
+      
+      // Log apenas a cada 50 updates para não flood
+      if (baseline.samples % 50 === 0) {
+        console.log(`📈 BASELINE UPDATE: ${symbol} ${timeframe} | Old: ${oldAverage.toFixed(2)} | New: ${baseline.average.toFixed(2)} | Samples: ${baseline.samples}`);
+      }
     }
   }
 
@@ -242,12 +249,21 @@ class MultiTimeframeVolumeService {
     trades: number
   ): MultiTimeframeAlert | null {
     const baseline = this.volumeBaselines[symbol]?.[timeframe];
-    if (!baseline || baseline.samples < 5) return null; // Precisamos de pelo menos 5 amostras
+    if (!baseline || baseline.samples < 3) {
+      console.log(`⚠️ SKIP ALERT: ${symbol} ${timeframe} - Baseline insuficiente: ${baseline?.samples || 0} amostras`);
+      return null; // Reduzido para 3 amostras para testar
+    }
 
     const volumeMultiplier = volume / baseline.average;
     
-    // Threshold mais restritivo: mínimo 2.5x para detectar anomalias significativas
-    if (volumeMultiplier < 2.5) return null;
+    // Debug detalhado
+    console.log(`📊 VOLUME CHECK: ${symbol} ${timeframe} | Vol: ${volume} | Baseline: ${baseline.average.toFixed(2)} | Mult: ${volumeMultiplier.toFixed(2)}x | Samples: ${baseline.samples}`);
+    
+    // Threshold temporariamente reduzido para 1.5x para teste
+    if (volumeMultiplier < 1.5) {
+      console.log(`⚠️ SKIP ALERT: ${symbol} ${timeframe} - Volume muito baixo: ${volumeMultiplier.toFixed(2)}x < 1.5x`);
+      return null;
+    }
 
     // Determinar tipo de alerta baseado no market type e price movement
     let alertType: 'buy' | 'sell' | 'long' | 'short';
