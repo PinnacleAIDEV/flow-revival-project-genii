@@ -246,8 +246,8 @@ class MultiTimeframeVolumeService {
 
     const volumeMultiplier = volume / baseline.average;
     
-    // Threshold mais restritivo: mínimo 3x para detectar anomalias significativas
-    if (volumeMultiplier < 3.0) return null;
+    // Threshold mais restritivo: mínimo 2.5x para detectar anomalias significativas
+    if (volumeMultiplier < 2.5) return null;
 
     // Determinar tipo de alerta baseado no market type e price movement
     let alertType: 'buy' | 'sell' | 'long' | 'short';
@@ -259,10 +259,10 @@ class MultiTimeframeVolumeService {
 
     // Calcular strength (1-5) baseado em múltiplos fatores
     let strength = 1;
-    if (volumeMultiplier >= 5) strength = 5;
-    else if (volumeMultiplier >= 4) strength = 4;
-    else if (volumeMultiplier >= 3) strength = 3;
-    else if (volumeMultiplier >= 2.5) strength = 2;
+    if (volumeMultiplier >= 10) strength = 5;
+    else if (volumeMultiplier >= 7) strength = 4;
+    else if (volumeMultiplier >= 5) strength = 3;
+    else if (volumeMultiplier >= 3) strength = 2;
 
     // Bonus por movimento de preço significativo
     if (Math.abs(priceMovement) > 5) strength = Math.min(5, strength + 1);
@@ -371,22 +371,26 @@ class MultiTimeframeVolumeService {
   }
 
   isConnected(): boolean {
-    return (
-      this.spotWs?.readyState === WebSocket.OPEN &&
-      this.futuresWs?.readyState === WebSocket.OPEN
-    );
+    const spotConnected = this.spotWs?.readyState === WebSocket.OPEN;
+    const futuresConnected = this.futuresWs?.readyState === WebSocket.OPEN;
+    return spotConnected && futuresConnected;
   }
 
   getConnectionStatus(): any {
+    const spotConnected = this.spotWs?.readyState === WebSocket.OPEN;
+    const futuresConnected = this.futuresWs?.readyState === WebSocket.OPEN;
+    const isFullyConnected = spotConnected && futuresConnected;
+    
     return {
-      status: this.isConnected() ? 'connected' : 'disconnected',
-      spotStatus: this.spotWs?.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
-      futuresStatus: this.futuresWs?.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
+      status: isFullyConnected ? 'connected' : 'connecting',
+      spotStatus: spotConnected ? 'connected' : 'connecting',
+      futuresStatus: futuresConnected ? 'connected' : 'connecting',
       timeframes: this.timeframes,
       spotSymbols: this.spotSymbols.length,
       futuresSymbols: this.futuresSymbols.length,
       totalStreams: (this.spotSymbols.length + this.futuresSymbols.length) * this.timeframes.length,
-      reconnectAttempts: this.reconnectAttempts
+      reconnectAttempts: this.reconnectAttempts,
+      isConnecting: this.isConnecting
     };
   }
 }
