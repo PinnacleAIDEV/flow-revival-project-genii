@@ -301,8 +301,9 @@ const Index = () => {
                     {tool.title}
                   </h3>
                   
-                  <p className="text-electric font-mono text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: tool.description }}>
-                  </p>
+                   <p className="text-electric font-mono text-sm leading-relaxed mb-4">
+                     {tool.description}
+                   </p>
                   
                   <div className="border-t-2 border-neon pt-4">
                     <span className="text-neon font-mono-bold text-xs group-hover:text-electric transition-colors">
