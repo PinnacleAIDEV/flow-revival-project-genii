@@ -115,9 +115,15 @@ class MultiTimeframeVolumeService {
 
     this.spotWs.onmessage = (event) => {
       try {
+        console.log(`📡 SPOT RAW MESSAGE RECEIVED:`, event.data ? 'DATA OK' : 'NO DATA');
         const data = JSON.parse(event.data);
+        console.log(`📊 SPOT PARSED DATA:`, data.stream ? `Stream: ${data.stream}` : 'NO STREAM', data.data ? 'Has Data' : 'NO DATA');
+        
         if (data.stream && data.data && data.data.e === 'kline') {
+          console.log(`🎯 SPOT KLINE DETECTED: ${data.data.s} ${data.data.i} | Closed: ${data.data.x}`);
           this.processKlineData(data.data, 'spot');
+        } else {
+          console.log(`❌ SPOT DATA NOT KLINE:`, data.data?.e || 'NO EVENT TYPE');
         }
       } catch (error) {
         console.error('❌ SPOT MULTI-TF: Message processing error:', error);
@@ -153,9 +159,15 @@ class MultiTimeframeVolumeService {
 
     this.futuresWs.onmessage = (event) => {
       try {
+        console.log(`📡 FUTURES RAW MESSAGE RECEIVED:`, event.data ? 'DATA OK' : 'NO DATA');
         const data = JSON.parse(event.data);
+        console.log(`📊 FUTURES PARSED DATA:`, data.stream ? `Stream: ${data.stream}` : 'NO STREAM', data.data ? 'Has Data' : 'NO DATA');
+        
         if (data.stream && data.data && data.data.e === 'kline') {
+          console.log(`🎯 FUTURES KLINE DETECTED: ${data.data.s} ${data.data.i} | Closed: ${data.data.x}`);
           this.processKlineData(data.data, 'futures');
+        } else {
+          console.log(`❌ FUTURES DATA NOT KLINE:`, data.data?.e || 'NO EVENT TYPE');
         }
       } catch (error) {
         console.error('❌ FUTURES MULTI-TF: Message processing error:', error);
@@ -173,8 +185,10 @@ class MultiTimeframeVolumeService {
   }
 
   private processKlineData(kline: KlineData, marketType: 'spot' | 'futures'): void {
-    // Só processar klines fechados
-    if (!kline.x) return;
+    console.log(`🔄 PROCESSING KLINE: ${kline.s} ${kline.i} | Closed: ${kline.x} | Market: ${marketType}`);
+    
+    // REMOVER FILTRO DE KLINE FECHADO TEMPORARIAMENTE PARA TESTAR
+    // if (!kline.x) return;
 
     const symbol = kline.s;
     const timeframe = kline.i;
