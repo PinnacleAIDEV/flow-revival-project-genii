@@ -201,7 +201,7 @@ class MultiTimeframeVolumeService {
     );
 
     if (alert) {
-      console.log(`🚨 MULTI-TF ALERT: ${marketType.toUpperCase()} - ${symbol} - ${timeframe} - ${alert.volumeMultiplier.toFixed(2)}x | ${alert.priceMovement.toFixed(2)}% | ⭐${alert.strength}`);
+      console.log(`🚨 ALERT GENERATED: ${marketType.toUpperCase()} ${symbol} ${timeframe} | ${alert.volumeMultiplier.toFixed(2)}x | ${alert.priceMovement > 0 ? '+' : ''}${alert.priceMovement.toFixed(2)}% | ⭐${alert.strength} | ${alert.alertType.toUpperCase()}`);
       
       // Notificar handlers
       this.alertHandlers.forEach(handler => handler(alert));
@@ -231,9 +231,9 @@ class MultiTimeframeVolumeService {
       baseline.samples = Math.min(baseline.samples + 1, 100); // Max 100 samples
       baseline.lastUpdate = Date.now();
       
-      // Log apenas a cada 50 updates para não flood
-      if (baseline.samples % 50 === 0) {
-        console.log(`📈 BASELINE UPDATE: ${symbol} ${timeframe} | Old: ${oldAverage.toFixed(2)} | New: ${baseline.average.toFixed(2)} | Samples: ${baseline.samples}`);
+      // Log apenas marcos importantes (primeiras 10 amostras, depois a cada 100)
+      if (baseline.samples <= 10 || baseline.samples % 100 === 0) {
+        console.log(`📈 BASELINE: ${symbol} ${timeframe} → ${baseline.average.toFixed(0)} (${baseline.samples} samples)`);
       }
     }
   }
@@ -249,19 +249,20 @@ class MultiTimeframeVolumeService {
     trades: number
   ): MultiTimeframeAlert | null {
     const baseline = this.volumeBaselines[symbol]?.[timeframe];
-    if (!baseline || baseline.samples < 3) {
-      console.log(`⚠️ SKIP ALERT: ${symbol} ${timeframe} - Baseline insuficiente: ${baseline?.samples || 0} amostras`);
-      return null; // Reduzido para 3 amostras para testar
+    if (!baseline || baseline.samples < 2) {
+      return null; // Mínimo 2 amostras para baseline inicial
     }
 
     const volumeMultiplier = volume / baseline.average;
     
-    // Debug detalhado
-    console.log(`📊 VOLUME CHECK: ${symbol} ${timeframe} | Vol: ${volume} | Baseline: ${baseline.average.toFixed(2)} | Mult: ${volumeMultiplier.toFixed(2)}x | Samples: ${baseline.samples}`);
+    // Log apenas detecções relevantes para reduzir spam
+    if (volumeMultiplier >= 1.3) {
+      console.log(`🎯 CANDIDATE: ${symbol} ${timeframe} - ${volumeMultiplier.toFixed(2)}x (${this.formatVolume(volume)}/${this.formatVolume(baseline.average)}) | ${priceMovement > 0 ? '+' : ''}${priceMovement.toFixed(2)}%`);
+    }
     
-    // Threshold temporariamente reduzido para 1.5x para teste
-    if (volumeMultiplier < 1.5) {
-      console.log(`⚠️ SKIP ALERT: ${symbol} ${timeframe} - Volume muito baixo: ${volumeMultiplier.toFixed(2)}x < 1.5x`);
+    // Threshold otimizado para detectar mais oportunidades
+    const threshold = timeframe === '1m' ? 1.3 : timeframe === '3m' ? 1.4 : 1.5; // Thresholds dinâmicos por TF
+    if (volumeMultiplier < threshold) {
       return null;
     }
 
@@ -273,18 +274,18 @@ class MultiTimeframeVolumeService {
       alertType = priceMovement > 0 ? 'long' : 'short';
     }
 
-    // Calcular strength (1-5) baseado em múltiplos fatores
+    // Calcular strength (1-5) com critérios otimizados
     let strength = 1;
-    if (volumeMultiplier >= 10) strength = 5;
-    else if (volumeMultiplier >= 7) strength = 4;
-    else if (volumeMultiplier >= 5) strength = 3;
-    else if (volumeMultiplier >= 3) strength = 2;
+    if (volumeMultiplier >= 5) strength = 5;
+    else if (volumeMultiplier >= 3) strength = 4;
+    else if (volumeMultiplier >= 2) strength = 3;
+    else if (volumeMultiplier >= 1.5) strength = 2;
 
-    // Bonus por movimento de preço significativo
-    if (Math.abs(priceMovement) > 5) strength = Math.min(5, strength + 1);
+    // Bonus por movimento de preço significativo (>3%)
+    if (Math.abs(priceMovement) > 3) strength = Math.min(5, strength + 1);
     
-    // Bonus por alto número de trades
-    if (trades > 1000) strength = Math.min(5, strength + 1);
+    // Bonus por alto número de trades (>500)
+    if (trades > 500) strength = Math.min(5, strength + 1);
 
     // Determinar região da sessão baseada no horário UTC
     const sessionRegion = this.getSessionRegion();
@@ -345,6 +346,13 @@ class MultiTimeframeVolumeService {
     } catch (error) {
       console.error('❌ Database save error:', error);
     }
+  }
+
+  private formatVolume(volume: number): string {
+    if (volume >= 1e9) return `${(volume / 1e9).toFixed(2)}B`;
+    if (volume >= 1e6) return `${(volume / 1e6).toFixed(2)}M`;
+    if (volume >= 1e3) return `${(volume / 1e3).toFixed(2)}K`;
+    return volume.toFixed(2);
   }
 
   private handleReconnect(): void {
