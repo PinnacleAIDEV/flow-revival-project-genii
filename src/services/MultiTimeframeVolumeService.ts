@@ -185,6 +185,9 @@ class MultiTimeframeVolumeService {
     const closePrice = parseFloat(kline.c);
     const priceMovement = ((closePrice - openPrice) / openPrice) * 100;
 
+    // DEBUG: Log todos os klines processados
+    console.log(`📊 KLINE RECEIVED: ${marketType} ${symbol} ${timeframe} | Vol: ${this.formatVolume(volume)} | Price: ${priceMovement.toFixed(2)}% | Trades: ${trades}`);
+
     // Atualizar baseline de volume
     this.updateVolumeBaseline(symbol, timeframe, volume);
 
@@ -249,19 +252,22 @@ class MultiTimeframeVolumeService {
     trades: number
   ): MultiTimeframeAlert | null {
     const baseline = this.volumeBaselines[symbol]?.[timeframe];
-    if (!baseline || baseline.samples < 2) {
-      return null; // Mínimo 2 amostras para baseline inicial
+    if (!baseline || baseline.samples < 1) {
+      return null; // Apenas 1 amostra necessária para detecção imediata
     }
 
     const volumeMultiplier = volume / baseline.average;
     
+    // DEBUG: Log TODAS as comparações de volume
+    console.log(`🔍 VOLUME CHECK: ${symbol} ${timeframe} | ${this.formatVolume(volume)} vs ${this.formatVolume(baseline.average)} = ${volumeMultiplier.toFixed(2)}x | ${volumeMultiplier >= 1.1 ? '✅ PASS' : '❌ FAIL'}`);
+    
     // Log apenas detecções relevantes para reduzir spam
-    if (volumeMultiplier >= 1.3) {
-      console.log(`🎯 CANDIDATE: ${symbol} ${timeframe} - ${volumeMultiplier.toFixed(2)}x (${this.formatVolume(volume)}/${this.formatVolume(baseline.average)}) | ${priceMovement > 0 ? '+' : ''}${priceMovement.toFixed(2)}%`);
+    if (volumeMultiplier >= 1.1) {
+      console.log(`🎯 VOLUME ALERT CANDIDATE: ${symbol} ${timeframe} - ${volumeMultiplier.toFixed(2)}x | ${priceMovement > 0 ? '+' : ''}${priceMovement.toFixed(2)}%`);
     }
     
-    // Threshold otimizado para detectar mais oportunidades
-    const threshold = timeframe === '1m' ? 1.3 : timeframe === '3m' ? 1.4 : 1.5; // Thresholds dinâmicos por TF
+    // Threshold MUITO agressivo para forçar detecção
+    const threshold = 1.1; // Muito baixo para garantir detecções
     if (volumeMultiplier < threshold) {
       return null;
     }
@@ -323,8 +329,10 @@ class MultiTimeframeVolumeService {
   }
 
   private async saveAlertToDatabase(alert: MultiTimeframeAlert): Promise<void> {
+    console.log(`💾 SAVING ALERT TO DB: ${alert.ticker} ${alert.timeframe} | ${alert.volumeMultiplier.toFixed(2)}x | ${alert.alertType}`);
+    
     try {
-      const { error } = await supabase.rpc('save_unusual_volume_alert', {
+      const { data, error } = await supabase.rpc('save_unusual_volume_alert', {
         p_ticker: alert.ticker,
         p_asset: alert.asset,
         p_timeframe: alert.timeframe,
@@ -341,10 +349,14 @@ class MultiTimeframeVolumeService {
       });
 
       if (error) {
-        console.error('❌ Failed to save alert to database:', error);
+        console.error('❌ DATABASE SAVE ERROR:', error);
+        console.error('❌ ALERT DATA:', alert);
+      } else {
+        console.log(`✅ ALERT SAVED TO DB: ${alert.ticker} | ID: ${data || 'success'}`);
       }
     } catch (error) {
-      console.error('❌ Database save error:', error);
+      console.error('❌ EXCEPTION DURING DB SAVE:', error);
+      console.error('❌ ALERT DATA:', alert);
     }
   }
 
