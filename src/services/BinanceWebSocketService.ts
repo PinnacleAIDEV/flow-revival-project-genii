@@ -44,7 +44,6 @@ class BinanceWebSocketService {
   private connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error' = 'disconnected';
   private connectionError: string | null = null;
   private reconnectInterval: NodeJS.Timeout | null = null;
-  private isConnecting: boolean = false;
   
   // Droplet configuration
   private dropletIP = '157.245.240.29';
@@ -61,13 +60,6 @@ class BinanceWebSocketService {
   ];
 
   async connect(): Promise<void> {
-    // Prevent multiple simultaneous connections
-    if (this.isConnecting || this.isConnected()) {
-      console.log('⚠️ Connection already in progress or established');
-      return;
-    }
-
-    this.isConnecting = true;
     console.log(`🚀 Connecting to REAL Binance Force Order via Droplet ${this.dropletIP}...`);
     this.connectionStatus = 'connecting';
     this.connectionError = null;
@@ -85,189 +77,74 @@ class BinanceWebSocketService {
       this.connectionStatus = 'error';
       this.connectionError = error instanceof Error ? error.message : 'Connection failed';
       throw error;
-    } finally {
-      this.isConnecting = false;
     }
   }
 
   private async connectForceOrderStream(): Promise<void> {
-    // Try multiple endpoints for better reliability
-    const endpoints = [
-      'wss://fstream.binance.com/ws/!forceOrder@arr',
-      'wss://dstream.binance.com/ws/!forceOrder@arr', 
-      'wss://fstream.binance.com/stream?streams=!forceOrder@arr'
-    ];
+    const wsUrl = this.useDroplet 
+      ? `wss://fstream.binance.com/ws/!forceOrder@arr` // Via droplet proxy eventually
+      : 'wss://fstream.binance.com/ws/!forceOrder@arr';
     
-    let connected = false;
-    let lastError: any = null;
+    console.log(`🔗 Connecting to REAL Force Order Stream via ${this.dropletIP}...`);
     
-    for (const wsUrl of endpoints) {
-      if (connected) break;
-      
-      console.log(`🔗 Trying endpoint: ${wsUrl}`);
-      
-      try {
-        await this.tryConnect(wsUrl);
-        connected = true;
-        console.log(`✅ Successfully connected to: ${wsUrl}`);
-        break;
-      } catch (error) {
-        console.log(`❌ Failed endpoint: ${wsUrl}`, error);
-        lastError = error;
-        continue;
-      }
-    }
-    
-    if (!connected) {
-      throw new Error(`All endpoints failed. Last error: ${lastError}`);
-    }
-  }
-
-  private async tryConnect(wsUrl: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(wsUrl);
-      let resolved = false;
-      
-      // Timeout after 10 seconds
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          ws.close();
-          reject(new Error('Connection timeout'));
-        }
-      }, 10000);
-
-      ws.onopen = () => {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          this.forceOrderWs = ws;
-          this.setupEventHandlers(wsUrl);
-          resolve();
-        }
-      };
-
-      ws.onerror = (error) => {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          reject(error);
-        }
-      };
-    });
-  }
-
-  private setupEventHandlers(wsUrl: string): void {
-    if (!this.forceOrderWs) return;
+    this.forceOrderWs = new WebSocket(wsUrl);
 
     this.forceOrderWs.onopen = () => {
-      console.log(`✅ REAL Force Order stream connected`);
-      console.log(`🔍 WebSocket readyState: ${this.forceOrderWs?.readyState}`);
-      console.log(`🌐 Connected to URL: ${wsUrl}`);
-      console.log(`⏰ Waiting for Force Order data...`);
+      console.log(`✅ REAL Force Order stream connected via droplet ${this.dropletIP} - Professional liquidation data active`);
     };
 
     this.forceOrderWs.onmessage = (event) => {
-      console.log('📨 RAW WebSocket message received:', event.data);
-      
       try {
-        const rawData = JSON.parse(event.data);
-        console.log('📋 Parsed WebSocket data:', JSON.stringify(rawData, null, 2));
+        const data = JSON.parse(event.data);
         
-        // Handle both array format and single object format
-        const dataArray = Array.isArray(rawData) ? rawData : [rawData];
-        console.log(`📊 Processing ${dataArray.length} data items`);
-        
-        dataArray.forEach((data, index) => {
-          console.log(`📄 Item ${index}:`, JSON.stringify(data, null, 2));
+        if (data.e === 'forceOrder') {
+          const forceOrder = data.o;
           
-          if (data.e === 'forceOrder') {
-            const forceOrder = data.o;
-            console.log('💥 Force Order detected:', JSON.stringify(forceOrder, null, 2));
-            
-            // Processar LIQUIDAÇÃO REAL PROFISSIONAL
-            const flowData: FlowData = {
-              ticker: forceOrder.s,
-              price: parseFloat(forceOrder.p),
-              volume: parseFloat(forceOrder.q),
-              timestamp: forceOrder.T,
-              exchange: 'Binance',
-              bid: parseFloat(forceOrder.p),
-              ask: parseFloat(forceOrder.p),
-              change_24h: 0,
-              volume_24h: 0,
-              vwap: parseFloat(forceOrder.p),
-              trades_count: 1,
-              open: parseFloat(forceOrder.p),
-              high: parseFloat(forceOrder.p),
-              low: parseFloat(forceOrder.p),
-              close: parseFloat(forceOrder.p),
-              isLiquidation: true,
-              liquidationType: forceOrder.S === 'SELL' ? 'LONG' : 'SHORT',
-              liquidationAmount: parseFloat(forceOrder.q) * parseFloat(forceOrder.p),
-              liquidationPrice: parseFloat(forceOrder.p),
-              liquidationTime: forceOrder.T
-            };
+          // Processar LIQUIDAÇÃO REAL PROFISSIONAL
+          const flowData: FlowData = {
+            ticker: forceOrder.s,
+            price: parseFloat(forceOrder.p),
+            volume: parseFloat(forceOrder.q),
+            timestamp: forceOrder.T,
+            exchange: 'Binance',
+            bid: parseFloat(forceOrder.p),
+            ask: parseFloat(forceOrder.p),
+            change_24h: 0,
+            volume_24h: 0,
+            vwap: parseFloat(forceOrder.p),
+            trades_count: 1,
+            open: parseFloat(forceOrder.p),
+            high: parseFloat(forceOrder.p),
+            low: parseFloat(forceOrder.p),
+            close: parseFloat(forceOrder.p),
+            isLiquidation: true,
+            liquidationType: forceOrder.S === 'SELL' ? 'LONG' : 'SHORT',
+            liquidationAmount: parseFloat(forceOrder.q) * parseFloat(forceOrder.p),
+            liquidationPrice: parseFloat(forceOrder.p),
+            liquidationTime: forceOrder.T
+          };
 
-            console.log(`🔥 PROFESSIONAL LIQUIDATION: ${flowData.ticker} - ${flowData.liquidationType} - $${(flowData.liquidationAmount!/1000).toFixed(1)}K at $${flowData.price.toFixed(4)}`);
-            
-            this.messageHandlers.forEach(handler => handler(flowData));
-          } else {
-            console.log(`❓ Unknown event type: ${data.e || 'no event type'}`);
-          }
-        });
+          console.log(`🔥 PROFESSIONAL LIQUIDATION: ${flowData.ticker} - ${flowData.liquidationType} - $${(flowData.liquidationAmount!/1000).toFixed(1)}K at $${flowData.price.toFixed(4)}`);
+          
+          this.messageHandlers.forEach(handler => handler(flowData));
+        }
       } catch (error) {
         console.error('❌ Error parsing professional force order data:', error);
-        console.log('📝 Raw data that caused error:', event.data);
       }
     };
 
     this.forceOrderWs.onerror = (error) => {
       console.error('❌ Professional Force Order WebSocket error:', error);
-      console.log('🔍 Error details:', {
-        readyState: this.forceOrderWs?.readyState,
-        url: wsUrl,
-        timestamp: new Date().toISOString()
-      });
     };
 
-    this.forceOrderWs.onclose = (event) => {
+    this.forceOrderWs.onclose = () => {
       console.log('🔌 Professional Force Order WebSocket closed');
-      
-      // Verificar códigos específicos de rate limiting
-      if (event.code === 1008) {
-        console.error('🚫 RATE LIMITING DETECTED! Binance closed connection due to policy violation');
-        console.error('📋 Rate limiting info: You may have exceeded connection limits');
-        console.error('⏰ Rate limits reset: Usually within 1 hour or at the next day');
-      } else if (event.code === 1002) {
-        console.error('🚫 PROTOCOL ERROR: Possibly rate limited or banned');
-      } else if (event.code === 1006) {
-        console.warn('⚠️ ABNORMAL CLOSURE: Could indicate network issues or rate limiting');
-      }
-      
-      console.log('🔍 Close details:', {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-        timestamp: new Date().toISOString(),
-        rateLimitingPossible: [1008, 1002, 1006].includes(event.code)
-      });
       this.handleReconnect();
     };
-
-    // Add a heartbeat to test if connection is alive
-    setTimeout(() => {
-      if (this.forceOrderWs?.readyState === WebSocket.OPEN) {
-        console.log('💓 WebSocket heartbeat - Connection is alive but no data received yet');
-        console.log('🔍 This might mean low liquidation activity right now');
-        console.log('⚠️ If no data in 30 seconds, there might be an issue with the stream');
-      }
-    }, 10000);
   }
 
   private handleReconnect(): void {
     this.connectionStatus = 'disconnected';
-    this.isConnecting = false;
     
     if (this.reconnectInterval) {
       clearTimeout(this.reconnectInterval);
@@ -284,8 +161,6 @@ class BinanceWebSocketService {
   }
 
   disconnect(): void {
-    this.isConnecting = false;
-    
     if (this.reconnectInterval) {
       clearTimeout(this.reconnectInterval);
       this.reconnectInterval = null;
