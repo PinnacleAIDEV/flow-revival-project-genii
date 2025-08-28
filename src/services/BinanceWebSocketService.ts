@@ -233,11 +233,24 @@ class BinanceWebSocketService {
 
     this.forceOrderWs.onclose = (event) => {
       console.log('🔌 Professional Force Order WebSocket closed');
+      
+      // Verificar códigos específicos de rate limiting
+      if (event.code === 1008) {
+        console.error('🚫 RATE LIMITING DETECTED! Binance closed connection due to policy violation');
+        console.error('📋 Rate limiting info: You may have exceeded connection limits');
+        console.error('⏰ Rate limits reset: Usually within 1 hour or at the next day');
+      } else if (event.code === 1002) {
+        console.error('🚫 PROTOCOL ERROR: Possibly rate limited or banned');
+      } else if (event.code === 1006) {
+        console.warn('⚠️ ABNORMAL CLOSURE: Could indicate network issues or rate limiting');
+      }
+      
       console.log('🔍 Close details:', {
         code: event.code,
         reason: event.reason,
         wasClean: event.wasClean,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        rateLimitingPossible: [1008, 1002, 1006].includes(event.code)
       });
       this.handleReconnect();
     };
