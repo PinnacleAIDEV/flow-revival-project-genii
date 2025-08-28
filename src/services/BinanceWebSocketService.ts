@@ -91,16 +91,77 @@ class BinanceWebSocketService {
   }
 
   private async connectForceOrderStream(): Promise<void> {
-    const wsUrl = this.useDroplet 
-      ? `wss://fstream.binance.com/ws/!forceOrder@arr` // Via droplet proxy eventually
-      : 'wss://fstream.binance.com/ws/!forceOrder@arr';
+    // Try multiple endpoints for better reliability
+    const endpoints = [
+      'wss://fstream.binance.com/ws/!forceOrder@arr',
+      'wss://dstream.binance.com/ws/!forceOrder@arr', 
+      'wss://fstream.binance.com/stream?streams=!forceOrder@arr'
+    ];
     
-    console.log(`🔗 Connecting to REAL Force Order Stream via ${this.dropletIP}...`);
+    let connected = false;
+    let lastError: any = null;
     
-    this.forceOrderWs = new WebSocket(wsUrl);
+    for (const wsUrl of endpoints) {
+      if (connected) break;
+      
+      console.log(`🔗 Trying endpoint: ${wsUrl}`);
+      
+      try {
+        await this.tryConnect(wsUrl);
+        connected = true;
+        console.log(`✅ Successfully connected to: ${wsUrl}`);
+        break;
+      } catch (error) {
+        console.log(`❌ Failed endpoint: ${wsUrl}`, error);
+        lastError = error;
+        continue;
+      }
+    }
+    
+    if (!connected) {
+      throw new Error(`All endpoints failed. Last error: ${lastError}`);
+    }
+  }
+
+  private async tryConnect(wsUrl: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(wsUrl);
+      let resolved = false;
+      
+      // Timeout after 10 seconds
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          ws.close();
+          reject(new Error('Connection timeout'));
+        }
+      }, 10000);
+
+      ws.onopen = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          this.forceOrderWs = ws;
+          this.setupEventHandlers(wsUrl);
+          resolve();
+        }
+      };
+
+      ws.onerror = (error) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          reject(error);
+        }
+      };
+    });
+  }
+
+  private setupEventHandlers(wsUrl: string): void {
+    if (!this.forceOrderWs) return;
 
     this.forceOrderWs.onopen = () => {
-      console.log(`✅ REAL Force Order stream connected via droplet ${this.dropletIP} - Professional liquidation data active`);
+      console.log(`✅ REAL Force Order stream connected`);
       console.log(`🔍 WebSocket readyState: ${this.forceOrderWs?.readyState}`);
       console.log(`🌐 Connected to URL: ${wsUrl}`);
       console.log(`⏰ Waiting for Force Order data...`);
