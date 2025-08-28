@@ -104,15 +104,22 @@ class BinanceWebSocketService {
     };
 
     this.forceOrderWs.onmessage = (event) => {
+      console.log('📨 RAW WebSocket message received:', event.data);
+      
       try {
         const rawData = JSON.parse(event.data);
+        console.log('📋 Parsed WebSocket data:', JSON.stringify(rawData, null, 2));
         
         // Handle both array format and single object format
         const dataArray = Array.isArray(rawData) ? rawData : [rawData];
+        console.log(`📊 Processing ${dataArray.length} data items`);
         
-        dataArray.forEach(data => {
+        dataArray.forEach((data, index) => {
+          console.log(`📄 Item ${index}:`, JSON.stringify(data, null, 2));
+          
           if (data.e === 'forceOrder') {
             const forceOrder = data.o;
+            console.log('💥 Force Order detected:', JSON.stringify(forceOrder, null, 2));
             
             // Processar LIQUIDAÇÃO REAL PROFISSIONAL
             const flowData: FlowData = {
@@ -141,10 +148,13 @@ class BinanceWebSocketService {
             console.log(`🔥 PROFESSIONAL LIQUIDATION: ${flowData.ticker} - ${flowData.liquidationType} - $${(flowData.liquidationAmount!/1000).toFixed(1)}K at $${flowData.price.toFixed(4)}`);
             
             this.messageHandlers.forEach(handler => handler(flowData));
+          } else {
+            console.log(`❓ Unknown event type: ${data.e || 'no event type'}`);
           }
         });
       } catch (error) {
         console.error('❌ Error parsing professional force order data:', error);
+        console.log('📝 Raw data that caused error:', event.data);
       }
     };
 
