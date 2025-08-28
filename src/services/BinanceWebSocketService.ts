@@ -95,41 +95,51 @@ class BinanceWebSocketService {
 
     this.forceOrderWs.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        
-        if (data.e === 'forceOrder') {
-          const forceOrder = data.o;
-          
-          // Processar LIQUIDAÇÃO REAL PROFISSIONAL
-          const flowData: FlowData = {
-            ticker: forceOrder.s,
-            price: parseFloat(forceOrder.p),
-            volume: parseFloat(forceOrder.q),
-            timestamp: forceOrder.T,
-            exchange: 'Binance',
-            bid: parseFloat(forceOrder.p),
-            ask: parseFloat(forceOrder.p),
-            change_24h: 0,
-            volume_24h: 0,
-            vwap: parseFloat(forceOrder.p),
-            trades_count: 1,
-            open: parseFloat(forceOrder.p),
-            high: parseFloat(forceOrder.p),
-            low: parseFloat(forceOrder.p),
-            close: parseFloat(forceOrder.p),
-            isLiquidation: true,
-            liquidationType: forceOrder.S === 'SELL' ? 'LONG' : 'SHORT',
-            liquidationAmount: parseFloat(forceOrder.q) * parseFloat(forceOrder.p),
-            liquidationPrice: parseFloat(forceOrder.p),
-            liquidationTime: forceOrder.T
-          };
+        const raw = JSON.parse(event.data);
+        const items = Array.isArray(raw)
+          ? raw
+          : (raw?.data
+              ? (Array.isArray(raw.data) ? raw.data : [raw.data])
+              : [raw]);
 
-          console.log(`🔥 PROFESSIONAL LIQUIDATION: ${flowData.ticker} - ${flowData.liquidationType} - $${(flowData.liquidationAmount!/1000).toFixed(1)}K at $${flowData.price.toFixed(4)}`);
-          
-          this.messageHandlers.forEach(handler => handler(flowData));
-        }
+        items.forEach((msg: any) => {
+          const payload = msg?.data ?? msg;
+          if (payload?.e === 'forceOrder' && payload?.o) {
+            const forceOrder = payload.o;
+            const price = parseFloat(forceOrder.p);
+            const qty = parseFloat(forceOrder.q);
+
+            // Processar LIQUIDAÇÃO REAL PROFISSIONAL
+            const flowData: FlowData = {
+              ticker: forceOrder.s,
+              price,
+              volume: qty,
+              timestamp: forceOrder.T,
+              exchange: 'Binance',
+              bid: price,
+              ask: price,
+              change_24h: 0,
+              volume_24h: 0,
+              vwap: price,
+              trades_count: 1,
+              open: price,
+              high: price,
+              low: price,
+              close: price,
+              isLiquidation: true,
+              liquidationType: forceOrder.S === 'SELL' ? 'LONG' : 'SHORT',
+              liquidationAmount: qty * price,
+              liquidationPrice: price,
+              liquidationTime: forceOrder.T
+            };
+
+            console.log(`🔥 PROFESSIONAL LIQUIDATION: ${flowData.ticker} - ${flowData.liquidationType} - $${(flowData.liquidationAmount!/1000).toFixed(1)}K at $${flowData.price.toFixed(4)}`);
+            
+            this.messageHandlers.forEach(handler => handler(flowData));
+          }
+        });
       } catch (error) {
-        console.error('❌ Error parsing professional force order data:', error);
+        console.error('❌ Error parsing professional force order data:', error, (event as any).data?.slice?.(0, 200));
       }
     };
 
