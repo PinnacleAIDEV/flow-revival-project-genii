@@ -101,6 +101,9 @@ class BinanceWebSocketService {
 
     this.forceOrderWs.onopen = () => {
       console.log(`✅ REAL Force Order stream connected via droplet ${this.dropletIP} - Professional liquidation data active`);
+      console.log(`🔍 WebSocket readyState: ${this.forceOrderWs?.readyState}`);
+      console.log(`🌐 Connected to URL: ${wsUrl}`);
+      console.log(`⏰ Waiting for Force Order data...`);
     };
 
     this.forceOrderWs.onmessage = (event) => {
@@ -160,12 +163,32 @@ class BinanceWebSocketService {
 
     this.forceOrderWs.onerror = (error) => {
       console.error('❌ Professional Force Order WebSocket error:', error);
+      console.log('🔍 Error details:', {
+        readyState: this.forceOrderWs?.readyState,
+        url: wsUrl,
+        timestamp: new Date().toISOString()
+      });
     };
 
-    this.forceOrderWs.onclose = () => {
+    this.forceOrderWs.onclose = (event) => {
       console.log('🔌 Professional Force Order WebSocket closed');
+      console.log('🔍 Close details:', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        timestamp: new Date().toISOString()
+      });
       this.handleReconnect();
     };
+
+    // Add a heartbeat to test if connection is alive
+    setTimeout(() => {
+      if (this.forceOrderWs?.readyState === WebSocket.OPEN) {
+        console.log('💓 WebSocket heartbeat - Connection is alive but no data received yet');
+        console.log('🔍 This might mean low liquidation activity right now');
+        console.log('⚠️ If no data in 30 seconds, there might be an issue with the stream');
+      }
+    }, 10000);
   }
 
   private handleReconnect(): void {
