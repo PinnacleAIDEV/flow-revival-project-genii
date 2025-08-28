@@ -206,6 +206,29 @@ class BinanceWebSocketService {
       this.forceOrderWs.send(JSON.stringify({ method: 'ping' }));
     }
   }
+
+  forceReconnect(): void {
+    console.log('🔄 FORCING CONNECTION RENEWAL...');
+    
+    // Clear any existing reconnect interval
+    if (this.reconnectInterval) {
+      clearTimeout(this.reconnectInterval);
+      this.reconnectInterval = null;
+    }
+    
+    // Close current connection if exists
+    if (this.forceOrderWs) {
+      this.forceOrderWs.close();
+      this.forceOrderWs = null;
+    }
+    
+    // Set status and immediately reconnect
+    this.connectionStatus = 'disconnected';
+    this.connectionError = null;
+    
+    console.log('💪 Initiating FRESH connection to Binance Force Order stream...');
+    this.connect();
+  }
 }
 
 export const binanceWebSocketService = new BinanceWebSocketService();
