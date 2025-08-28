@@ -44,6 +44,7 @@ class BinanceWebSocketService {
   private connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error' = 'disconnected';
   private connectionError: string | null = null;
   private reconnectInterval: NodeJS.Timeout | null = null;
+  private isConnecting: boolean = false;
   
   // Droplet configuration
   private dropletIP = '157.245.240.29';
@@ -60,6 +61,13 @@ class BinanceWebSocketService {
   ];
 
   async connect(): Promise<void> {
+    // Prevent multiple simultaneous connections
+    if (this.isConnecting || this.isConnected()) {
+      console.log('⚠️ Connection already in progress or established');
+      return;
+    }
+
+    this.isConnecting = true;
     console.log(`🚀 Connecting to REAL Binance Force Order via Droplet ${this.dropletIP}...`);
     this.connectionStatus = 'connecting';
     this.connectionError = null;
@@ -77,6 +85,8 @@ class BinanceWebSocketService {
       this.connectionStatus = 'error';
       this.connectionError = error instanceof Error ? error.message : 'Connection failed';
       throw error;
+    } finally {
+      this.isConnecting = false;
     }
   }
 
@@ -95,39 +105,44 @@ class BinanceWebSocketService {
 
     this.forceOrderWs.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
+        const rawData = JSON.parse(event.data);
         
-        if (data.e === 'forceOrder') {
-          const forceOrder = data.o;
-          
-          // Processar LIQUIDAÇÃO REAL PROFISSIONAL
-          const flowData: FlowData = {
-            ticker: forceOrder.s,
-            price: parseFloat(forceOrder.p),
-            volume: parseFloat(forceOrder.q),
-            timestamp: forceOrder.T,
-            exchange: 'Binance',
-            bid: parseFloat(forceOrder.p),
-            ask: parseFloat(forceOrder.p),
-            change_24h: 0,
-            volume_24h: 0,
-            vwap: parseFloat(forceOrder.p),
-            trades_count: 1,
-            open: parseFloat(forceOrder.p),
-            high: parseFloat(forceOrder.p),
-            low: parseFloat(forceOrder.p),
-            close: parseFloat(forceOrder.p),
-            isLiquidation: true,
-            liquidationType: forceOrder.S === 'SELL' ? 'LONG' : 'SHORT',
-            liquidationAmount: parseFloat(forceOrder.q) * parseFloat(forceOrder.p),
-            liquidationPrice: parseFloat(forceOrder.p),
-            liquidationTime: forceOrder.T
-          };
+        // Handle both array format and single object format
+        const dataArray = Array.isArray(rawData) ? rawData : [rawData];
+        
+        dataArray.forEach(data => {
+          if (data.e === 'forceOrder') {
+            const forceOrder = data.o;
+            
+            // Processar LIQUIDAÇÃO REAL PROFISSIONAL
+            const flowData: FlowData = {
+              ticker: forceOrder.s,
+              price: parseFloat(forceOrder.p),
+              volume: parseFloat(forceOrder.q),
+              timestamp: forceOrder.T,
+              exchange: 'Binance',
+              bid: parseFloat(forceOrder.p),
+              ask: parseFloat(forceOrder.p),
+              change_24h: 0,
+              volume_24h: 0,
+              vwap: parseFloat(forceOrder.p),
+              trades_count: 1,
+              open: parseFloat(forceOrder.p),
+              high: parseFloat(forceOrder.p),
+              low: parseFloat(forceOrder.p),
+              close: parseFloat(forceOrder.p),
+              isLiquidation: true,
+              liquidationType: forceOrder.S === 'SELL' ? 'LONG' : 'SHORT',
+              liquidationAmount: parseFloat(forceOrder.q) * parseFloat(forceOrder.p),
+              liquidationPrice: parseFloat(forceOrder.p),
+              liquidationTime: forceOrder.T
+            };
 
-          console.log(`🔥 PROFESSIONAL LIQUIDATION: ${flowData.ticker} - ${flowData.liquidationType} - $${(flowData.liquidationAmount!/1000).toFixed(1)}K at $${flowData.price.toFixed(4)}`);
-          
-          this.messageHandlers.forEach(handler => handler(flowData));
-        }
+            console.log(`🔥 PROFESSIONAL LIQUIDATION: ${flowData.ticker} - ${flowData.liquidationType} - $${(flowData.liquidationAmount!/1000).toFixed(1)}K at $${flowData.price.toFixed(4)}`);
+            
+            this.messageHandlers.forEach(handler => handler(flowData));
+          }
+        });
       } catch (error) {
         console.error('❌ Error parsing professional force order data:', error);
       }
@@ -145,6 +160,7 @@ class BinanceWebSocketService {
 
   private handleReconnect(): void {
     this.connectionStatus = 'disconnected';
+    this.isConnecting = false;
     
     if (this.reconnectInterval) {
       clearTimeout(this.reconnectInterval);
@@ -161,6 +177,8 @@ class BinanceWebSocketService {
   }
 
   disconnect(): void {
+    this.isConnecting = false;
+    
     if (this.reconnectInterval) {
       clearTimeout(this.reconnectInterval);
       this.reconnectInterval = null;
