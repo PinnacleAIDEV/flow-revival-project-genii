@@ -4,9 +4,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { MultiTimeframeAlert } from '@/services/MultiTimeframeVolumeService';
+import { UnusualVolumeAlert } from '@/services/UnusualVolumeV2Service';
 
 interface MultiTimeframeVolumeTableProps {
-  data: MultiTimeframeAlert[];
+  data: MultiTimeframeAlert[] | UnusualVolumeAlert[];
   title: string;
   alertType: 'buy' | 'sell' | 'long' | 'short';
   marketType: 'spot' | 'futures';
@@ -35,8 +36,14 @@ export const MultiTimeframeVolumeTable: React.FC<MultiTimeframeVolumeTableProps>
     }
   };
 
-  // Filtrar dados
-  let filteredData = data;
+  // Filtrar dados com null safety
+  let filteredData = (data || []).filter(item => 
+    item && 
+    item.strength && 
+    item.timeframe && 
+    typeof item.volumeMultiplier === 'number' && 
+    !isNaN(item.volumeMultiplier)
+  );
   
   if (filterStrength !== 'all') {
     const minStrength = parseInt(filterStrength);
@@ -47,20 +54,30 @@ export const MultiTimeframeVolumeTable: React.FC<MultiTimeframeVolumeTableProps>
     filteredData = filteredData.filter(item => item.timeframe === filterTimeframe);
   }
 
-  // Ordenar dados
+  // Ordenar dados com null safety
   const sortedData = [...filteredData].sort((a, b) => {
-    let aValue: any = a[sortField];
-    let bValue: any = b[sortField];
-    
-    if (sortField === 'timestamp') {
-      aValue = a.timestamp.getTime();
-      bValue = b.timestamp.getTime();
-    }
-    
-    if (sortDirection === 'asc') {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
+    try {
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
+      
+      if (sortField === 'timestamp') {
+        aValue = a.timestamp?.getTime() || 0;
+        bValue = b.timestamp?.getTime() || 0;
+      }
+      
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      
+      if (sortDirection === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    } catch (error) {
+      console.warn('Sort error:', error);
+      return 0;
     }
   });
 
@@ -92,6 +109,7 @@ export const MultiTimeframeVolumeTable: React.FC<MultiTimeframeVolumeTableProps>
   };
 
   const formatVolume = (volume: number) => {
+    if (!volume || isNaN(volume)) return '0';
     if (volume >= 1e9) return `${(volume / 1e9).toFixed(2)}B`;
     if (volume >= 1e6) return `${(volume / 1e6).toFixed(2)}M`;
     if (volume >= 1e3) return `${(volume / 1e3).toFixed(2)}K`;
@@ -99,11 +117,18 @@ export const MultiTimeframeVolumeTable: React.FC<MultiTimeframeVolumeTableProps>
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('pt-BR', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    try {
+      if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+        return '--:--:--';
+      }
+      return date.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch (error) {
+      return '--:--:--';
+    }
   };
 
   const getTypeEmoji = (type: string) => {
@@ -207,8 +232,8 @@ export const MultiTimeframeVolumeTable: React.FC<MultiTimeframeVolumeTableProps>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedData.map((alert) => (
-                  <TableRow key={`${alert.id}-${alert.timestamp.getTime()}`} className="hover:bg-muted/50">
+                {sortedData.map((alert, index) => (
+                  <TableRow key={`${alert.id || index}-${alert.timestamp?.getTime() || Date.now()}`} className="hover:bg-muted/50">
                     <TableCell>
                       <Badge 
                         variant="outline" 
@@ -227,16 +252,16 @@ export const MultiTimeframeVolumeTable: React.FC<MultiTimeframeVolumeTableProps>
                                  alert.volumeMultiplier >= 3 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                                  'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'}
                       >
-                        {alert.volumeMultiplier.toFixed(1)}x
+                        {(alert.volumeMultiplier || 0).toFixed(1)}x
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <span className={`font-medium ${
-                        alert.priceMovement > 0 ? 'text-green-600 dark:text-green-400' : 
-                        alert.priceMovement < 0 ? 'text-red-600 dark:text-red-400' : 
+                        (alert.priceMovement || 0) > 0 ? 'text-green-600 dark:text-green-400' : 
+                        (alert.priceMovement || 0) < 0 ? 'text-red-600 dark:text-red-400' : 
                         'text-gray-600 dark:text-gray-400'
                       }`}>
-                        {alert.priceMovement > 0 ? '+' : ''}{alert.priceMovement.toFixed(2)}%
+                        {(alert.priceMovement || 0) > 0 ? '+' : ''}{(alert.priceMovement || 0).toFixed(2)}%
                       </span>
                     </TableCell>
                     <TableCell>
@@ -251,7 +276,7 @@ export const MultiTimeframeVolumeTable: React.FC<MultiTimeframeVolumeTableProps>
                       {formatVolume(alert.volumeCurrent)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {alert.tradesCount.toLocaleString()}
+                      {(alert.tradesCount || 0).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatTime(alert.timestamp)}
