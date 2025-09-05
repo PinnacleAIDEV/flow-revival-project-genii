@@ -3,6 +3,7 @@ import { Search, TrendingDown, TrendingUp, Eye, Clock, Zap } from 'lucide-react'
 import { useSeparatedLiquidations } from '../hooks/useSeparatedLiquidations';
 import { useTrading } from '../contexts/TradingContext';
 import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
+import { useWebhookNotifier } from '../hooks/useWebhookNotifier';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
@@ -28,6 +29,7 @@ export const CoinTrendHunter: React.FC = () => {
   const { longLiquidations, shortLiquidations } = useSeparatedLiquidations();
   const { setSelectedAsset } = useTrading();
   const { saveCoinTrend } = useSupabaseStorage();
+  const { notifyPairs } = useWebhookNotifier();
   const [uncommonLiquidations, setUncommonLiquidations] = useState<UncommonLiquidation[]>([]);
 
   useEffect(() => {
@@ -197,6 +199,9 @@ export const CoinTrendHunter: React.FC = () => {
         });
         
         console.log(`✅ COIN TREND HUNTER: ${newUncommonLiquidations.length} liquidações LOW CAP processadas ($2K-$5K)`);
+        
+        // Notificar webhook com os novos pares
+        notifyPairs(newUncommonLiquidations, 'CoinTrendHunter');
       }
     };
 
