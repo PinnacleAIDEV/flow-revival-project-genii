@@ -10,7 +10,7 @@ interface WebhookPayload {
 export const useWebhookNotifier = () => {
   const sentPairs = useRef<Set<string>>(new Set());
   const lastSentTime = useRef<number>(0);
-  const WEBHOOK_URL = 'https://n8n-hook.jpltec.com.br/webhook/1a4be5e1-22f7-49a7-a457-40c6b295842f';
+  const WEBHOOK_URL = 'https://n8n-main.jpltec.com.br/webhook-test/1a4be5e1-22f7-49a7-a457-40c6b295842f';
   const THROTTLE_TIME = 5000; // 5 segundos entre envios
 
   const sendToWebhook = async (pairs: string[], source: string) => {
