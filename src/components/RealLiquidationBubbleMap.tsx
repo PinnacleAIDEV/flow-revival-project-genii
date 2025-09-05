@@ -26,12 +26,14 @@ export const RealLiquidationBubbleMap: React.FC = () => {
   // Notificar webhook quando houver novas liquidações
   useEffect(() => {
     if (longLiquidations.length > 0) {
+      console.log(`🚀 WEBHOOK: Enviando ${longLiquidations.length} LONG liquidations para webhook`);
       notifyPairs(longLiquidations, 'RealLongLiquidations');
     }
   }, [longLiquidations, notifyPairs]);
 
   useEffect(() => {
     if (shortLiquidations.length > 0) {
+      console.log(`🚀 WEBHOOK: Enviando ${shortLiquidations.length} SHORT liquidations para webhook`);
       notifyPairs(shortLiquidations, 'RealShortLiquidations');
     }
   }, [shortLiquidations, notifyPairs]);
