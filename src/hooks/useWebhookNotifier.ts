@@ -1,11 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-interface WebhookPayload {
-  pairs: string[];
-  timestamp: string;
-  source: string;
-  page: 'liquidation';
-}
+// Enviar apenas array de pares
 
 export const useWebhookNotifier = () => {
   const sentPairs = useRef<Set<string>>(new Set());
@@ -29,13 +24,6 @@ export const useWebhookNotifier = () => {
     }
 
     try {
-      const payload: WebhookPayload = {
-        pairs: newPairs,
-        timestamp: new Date().toISOString(),
-        source,
-        page: 'liquidation'
-      };
-
       console.log(`🚀 ENVIANDO ${newPairs.length} pares para webhook:`, newPairs);
 
       const response = await fetch(WEBHOOK_URL, {
@@ -44,7 +32,7 @@ export const useWebhookNotifier = () => {
           'Content-Type': 'application/json',
         },
         mode: 'no-cors',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(newPairs), // Enviar apenas array de pares
       });
 
       // Marcar pares como enviados
